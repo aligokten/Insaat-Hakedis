@@ -21,7 +21,7 @@ git clone <repo> && cd Insaat-Hakedis
 | **Projeler & DWG** ✅ | Dosyayı gerçekten saklar (IndexedDB), indirir, siler; DXF'i ayrıştırıp katman/geometri/ölçüm çıkarır ve vektör önizleme çizer; DWG'nin gömülü küçük resmini ve sürümünü okur; katman ölçüsünü tek tıkla metraja aktarır |
 | **Metraj** ✅ | Poz ekleme/düzenleme/silme, proje filtresi, otomatik tutar hesabı, manuel doğrulama, CSV dışa aktarma |
 | **Taşeronlar** | Alt yüklenici kartları, sözleşme/SGK durumu ve modül bazlı yetki anahtarları (metraj görüntüleme, DWG indirme, hakediş hazırlama, kalite formu, stok talebi) |
-| **Kalite Kontrol** | İmalat bazlı kontrol kayıtları, sonuç (onay/şartlı/red), skor, tamamlanma yüzdesi ve taşeron kalite karnesi |
+| **Kalite Kontrol** ✅ | İmalat türüne göre kontrol şablonları, madde bazlı Uygun / Uygun Değil / Kapsam Dışı işaretleme, ağırlıklı otomatik puanlama ve sonuç önerisi, saha fotoğrafı ekleme, sapma notları, yeniden kontrol zinciri, taşeron karnesi, CSV |
 | **Hakediş** ✅ | Metraj kalemlerinden hakediş oluşturma (canlı tutar özeti), kesinti/avans/KDV hesabı, Taslak → Kontrolde → Onay Bekliyor → Onaylandı akışı, red gerekçesi, kalem detayı ve CSV |
 | **Stok** | Depo bazlı mevcut/rezerve/kullanılabilir miktar, kritik seviye uyarısı ve sipariş önerileri |
 | **Tedarik** | Satın alma siparişlerinin onay–sevkiyat–teslim takibi ve teslim takvimi |
@@ -70,8 +70,23 @@ değiştirilecek şekilde tasarlandı; görünüm kodunda değişiklik gerekmez.
 
 ### Modül durumu
 
-- ✅ **Bağlandı:** Projeler & DWG, Metraj, Hakediş, taşeron yetkileri, veri yönetimi
-- ⏳ **Sırada:** Kalite Kontrol, Stok, Tedarik, Raporlama
+- ✅ **Bağlandı:** Projeler & DWG, Metraj, Kalite Kontrol, Hakediş, taşeron yetkileri, veri yönetimi
+- ⏳ **Sırada:** Stok, Tedarik, Raporlama
+
+## Kalite puanlama
+
+Puan = *uygun işaretlenen maddelerin ağırlık toplamı* / *kapsamdaki toplam ağırlık* × 100.
+“Kapsam dışı” maddeler paydaya girmez. Sonuç otomatik önerilir: **%90+** Onaylandı,
+**%60–89** Şartlı Onay, **%60 altı** Red.
+
+Şablonlar `assets/js/data.js` içindeki `KALITE_SABLON` nesnesinde tanımlıdır
+(Beton Dökümü, Duvar Örgüsü, Sıva ve Alçı, Seramik Kaplama, Mekanik Tesisat,
+Elektrik Tesisatı, Cephe Mantolama). Yeni şablon eklemek için bu nesneye
+`'Şablon adı': [{ ad, agirlik }, …]` girdisi eklemek yeterlidir.
+
+Red veya Şartlı Onay alan kayıtlar “açık sapma” sayılır; yeniden kontrol yapıldığında
+eski kayda bağlanır ve açık sapma listesinden düşer. Hakediş oluştururken seçilen
+taşeronun açık sapmaları uyarı olarak gösterilir.
 
 ## Pafta formatları
 

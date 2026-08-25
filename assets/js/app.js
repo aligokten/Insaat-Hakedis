@@ -9,7 +9,8 @@
   const state = {
     rol: 'yonetici',           // yonetici | taseron
     metrajProje: 'hepsi',
-    hakedisDurum: 'hepsi'
+    hakedisDurum: 'hepsi',
+    kaliteSonuc: 'hepsi'
   };
 
   /* Hakedis onay akisi ve rol yetkileri */
@@ -661,53 +662,323 @@
   }
 
   /* ----------------------------------------------------------- kalite */
+  const KALITE_DURUM = ['Uygun', 'Uygun Değil', 'Kapsam Dışı'];
+
+  function kaliteListesi() {
+    const hepsi = S.get('kaliteKontrol');
+    return state.kaliteSonuc === 'hepsi' ? hepsi : hepsi.filter((q) => q.sonuc === state.kaliteSonuc);
+  }
+
+  /* Maddelerden agirlikli skor; kapsam disi maddeler paydaya girmez */
+  function kaliteSkor(maddeler) {
+    if (!maddeler || !maddeler.length) return null;
+    let payda = 0, pay = 0;
+    maddeler.forEach((m) => {
+      if (m.durum === 'Kapsam Dışı') return;
+      payda += m.agirlik;
+      if (m.durum === 'Uygun') pay += m.agirlik;
+    });
+    return payda ? Math.round(pay / payda * 100) : null;
+  }
+
+  const skorSonuc = (skor) => (DB.KALITE_ESIK.find((e) => skor >= e.alt) || { sonuc: 'Red' }).sonuc;
+
   function viewKalite() {
-    const rows = S.get('kaliteKontrol').map((q) => `
+    const liste = kaliteListesi();
+    const hepsi = S.get('kaliteKontrol');
+
+    const rows = liste.map((q) => `
       <tr>
-        <td><span class="strong">${q.id}</span><div class="muted">${q.tarih}</div></td>
-        <td>${q.imalat}<div class="muted">${q.notlar}</div></td>
+        <td><span class="strong nowrap">${q.id}</span><div class="muted nowrap">${q.tarih}</div></td>
+        <td>${q.imalat}<div class="muted">${q.sablon || '—'}${q.duzeltmeAta ? ' · yeniden kontrol' : ''}</div></td>
         <td>${taseronAd(q.taseron)}</td>
         <td>${q.kontrolor}</td>
         <td class="num">${q.skor ? q.skor : '—'}</td>
         <td style="min-width:130px">${bar(q.tamamlanma, q.tamamlanma >= 90 ? 'ok' : q.tamamlanma >= 60 ? 'warn' : 'bad')}</td>
         <td>${badge(q.sonuc, durumKind(q.sonuc))}</td>
-      </tr>`).join('');
+        <td>
+          <div class="satir-islem">
+            <button class="ikon-btn" title="Detay" data-kalite-detay="${q._id}">${icon('goz')}</button>
+            ${q.sonuc === 'Red' || q.sonuc === 'Şartlı Onay'
+              ? `<button class="ikon-btn" title="Yeniden kontrol" data-kalite-tekrar="${q._id}">${icon('kalem')}</button>` : ''}
+            <button class="ikon-btn tehlike" title="Sil" data-kalite-sil="${q._id}">${icon('cop')}</button>
+          </div>
+        </td>
+      </tr>`).join('') ||
+      '<tr><td colspan="8"><div class="empty">Bu filtrede kontrol kaydı yok.</div></td></tr>';
 
-    const onayli = S.get('kaliteKontrol').filter((q) => q.sonuc === 'Onaylandı').length;
-    const ortTamam = S.get('kaliteKontrol').reduce((s, q) => s + q.tamamlanma, 0) / S.get('kaliteKontrol').length;
+    const onayli = hepsi.filter((q) => q.sonuc === 'Onaylandı').length;
+    const ortTamam = hepsi.length ? hepsi.reduce((t, q) => t + q.tamamlanma, 0) / hepsi.length : 0;
+    /* yeniden kontrolu yapilmis kayit artik acik sapma sayilmaz */
+    const acikSapma = hepsi.filter((q) =>
+      (q.sonuc === 'Red' || q.sonuc === 'Şartlı Onay') && !q.tekrarKayit);
 
     return `
-    ${pageHead('KALİTE KONTROL', 'İmalat bazlı kontrol formları, sapma kayıtları ve tamamlanma durumu.')}
+    ${pageHead('KALİTE KONTROL', 'Şablona dayalı kontrol formları, ağırlıklı puanlama, sapma kayıtları ve yeniden kontrol takibi.')}
     <div class="grid cols-4" style="padding:0 10px 14px">
-      ${kpi(onayli + '/' + S.get('kaliteKontrol').length, 'Onaylanan kontrol', 'up', 'bu ay')}
-      ${kpi(pct(ortTamam), 'Ortalama tamamlanma', 'up', 'tüm imalatlar')}
-      ${kpi(String(S.get('kaliteKontrol').filter((q) => q.sonuc === 'Red').length), 'Reddedilen imalat', 'down', 'yeniden yapım')}
-      ${kpi(String(S.get('kaliteKontrol').filter((q) => q.sonuc === 'Beklemede').length), 'Bekleyen kontrol', 'down', 'test raporu')}
+      ${kpi(onayli + '/' + hepsi.length, 'Onaylanan kontrol', onayli >= hepsi.length / 2 ? 'up' : 'down', 'tüm kayıtlar')}
+      ${kpi(pct(ortTamam), 'Ortalama tamamlanma', 'up', 'imalat bazlı')}
+      ${kpi(num(acikSapma.length), 'Açık sapma', acikSapma.length ? 'down' : 'up', 'red + şartlı onay')}
+      ${kpi(num(hepsi.filter((q) => q.sonuc === 'Beklemede').length), 'Bekleyen kontrol', 'down', 'sonuç girilmedi')}
     </div>
     <div class="grid side" style="padding:0 10px">
       <div class="card">
         <div class="card-head"><h3>Kontrol kayıtları</h3><div class="spacer"></div>
-          <button class="btn accent sm" data-act="yeni-kontrol">${icon('plus')} Yeni kontrol</button></div>
+          <div class="arac-cubugu">
+            <select id="kaliteSonuc" aria-label="Sonuç filtresi">
+              <option value="hepsi">Tüm sonuçlar</option>
+              ${['Onaylandı', 'Şartlı Onay', 'Red', 'Beklemede'].map((d) =>
+                `<option value="${d}" ${state.kaliteSonuc === d ? 'selected' : ''}>${d}</option>`).join('')}
+            </select>
+            <button class="btn ghost sm" data-act="kalite-csv">${icon('download')} CSV</button>
+            <button class="btn accent sm" data-act="kalite-ekle">${icon('plus')} Yeni kontrol</button>
+          </div></div>
         <div class="table-wrap"><table>
           <thead><tr><th>Kayıt</th><th>İmalat</th><th>Taşeron</th><th>Kontrolör</th>
-            <th class="num">Skor</th><th>Tamamlanma</th><th>Sonuç</th></tr></thead>
+            <th class="num">Skor</th><th>Tamamlanma</th><th>Sonuç</th><th></th></tr></thead>
           <tbody>${rows}</tbody>
         </table></div>
       </div>
-      <div class="card">
-        <div class="card-head"><h3>Taşeron kalite skoru</h3></div>
-        ${S.get('taseronlar').slice(0, 5).map((t) => {
-          const kayit = S.get('kaliteKontrol').filter((q) => q.taseron === t.id);
-          const sk = kayit.length ? kayit.reduce((s, q) => s + q.skor, 0) / kayit.length : t.puan * 20;
-          return `<div style="padding:9px 0;border-top:1px solid var(--line-soft)">
-            <div style="display:flex;font-size:12.5px;margin-bottom:6px">
-              <span>${t.ad}</span><span style="margin-left:auto;color:var(--ink-3)">${t.brans}</span></div>
-            ${bar(sk, sk >= 85 ? 'ok' : sk >= 60 ? 'warn' : 'bad')}
-          </div>`;
-        }).join('')}
+      <div class="grid" style="gap:14px">
+        <div class="card">
+          <div class="card-head"><h3>Taşeron kalite karnesi</h3></div>
+          ${S.get('taseronlar').map((t) => {
+            const kayit = hepsi.filter((q) => q.taseron === t.id && q.skor);
+            if (!kayit.length) return '';
+            const sk = kayit.reduce((s, q) => s + q.skor, 0) / kayit.length;
+            return `<div style="padding:9px 0;border-top:1px solid var(--line-soft)">
+              <div style="display:flex;font-size:12.5px;margin-bottom:6px">
+                <span>${t.ad}</span>
+                <span style="margin-left:auto;color:var(--ink-3)">${kayit.length} kontrol</span></div>
+              ${bar(sk, sk >= 85 ? 'ok' : sk >= 60 ? 'warn' : 'bad')}
+            </div>`;
+          }).join('') || '<div class="empty">Puanlı kontrol kaydı yok.</div>'}
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>Açık sapmalar</h3></div>
+          ${acikSapma.map((q) => `
+            <div class="list-item">
+              <div class="ico">${icon('alert')}</div>
+              <div class="txt"><b>${q.imalat}</b><span>${taseronAd(q.taseron)} · ${q.sonuc}${q.skor ? ' · puan ' + q.skor : ''}</span></div>
+              <div class="spacer"></div>
+              <button class="btn ghost sm" data-kalite-tekrar="${q._id}">Yeniden kontrol</button>
+            </div>`).join('') || '<div class="empty">Açık sapma yok.</div>'}
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>Puanlama kuralı</h3></div>
+          <div class="ozet-satir"><span>Uygun maddelerin ağırlık toplamı / kapsamdaki toplam ağırlık</span></div>
+          <div class="ozet-satir"><span>%90 ve üzeri</span><b>${badge('Onaylandı', 'ok')}</b></div>
+          <div class="ozet-satir"><span>%60 – %89</span><b>${badge('Şartlı Onay', 'warn')}</b></div>
+          <div class="ozet-satir"><span>%60 altı</span><b>${badge('Red', 'bad')}</b></div>
+          <p class="modal-metin" style="margin-top:10px">“Kapsam dışı” işaretlenen maddeler paydaya girmez.</p>
+        </div>
       </div>
     </div>`;
   }
+
+  /* ------------------------------------------- kontrol formu (puanli) */
+  async function kaliteFormu(oncekiId) {
+    const onceki = oncekiId ? S.bul('kaliteKontrol', oncekiId) : null;
+    const sablonAdlari = Object.keys(DB.KALITE_SABLON);
+    const varsayilanSablon = (onceki && onceki.sablon) || sablonAdlari[0];
+    const fotograflar = [];   // {id, ad, kucuk}
+
+    const maddeSatiri = (m, i) => `
+      <tr data-madde="${i}">
+        <td><b>${m.ad}</b><div class="muted">ağırlık ${m.agirlik}</div></td>
+        ${KALITE_DURUM.map((d) => `
+          <td class="num"><label class="secim-hucre">
+            <input type="radio" name="madde_${i}" value="${d}" ${d === 'Uygun' ? 'checked' : ''}>
+          </label></td>`).join('')}
+        <td><input type="text" data-not placeholder="sapma notu" class="madde-not"></td>
+      </tr>`;
+
+    const sonuc = await UI.form({
+      baslik: onceki ? 'Yeniden kontrol · ' + onceki.imalat : 'Yeni kalite kontrolü',
+      aciklama: 'Şablon maddelerini işaretleyin; puan ve sonuç ağırlıklara göre otomatik hesaplanır.',
+      kaydetEtiketi: 'Kontrolü kaydet',
+      alanlar: [
+        { ad: 'imalat', etiket: 'İmalat / mahal', zorunlu: true, genis: true,
+          deger: onceki ? onceki.imalat : '', ipucu: 'örn. Perde beton dökümü - 4. Kat' },
+        { ad: 'sablon', etiket: 'Kontrol şablonu', tur: 'secim', deger: varsayilanSablon, secenekler: sablonAdlari },
+        { ad: 'taseron', etiket: 'Taşeron', tur: 'secim', deger: onceki ? onceki.taseron : '',
+          secenekler: S.get('taseronlar').map((t) => ({ deger: t.id, ad: t.ad })) },
+        { ad: 'kontrolor', etiket: 'Kontrolör', zorunlu: true, deger: onceki ? onceki.kontrolor : '' },
+        { ad: 'tarih', etiket: 'Kontrol tarihi', tur: 'date', deger: new Date().toISOString().slice(0, 10) },
+        { ad: 'tamamlanma', etiket: 'İmalat tamamlanma (%)', tur: 'number', min: 0,
+          deger: onceki ? onceki.tamamlanma : 100 }
+      ],
+      ek: `<div class="kalem-tablo">
+             <h4>Kontrol maddeleri</h4>
+             <div class="table-wrap"><table>
+               <thead><tr><th>Madde</th>${KALITE_DURUM.map((d) => `<th class="num">${d}</th>`).join('')}<th>Not</th></tr></thead>
+               <tbody id="maddeGovde"></tbody>
+             </table></div>
+             <div class="foto-alan">
+               <label class="btn ghost sm">${icon('plus')} Fotoğraf ekle
+                 <input type="file" id="fotoGirdi" accept="image/*" multiple hidden></label>
+               <div id="fotoSerit" class="foto-serit"></div>
+             </div>
+             <div class="ozet-blok">
+               <div class="ozet-satir"><span>Uygun / kapsamdaki ağırlık</span><b id="ozetAgirlik">—</b></div>
+               <div class="ozet-satir vurgu"><span>Kalite puanı</span><b id="ozetSkor">—</b></div>
+               <div class="ozet-satir"><span>Önerilen sonuç</span><b id="ozetSonuc">—</b></div>
+             </div>
+           </div>`,
+      hazir: (kutu) => {
+        kutu.querySelector('.modal').classList.add('genis');
+        const govde = kutu.querySelector('#maddeGovde');
+        const sablonSec = kutu.querySelector('#f_sablon');
+        const serit = kutu.querySelector('#fotoSerit');
+
+        const ozetle = () => {
+          const maddeler = topla(kutu);
+          const skor = kaliteSkor(maddeler);
+          let payda = 0, pay = 0;
+          maddeler.forEach((m) => {
+            if (m.durum === 'Kapsam Dışı') return;
+            payda += m.agirlik;
+            if (m.durum === 'Uygun') pay += m.agirlik;
+          });
+          kutu.querySelector('#ozetAgirlik').textContent = `${pay} / ${payda}`;
+          kutu.querySelector('#ozetSkor').textContent = skor === null ? '—' : '%' + skor;
+          const s = skor === null ? '—' : skorSonuc(skor);
+          const el = kutu.querySelector('#ozetSonuc');
+          el.textContent = s;
+          el.style.color = s === 'Onaylandı' ? 'var(--ok)' : s === 'Red' ? 'var(--bad)' : 'var(--warn)';
+        };
+
+        const maddeleriYaz = () => {
+          const maddeler = DB.KALITE_SABLON[sablonSec.value] || [];
+          govde.innerHTML = maddeler.map(maddeSatiri).join('');
+          ozetle();
+        };
+
+        govde.addEventListener('change', ozetle);
+        sablonSec.addEventListener('change', maddeleriYaz);
+        maddeleriYaz();
+
+        kutu.querySelector('#fotoGirdi').addEventListener('change', async (e) => {
+          for (const f of Array.from(e.target.files)) {
+            if (!f.type.startsWith('image/')) continue;
+            const id = S.uid('FOT');
+            try { await Dosya.yaz(id, f, f.name); } catch (err) { toast('Fotoğraf kaydedilemedi.'); continue; }
+            const kucuk = URL.createObjectURL(f);
+            fotograflar.push({ id, ad: f.name });
+            const kutucuk = document.createElement('div');
+            kutucuk.className = 'foto-kutu';
+            kutucuk.innerHTML = `<img src="${kucuk}" alt="${f.name}">`;
+            serit.appendChild(kutucuk);
+          }
+          e.target.value = '';
+        });
+      },
+      topla: (kutu) => ({ maddeler: topla(kutu), fotograflar })
+    });
+
+    function topla(kutu) {
+      const sablonAd = kutu.querySelector('#f_sablon').value;
+      const sablon = DB.KALITE_SABLON[sablonAd] || [];
+      return sablon.map((m, i) => {
+        const secili = kutu.querySelector(`input[name="madde_${i}"]:checked`);
+        const not = kutu.querySelector(`[data-madde="${i}"] [data-not]`);
+        return { ad: m.ad, agirlik: m.agirlik,
+                 durum: secili ? secili.value : 'Uygun',
+                 not: not ? not.value.trim() : '' };
+      });
+    }
+
+    if (!sonuc) return;
+    const skor = kaliteSkor(sonuc.maddeler);
+    const sira = S.get('kaliteKontrol').length + 2201;
+    const kayit = S.ekle('kaliteKontrol', {
+      id: 'QC-' + sira,
+      imalat: sonuc.imalat,
+      sablon: sonuc.sablon,
+      taseron: sonuc.taseron,
+      kontrolor: sonuc.kontrolor,
+      tarih: sonuc.tarih,
+      tamamlanma: Math.max(0, Math.min(100, sonuc.tamamlanma)),
+      maddeler: sonuc.maddeler,
+      fotograflar: sonuc.fotograflar.map((f) => ({ id: f.id, ad: f.ad })),
+      skor: skor === null ? 0 : skor,
+      sonuc: skor === null ? 'Beklemede' : skorSonuc(skor),
+      notlar: sonuc.maddeler.filter((m) => m.durum === 'Uygun Değil')
+                .map((m) => m.ad + (m.not ? ' (' + m.not + ')' : '')).join('; ') || 'Sapma kaydedilmedi.',
+      duzeltmeAta: onceki ? onceki.id : null
+    });
+
+    if (onceki) S.guncelle('kaliteKontrol', onceki._id, { tekrarKayit: kayit.id });
+    toast(`${kayit.id} kaydedildi · puan %${kayit.skor} · ${kayit.sonuc}`);
+  }
+
+  /* --------------------------------------------------- kontrol detayi */
+  async function kaliteDetay(id) {
+    const q = S.bul('kaliteKontrol', id);
+    if (!q) return;
+    const maddeler = q.maddeler || [];
+    const fotolar = q.fotograflar || [];
+
+    await UI.modal({
+      baslik: q.id + ' · ' + q.imalat,
+      aciklama: `${taseronAd(q.taseron)} · ${q.kontrolor} · ${q.tarih}` +
+                (q.sablon ? ' · ' + q.sablon : '') +
+                (q.duzeltmeAta ? ` · ${q.duzeltmeAta} kaydının yeniden kontrolü` : ''),
+      icerik: `
+        <div class="ozet-satir"><span>Kalite puanı</span><b>${q.skor ? '%' + q.skor : '—'}</b></div>
+        <div class="ozet-satir"><span>Sonuç</span><b>${badge(q.sonuc, durumKind(q.sonuc))}</b></div>
+        <div class="ozet-satir"><span>İmalat tamamlanma</span><b>${pct(q.tamamlanma)}</b></div>
+        ${maddeler.length ? `
+          <div class="kalem-tablo">
+            <h4>Kontrol maddeleri</h4>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Madde</th><th class="num">Ağırlık</th><th>Durum</th><th>Not</th></tr></thead>
+              <tbody>${maddeler.map((m) => `<tr>
+                <td>${m.ad}</td><td class="num">${m.agirlik}</td>
+                <td>${badge(m.durum, m.durum === 'Uygun' ? 'ok' : m.durum === 'Uygun Değil' ? 'bad' : '')}</td>
+                <td class="muted">${m.not || '—'}</td></tr>`).join('')}</tbody>
+            </table></div>
+          </div>`
+        : `<p class="modal-metin" style="margin-top:12px"><b>Not:</b> ${q.notlar || '—'}</p>
+           <p class="modal-metin">Bu kayıt şablon öncesi girildiği için madde dökümü yok.</p>`}
+        ${fotolar.length ? `<div class="kalem-tablo"><h4>Saha fotoğrafları (${fotolar.length})</h4>
+           <div class="foto-serit" id="detayFoto"></div></div>` : ''}`,
+      hazir: (kutu) => {
+        const serit = kutu.querySelector('#detayFoto');
+        if (!serit) return;
+        fotolar.forEach(async (f) => {
+          try {
+            const kayit = await Dosya.oku(f.id);
+            if (!kayit) return;
+            const d = document.createElement('div');
+            d.className = 'foto-kutu';
+            d.innerHTML = `<img src="${URL.createObjectURL(kayit.blob)}" alt="${f.ad}">`;
+            serit.appendChild(d);
+          } catch (e) { /* fotograf yoksa atla */ }
+        });
+      },
+      dugmeler: [
+        (q.sonuc === 'Red' || q.sonuc === 'Şartlı Onay')
+          ? { ad: 'Yeniden kontrol', deger: 'tekrar' } : { ad: 'CSV indir', deger: 'csv' },
+        { ad: 'Kapat', tur: 'accent', deger: null }
+      ]
+    }).then((secim) => {
+      if (secim === 'tekrar') kaliteFormu(id);
+      else if (secim === 'csv') kaliteCSV([q], q.id + '.csv');
+    });
+  }
+
+  function kaliteCSV(liste, adi) {
+    const basliklar = ['Kayıt', 'İmalat', 'Şablon', 'Taşeron', 'Kontrolör', 'Tarih',
+                       'Skor', 'Sonuç', 'Tamamlanma', 'Sapmalar'];
+    const satirlar = liste.map((q) => [q.id, q.imalat, q.sablon || '—', taseronAd(q.taseron),
+      q.kontrolor, q.tarih, q.skor, q.sonuc, q.tamamlanma, q.notlar || '']);
+    indir(adi || 'kalite-kontrol.csv', 'text/csv;charset=utf-8',
+      '﻿' + [basliklar].concat(satirlar)
+        .map((r) => r.map((c) => '"' + String(c).replace(/"/g, '""') + '"').join(';')).join('\n'));
+    toast('Kalite kayıtları indirildi.');
+  }
+
 
   /* ---------------------------------------------------------- hakediş */
   function hakedisListesi() {
@@ -839,7 +1110,8 @@
         { ad: 'donem', etiket: 'Dönem', deger: donemAdi, zorunlu: true },
         { ad: 'avansMahsup', etiket: 'Avans mahsubu (₺)', tur: 'number', min: 0, adim: '0.01', deger: 0 }
       ],
-      ek: `<div class="kalem-tablo">
+      ek: `<div id="kaliteUyari"></div>
+           <div class="kalem-tablo">
              <h4>Metraj kalemleri</h4>
              <div class="table-wrap"><table>
                <thead><tr><th></th><th>Poz</th><th class="num">Sözleşme</th>
@@ -857,7 +1129,23 @@
         kutu.querySelector('.modal').classList.add('genis');
         const govde = kutu.querySelector('#kalemGovde');
         const projeSec = kutu.querySelector('#f_proje');
+        const taseronSec = kutu.querySelector('#f_taseron');
         const avansGirdi = kutu.querySelector('#f_avansMahsup');
+
+        /* Secilen taseronun acik kalite sapmalari hakedis oncesi uyari verir */
+        const kaliteUyar = () => {
+          const acik = S.get('kaliteKontrol').filter((q) => q.taseron === taseronSec.value &&
+            (q.sonuc === 'Red' || q.sonuc === 'Şartlı Onay') && !q.tekrarKayit);
+          const kutucuk = kutu.querySelector('#kaliteUyari');
+          kutucuk.innerHTML = acik.length ? `
+            <div class="uyari-kutu">
+              ${icon('alert')}
+              <div><b>${acik.length} açık kalite sapması</b>
+                <span>${acik.map((q) => q.imalat + ' (' + q.sonuc + ')').join(' · ')}</span></div>
+            </div>` : '';
+        };
+        taseronSec.addEventListener('change', kaliteUyar);
+        kaliteUyar();
 
         const kalemleriYaz = () => {
           const kalemler = S.get('metraj').filter((m) => m.proje === projeSec.value);
@@ -1255,6 +1543,25 @@
       state.hakedisDurum = hakedisDurum.value; render();
     });
 
+    /* --- kalite kontrol --- */
+    tikla('[data-act="kalite-ekle"]', () => kaliteFormu(null));
+    tikla('[data-act="kalite-csv"]', () => kaliteCSV(kaliteListesi()));
+    tikla('[data-kalite-detay]', (b) => kaliteDetay(b.dataset.kaliteDetay));
+    tikla('[data-kalite-tekrar]', (b) => kaliteFormu(b.dataset.kaliteTekrar));
+    tikla('[data-kalite-sil]', async (b) => {
+      const q = S.bul('kaliteKontrol', b.dataset.kaliteSil);
+      if (!q) return;
+      if (await UI.onay('Kontrol kaydını sil', `${q.id} — ${q.imalat} kaydı silinecek.`, 'Sil')) {
+        for (const f of (q.fotograflar || [])) { try { await Dosya.sil(f.id); } catch (e) { /* yoksa geç */ } }
+        S.sil('kaliteKontrol', q._id);
+        toast(q.id + ' silindi.');
+      }
+    });
+    const kaliteSonuc = document.getElementById('kaliteSonuc');
+    if (kaliteSonuc) kaliteSonuc.addEventListener('change', () => {
+      state.kaliteSonuc = kaliteSonuc.value; render();
+    });
+
     /* --- paftalar --- */
     tikla('[data-pafta-ac]', (b) => paftaAc(b.dataset.paftaAc));
     tikla('[data-pafta-sil]', (b) => paftaSil(b.dataset.paftaSil));
@@ -1281,7 +1588,6 @@
     /* henuz baglanmamis demo aksiyonlari */
     const mesaj = {
       dogrula: 'Kalem manuel doğrulama kuyruğuna alındı.',
-      'yeni-kontrol': 'Kalite kontrol modülü bir sonraki adımda bağlanacak.',
       'yeni-siparis': 'Tedarik modülü bir sonraki adımda bağlanacak.',
       siparis: 'Tedarik modülü bir sonraki adımda bağlanacak.',
       sayim: 'Stok modülü bir sonraki adımda bağlanacak.',

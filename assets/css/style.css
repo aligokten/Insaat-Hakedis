@@ -648,3 +648,36 @@ tfoot td { padding: 12px; border-top: 2px solid var(--line); font-weight: 600; f
   image-rendering: auto;
 }
 .onizleme-alan [hidden] { display: none; }   /* display:block, hidden'i ezmesin */
+
+/* ---------------------------------------------- kalite kontrol formu */
+.secim-hucre { display: grid; place-items: center; cursor: pointer; padding: 4px; }
+.secim-hucre input[type="radio"] { width: 15px; height: 15px; accent-color: var(--accent); }
+.madde-not {
+  width: 100%; min-width: 130px; padding: 5px 9px;
+  border: 1px solid var(--line); border-radius: 7px;
+  background: var(--surface-2); font-size: 12px;
+}
+.madde-not:focus { border-color: var(--accent); background: #fff; outline: none; }
+
+.foto-alan {
+  margin-top: 12px; margin-bottom: 18px;   /* sabit ozet blogunun altinda kalmasin */
+  display: flex; flex-direction: column; gap: 8px;
+}
+.foto-serit { display: flex; gap: 8px; flex-wrap: wrap; }
+.foto-kutu {
+  width: 84px; height: 62px; border-radius: 9px; overflow: hidden;
+  border: 1px solid var(--line-soft); background: var(--surface-2);
+}
+.foto-kutu img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.uyari-kutu {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 11px 13px; border-radius: var(--r-sm);
+  background: rgba(217,138,18,.1); border: 1px solid rgba(217,138,18,.22);
+  margin-bottom: 14px; font-size: 12.5px;
+}
+.uyari-kutu svg { width: 15px; height: 15px; color: var(--warn); flex: none; margin-top: 1px; }
+.uyari-kutu b { display: block; color: #96600a; }
+.uyari-kutu span { color: var(--ink-2); font-size: 11.5px; }
+
+.nowrap { white-space: nowrap; }
