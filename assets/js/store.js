@@ -5,7 +5,8 @@ window.Store = (function () {
   const KEY = 'insaat-hakedis:v1';
   const KOLEKSIYONLAR = ['projeler', 'paftalar', 'metraj', 'taseronlar', 'isler',
                          'personel', 'puantaj', 'kaliteKontrol', 'hakedisler',
-                         'stok', 'hareketler', 'siparisler', 'raporlar'];
+                         'stok', 'hareketler', 'siparisler', 'raporlar',
+                         'kullanicilar', 'gunluk'];
 
   let db = null;
   const aboneler = [];
@@ -50,6 +51,23 @@ window.Store = (function () {
     aboneler.forEach((fn) => { try { fn(olay); } catch (e) { console.error(e); } });
   }
 
+  /* Islem gunlugu: kullanici, gunluk ve oturum kayitlari haric her degisiklik yazilir */
+  const GUNLUK_DISI = ['gunluk'];
+  function gunlukYaz(eylem, koleksiyon, kayit) {
+    if (GUNLUK_DISI.indexOf(koleksiyon) > -1) return;
+    const k = window.Yetki && window.Yetki.kullanici();
+    if (!db.gunluk) db.gunluk = [];
+    db.gunluk.unshift({
+      _id: uid('LOG'),
+      kullanici: k ? k.ad : 'sistem',
+      kullaniciId: k ? k._id : '',
+      eylem, koleksiyon,
+      kayit: kayit ? (kayit.ad || kayit.no || kayit.id || kayit.poz || kayit._id) : '',
+      tarih: new Date().toISOString()
+    });
+    if (db.gunluk.length > 500) db.gunluk.length = 500;   // gunluk sinirsiz buyumesin
+  }
+
   /* ------------------------------------------------------------------ API */
 
   /* Eski bir yedekte olmayan koleksiyon istenirse bos olarak olusturulur */
@@ -66,6 +84,7 @@ window.Store = (function () {
   function ekle(koleksiyon, kayit) {
     const yeni = { ...kayit, _id: kayit._id || uid(koleksiyon.slice(0, 3).toUpperCase()) };
     get(koleksiyon).unshift(yeni);
+    gunlukYaz('ekledi', koleksiyon, yeni);
     kaydet(); bildir({ tur: 'ekle', koleksiyon, kayit: yeni });
     return yeni;
   }
@@ -74,6 +93,7 @@ window.Store = (function () {
     const kayit = bul(koleksiyon, id);
     if (!kayit) return null;
     Object.assign(kayit, yama);
+    gunlukYaz('güncelledi', koleksiyon, kayit);
     kaydet(); bildir({ tur: 'guncelle', koleksiyon, kayit });
     return kayit;
   }
@@ -83,6 +103,7 @@ window.Store = (function () {
     const i = liste.findIndex((x) => x._id === id);
     if (i < 0) return false;
     const [kayit] = liste.splice(i, 1);
+    gunlukYaz('sildi', koleksiyon, kayit);
     kaydet(); bildir({ tur: 'sil', koleksiyon, kayit });
     return true;
   }
@@ -124,6 +145,6 @@ window.Store = (function () {
     db = gelen; kaydet(); bildir({ tur: 'iceAktar' });
   }
 
-  return { get, bul, ekle, guncelle, sil, yetkiler, yetkiDegistir,
+  return { get, bul, ekle, guncelle, sil, yetkiler, yetkiDegistir, gunlukYaz,
            abone, sifirla, disaAktar, iceAktar, uid, KOLEKSIYONLAR };
 })();

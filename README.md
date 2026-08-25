@@ -27,6 +27,7 @@ git clone <repo> && cd Insaat-Hakedis
 | **Hakediş** ✅ | Metraj kalemlerinden hakediş oluşturma (canlı tutar özeti), kesinti/avans/KDV hesabı, Taslak → Kontrolde → Onay Bekliyor → Onaylandı akışı, red gerekçesi, kalem detayı ve CSV |
 | **Stok** ✅ | Malzeme kartı ekle/düzenle/sil, depo filtresi, giriş · çıkış · rezerve · sayım hareketleri (sınır kontrollü), hareket geçmişi, kritik seviye uyarısı, CSV |
 | **Tedarik** ✅ | Sipariş oluştur/düzenle/sil, Onay Bekliyor → Onaylandı → Yolda → Teslim Edildi akışı, teslim alındığında otomatik stok girişi, tarihe göre otomatik gecikme, teslim takvimi, CSV |
+| **Kullanıcılar** ✅ | Kullanıcı ekle/düzenle/sil, rol atama, modül bazlı izin matrisi, şifre sıfırlama, işlem günlüğü (kim neyi ne zaman değiştirdi) |
 | **Raporlar** ✅ | Dört rapor türü panel verisinden anlık üretilir (Üst Yönetim Özeti, Taşeron Bilgi Raporu, Personel ve Puantaj Raporu, Malzeme ve Tedarik Bülteni); A4 düzeninde yazdırılabilir çıktı (Yazdır → PDF) veya CSV, imza blokları dâhil |
 
 Sağ üstteki **Yönetici / Taşeron** anahtarı rolü değiştirir; taşeron rolünde hakediş
@@ -70,6 +71,51 @@ kenar çizgisi ve aşağıya doğru açılan yumuşak gölge.
 Token'lar `:root` içinde toplanmıştır: `--glass`, `--glass-strong`, `--glass-fill` (üstten alta
 azalan dolgu), `--glass-border`, `--glass-hi`, `--blur`, `--shadow-glass`. Bir yüzeyi cama
 çevirmek için bu token'ları kullanmak yeterlidir.
+
+## Kullanıcılar ve yetkilendirme
+
+Panel ilk açıldığında **kurulum ekranı** çıkar ve sistem yöneticisi hesabı oluşturulur;
+sonraki açılışlarda **giriş ekranı** gelir. Oturum 12 saat sonra kendiliğinden düşer.
+
+Şifreler düz metin saklanmaz: Web Crypto ile **PBKDF2-SHA256, 120.000 tur** ve kullanıcıya
+özel rastgele salt kullanılarak özetlenir; kayıtta yalnızca `salt` ve `sifreHash` durur.
+Şifre geri okunamaz, yalnızca sıfırlanabilir.
+
+### Roller
+
+| Rol | Özet |
+|---|---|
+| **Sistem Yöneticisi** | Tüm modüllerde onay yetkisi + kullanıcı yönetimi |
+| **Proje Müdürü** | Tüm modüllerde onay; kullanıcıları yalnızca görüntüler |
+| **Şantiye Şefi** | İş, personel, kalite, metraj düzenler; tedariki görüntüler |
+| **Kontrol Şefi** | Metraj ve hakediş düzenler, kaliteyi onaylar |
+| **Satın Alma** | Stok ve tedariki onaylar, diğerlerini görüntüler |
+| **Taşeron** | Kendi kalite formu ve hakedişini düzenler; stok, tedarik ve taşeron listesini görmez |
+| **İzleyici** | Her şeyi salt okunur görür |
+
+### İzin seviyeleri
+
+Her modül için dört seviye vardır: **Erişim yok · Görüntüle · Düzenle · Onayla**.
+Rol bir şablon verir; kullanıcı kartındaki izin matrisinden modül bazında değiştirilebilir,
+şablondan farklı satırlar o kullanıcıya özel izin olarak saklanır ("Rol şablonuna dön" ile geri alınır).
+
+Yetkiler üç yerde uygulanır: menü ve ikon rayı yalnızca görüntüleme yetkisi olan modülleri
+gösterir; adres çubuğundan yetkisiz bir modüle gidilirse ilk yetkili modüle yönlendirilir;
+düzenleme ve onay düğmeleri yetki yoksa ekrana hiç basılmaz (hakediş ve sipariş onay adımları
+`onayla` seviyesi ister).
+
+Kendini kilitlemeye karşı korumalar var: tek sistem yöneticisi silinemez, pasife alınamaz,
+rolü düşürülemez; kullanıcı kendi hesabını silemez ve kendi kullanıcı yönetimi yetkisini kaldıramaz.
+
+### İşlem günlüğü
+
+Her ekleme, güncelleme ve silme işlemi *kim, neyi, ne zaman* olarak kaydedilir (son 500 hareket).
+Kullanıcılar ekranındaki "Son işlemler" kartında görünür.
+
+> **Sınır:** Bu kontroller tarayıcıda çalışır ve veri de tarayıcıda durur. Yetkilendirme iş
+> akışını düzenler; teknik bilgisi olan bir kullanıcı kendi tarayıcısındaki veriye erişebilir.
+> Farklı kişilerin farklı cihazlardan aynı veriyi görmesi ve sunucu tarafında zorlanan güvenlik
+> için bir arka uç (ör. Supabase) gerekir — roller ve izin modeli o geçişte aynen kullanılabilir.
 
 ## Veri katmanı
 

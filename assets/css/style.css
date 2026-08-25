@@ -851,3 +851,73 @@ tfoot td { padding: 12px; border-top: 2px solid var(--line); font-weight: 600; f
   .rapor-blok tbody tr:nth-child(even) td { background: #faf9f8; }
   tbody tr:hover td { background: transparent; }
 }
+
+/* ==========================================================================
+   Oturum: kurulum / giriş ekranı ve üst çubuktaki kullanıcı
+   ========================================================================== */
+
+.giris-ekrani {
+  position: fixed; inset: 0; z-index: 60;
+  display: grid; place-items: center; padding: 24px;
+}
+
+.giris-kart {
+  width: min(420px, 100%);
+  background: var(--glass-fill);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-xl);
+  backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
+  box-shadow: var(--shadow-glass-lift);
+  padding: 30px 30px 26px;
+  position: relative; overflow: hidden;
+}
+.giris-kart::before {
+  content: ''; position: absolute; left: 14%; right: 14%; top: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--glass-hi), transparent);
+}
+
+.giris-marka { display: flex; align-items: center; gap: 11px; margin-bottom: 22px; }
+.giris-marka b { display: block; font-size: 14px; letter-spacing: -.2px; }
+.giris-marka span { font-size: 11.5px; color: var(--ink-3); }
+
+.giris-kart h2 {
+  font-family: var(--font-display); font-size: 30px; letter-spacing: -.03em;
+  text-transform: uppercase; margin: 0 0 6px;
+}
+.giris-not { margin: 0 0 20px; font-size: 12.5px; color: var(--ink-2); }
+
+.giris-form { display: flex; flex-direction: column; gap: 12px; }
+.giris-form .btn { justify-content: center; margin-top: 6px; padding: 11px 16px; }
+.giris-hata {
+  font-size: 12px; color: var(--bad); background: rgba(211,58,44,.1);
+  border-radius: var(--r-sm); padding: 9px 12px; text-align: center;
+}
+
+/* üst çubuktaki aktif kullanıcı */
+.aktif-kullanici {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 12px 5px 5px; border-radius: 999px;
+  max-width: 210px;
+}
+.aktif-kullanici i {
+  width: 28px; height: 28px; border-radius: 50%; flex: none;
+  display: grid; place-items: center; font-style: normal;
+  font-size: 11px; font-weight: 700; color: #fff;
+  background: linear-gradient(145deg, var(--accent-2), var(--accent));
+}
+.aktif-kullanici b { font-size: 12.5px; font-weight: 600; line-height: 1.15;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.aktif-kullanici small { display: block; font-size: 10.5px; color: var(--ink-3); }
+.aktif-kullanici > div { min-width: 0; }
+
+.role-switch [data-cikis] {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 8px 14px; border-radius: 999px; font-size: 12px; color: var(--ink-2);
+}
+.role-switch [data-cikis]:hover { background: rgba(255,255,255,.9); color: var(--ink); }
+.role-switch [data-cikis] svg { width: 13px; height: 13px; }
+
+@media (max-width: 860px) {
+  .aktif-kullanici small { display: none; }
+  .aktif-kullanici { max-width: 130px; }
+}

@@ -305,5 +305,6 @@ window.DB = (function () {
 
   return { projeler, paftalar, metraj, taseronlar, isler, personel, puantaj,
            YETKI_LISTESI, KALITE_SABLON, KALITE_ESIK, PERSONEL_GOREV, PUANTAJ_DURUM,
-           kaliteKontrol, hakedisler, stok, hareketler, siparisler, raporlar, buyume };
+           kaliteKontrol, hakedisler, stok, hareketler, siparisler, raporlar, buyume,
+           kullanicilar: [], gunluk: [] };
 })();

@@ -7,7 +7,6 @@
 
   /* -------------------------------------------------------------- durum */
   const state = {
-    rol: 'yonetici',           // yonetici | taseron
     metrajProje: 'hepsi',
     hakedisDurum: 'hepsi',
     kaliteSonuc: 'hepsi',
@@ -22,8 +21,8 @@
   /* Hakedis onay akisi ve rol yetkileri */
   const AKIS = {
     'Taslak':        { sonraki: 'Kontrolde',     eylem: 'Kontrole gönder', rol: 'her' },
-    'Kontrolde':     { sonraki: 'Onay Bekliyor', eylem: 'Onaya gönder',    rol: 'yonetici' },
-    'Onay Bekliyor': { sonraki: 'Onaylandı',     eylem: 'Onayla',          rol: 'yonetici' },
+    'Kontrolde':     { sonraki: 'Onay Bekliyor', eylem: 'Onaya gönder',    rol: 'onay' },
+    'Onay Bekliyor': { sonraki: 'Onaylandı',     eylem: 'Onayla',          rol: 'onay' },
     'Reddedildi':    { sonraki: 'Taslak',        eylem: 'Revize et',       rol: 'her' }
   };
   const KESINTI_ORANI = 0.10;   // teminat + stopaj
@@ -40,7 +39,8 @@
     { id: 'hakedis',  ad: 'Hakediş',      ikon: 'receipt' },
     { id: 'stok',     ad: 'Stok',         ikon: 'box' },
     { id: 'tedarik',  ad: 'Tedarik',      ikon: 'truck' },
-    { id: 'rapor',    ad: 'Raporlar',     ikon: 'report' }
+    { id: 'rapor',    ad: 'Raporlar',     ikon: 'report' },
+    { id: 'kullanici', ad: 'Kullanıcılar', ikon: 'users' }
   ];
 
   /* ------------------------------------------------------- hesaplamalar */
@@ -1627,7 +1627,7 @@
   function akisDugmesi(h) {
     const adim = AKIS[h.durum];
     if (!adim) return '';
-    if (adim.rol === 'yonetici' && state.rol !== 'yonetici') return '';
+    if (adim.rol === 'onay' && !yetkiVar('hakedis', 'onayla')) return '';
     const red = h.durum === 'Onay Bekliyor'
       ? `<button class="btn ghost sm" data-hakedis-red="${h._id}">Reddet</button>` : '';
     return `<div class="satir-islem">${red}
@@ -2107,7 +2107,7 @@
 
   /* ---------------------------------------------------------- tedarik */
   const SIPARIS_AKIS = {
-    'Onay Bekliyor': { sonraki: 'Onaylandı',     eylem: 'Onayla',      ilerleme: 30, rol: 'yonetici' },
+    'Onay Bekliyor': { sonraki: 'Onaylandı',     eylem: 'Onayla',      ilerleme: 30, rol: 'onay' },
     'Onaylandı':     { sonraki: 'Yolda',         eylem: 'Sevk edildi', ilerleme: 65, rol: 'her' },
     'Yolda':         { sonraki: 'Teslim Edildi', eylem: 'Teslim al',   ilerleme: 100, rol: 'her' }
   };
@@ -2133,7 +2133,7 @@
     const rows = liste.map((o) => {
       const durum = etkinDurum(o);
       const adim = SIPARIS_AKIS[o.durum];
-      const ilerletilebilir = adim && (adim.rol !== 'yonetici' || state.rol === 'yonetici');
+      const ilerletilebilir = adim && (adim.rol !== 'onay' || yetkiVar('tedarik', 'onayla'));
       return `<tr>
         <td><span class="strong nowrap">${o.no}</span><div class="muted nowrap">${o.siparis}</div></td>
         <td>${o.tedarikci}</td>
@@ -2641,7 +2641,7 @@
   const VIEWS = {
     ozet: viewOzet, paftalar: viewPaftalar, metraj: viewMetraj, isler: viewIsler,
     taseron: viewTaseron, personel: viewPersonel, kalite: viewKalite, hakedis: viewHakedis,
-    stok: viewStok, tedarik: viewTedarik, rapor: viewRapor
+    stok: viewStok, tedarik: viewTedarik, rapor: viewRapor, kullanici: viewKullanici
   };
 
   /* ============================================ proje ve taşeron kayıtları */
@@ -2755,15 +2755,357 @@
     toast(t.ad + ' silindi.');
   }
 
+  /* ======================================================= kullanıcılar */
+  const yetkiVar = (modul, gereken) => Yetki.var(modul, gereken);
+
+  function kullaniciListesi() { return S.get('kullanicilar'); }
+
+  function viewKullanici() {
+    const liste = kullaniciListesi();
+    const gunluk = S.get('gunluk').slice(0, 12);
+    const ben = Yetki.kullanici();
+    const duzenleyebilir = yetkiVar('kullanici', 'duzenle');
+
+    const rows = liste.map((k) => {
+      const izin = Yetki.izinler(k);
+      const acikModul = Yetki.MODULLER.filter((m) => izin[m.id] !== 'yok').length;
+      const ozel = k.izinler && Object.keys(k.izinler).length;
+      return `<tr>
+        <td><span class="strong">${k.ad}</span>
+            <div class="muted">${k.kullaniciAdi}${k.eposta ? ' · ' + k.eposta : ''}</div></td>
+        <td>${badge(k.rol, k.rol === 'Sistem Yöneticisi' ? 'accent' : 'info')}
+            ${ozel ? badge('özel izin', 'warn') : ''}</td>
+        <td class="num">${acikModul} / ${Yetki.MODULLER.length}</td>
+        <td class="nowrap">${k.sonGiris ? k.sonGiris.slice(0, 16).replace('T', ' ') : '—'}</td>
+        <td>${badge(k.durum, k.durum === 'Aktif' ? 'ok' : '')}
+            ${ben && ben._id === k._id ? badge('siz', '') : ''}</td>
+        <td>
+          <div class="satir-islem">
+            <button class="ikon-btn" title="İzinler" data-kullanici-izin="${k._id}">${icon('lock')}</button>
+            ${duzenleyebilir ? `
+              <button class="ikon-btn" title="Düzenle" data-kullanici-duzenle="${k._id}">${icon('kalem')}</button>
+              <button class="ikon-btn" title="Şifre sıfırla" data-kullanici-sifre="${k._id}">${icon('shield')}</button>
+              <button class="ikon-btn tehlike" title="Sil" data-kullanici-sil="${k._id}">${icon('cop')}</button>` : ''}
+          </div>
+        </td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="6"><div class="empty">Kayıtlı kullanıcı yok.</div></td></tr>';
+
+    const rolSayim = Object.keys(Yetki.ROLLER).map((r) => ({
+      label: r.split(' ')[0], short: String(liste.filter((k) => k.rol === r).length),
+      value: liste.filter((k) => k.rol === r).length
+    })).filter((x) => x.value);
+
+    return `
+    ${pageHead('KULLANICILAR', 'Panele erişecek kişiler, rolleri ve modül bazlı yetkileri. Yetkiler menüyü ve düzenleme/onay düğmelerini belirler.',
+      duzenleyebilir ? `<button class="btn accent sm" data-act="kullanici-ekle">${icon('plus')} Kullanıcı ekle</button>` : '')}
+    <div class="grid cols-4" style="padding:0 10px 14px">
+      ${kpi(num(liste.length), 'Tanımlı kullanıcı', 'up', liste.filter((k) => k.durum === 'Aktif').length + ' aktif')}
+      ${kpi(num(new Set(liste.map((k) => k.rol)).size), 'Kullanılan rol', 'up', Object.keys(Yetki.ROLLER).length + ' rol şablonu')}
+      ${kpi(num(liste.filter((k) => k.izinler && Object.keys(k.izinler).length).length), 'Özel izinli', 'up', 'rol dışı ayar')}
+      ${kpi(num(S.get('gunluk').length), 'İşlem kaydı', 'up', 'son 500 hareket')}
+    </div>
+    <div class="grid side" style="padding:0 10px">
+      <div class="card">
+        <div class="card-head"><h3>Kullanıcı listesi</h3></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Kullanıcı</th><th>Rol</th><th class="num">Erişilen modül</th>
+            <th>Son giriş</th><th>Durum</th><th></th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>
+      </div>
+      <div class="grid" style="gap:14px">
+        <div class="card">
+          <div class="card-head"><h3>Rol dağılımı</h3></div>
+          ${rolSayim.length ? barChart(rolSayim, { height: 120 }) : '<div class="empty">Veri yok.</div>'}
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>Son işlemler</h3><div class="spacer"></div>
+            <span class="hint">kim, neyi, ne zaman</span></div>
+          ${gunluk.map((g) => `<div class="list-item">
+            <div class="ico">${icon('clock')}</div>
+            <div class="txt"><b>${g.kullanici} · ${g.eylem}</b>
+              <span>${g.koleksiyon}${g.kayit ? ' · ' + g.kayit : ''} · ${g.tarih.slice(0, 16).replace('T', ' ')}</span></div>
+          </div>`).join('') || '<div class="empty">Henüz işlem kaydı yok.</div>'}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  async function kullaniciFormu(id) {
+    const k = id ? S.bul('kullanicilar', id) : null;
+    const alanlar = [
+      { ad: 'ad', etiket: 'Ad soyad', zorunlu: true, genis: true, deger: k ? k.ad : '' },
+      { ad: 'kullaniciAdi', etiket: 'Kullanıcı adı', zorunlu: true, deger: k ? k.kullaniciAdi : '' },
+      { ad: 'eposta', etiket: 'E-posta', deger: k ? k.eposta : '' },
+      { ad: 'rol', etiket: 'Rol', tur: 'secim', deger: k ? k.rol : 'İzleyici',
+        secenekler: Object.keys(Yetki.ROLLER),
+        not: 'Rol, modül yetkilerinin şablonunu belirler.' },
+      { ad: 'durum', etiket: 'Durum', tur: 'secim', deger: k ? k.durum : 'Aktif',
+        secenekler: ['Aktif', 'Pasif'] }
+    ];
+    if (!k) alanlar.push(
+      { ad: 'sifre', etiket: 'Şifre', tur: 'password', zorunlu: true, genis: true,
+        not: 'En az 6 karakter. Şifre PBKDF2 ile özetlenerek saklanır.' });
+
+    const sonuc = await UI.form({
+      baslik: k ? 'Kullanıcıyı düzenle' : 'Yeni kullanıcı',
+      kaydetEtiketi: k ? 'Güncelle' : 'Kullanıcıyı ekle',
+      alanlar,
+      dogrula: (c) => {
+        const ayni = kullaniciListesi().find((x) =>
+          x.kullaniciAdi.toLowerCase() === c.kullaniciAdi.trim().toLowerCase() && (!k || x._id !== k._id));
+        if (ayni) return 'Bu kullanıcı adı zaten kullanılıyor.';
+        if (!k && (c.sifre || '').length < 6) return 'Şifre en az 6 karakter olmalı.';
+        return null;
+      }
+    });
+    if (!sonuc) return;
+
+    if (k) {
+      /* Son yoneticinin yetkisini dusurmeyi engelle */
+      const yoneticiSayisi = kullaniciListesi().filter((x) =>
+        x.rol === 'Sistem Yöneticisi' && x.durum === 'Aktif').length;
+      if (k.rol === 'Sistem Yöneticisi' && yoneticiSayisi === 1 &&
+          (sonuc.rol !== 'Sistem Yöneticisi' || sonuc.durum !== 'Aktif')) {
+        toast('Tek sistem yöneticisi pasife alınamaz veya rolü değiştirilemez.');
+        return;
+      }
+      S.guncelle('kullanicilar', id, { ad: sonuc.ad, kullaniciAdi: sonuc.kullaniciAdi.trim(),
+                                       eposta: sonuc.eposta, rol: sonuc.rol, durum: sonuc.durum });
+      toast(sonuc.ad + ' güncellendi.');
+      if (Yetki.kullanici() && Yetki.kullanici()._id === id) Yetki.oturumYukle(kullaniciListesi());
+    } else {
+      const { salt, sifreHash } = await Yetki.sifreAta(sonuc.sifre);
+      S.ekle('kullanicilar', {
+        ad: sonuc.ad, kullaniciAdi: sonuc.kullaniciAdi.trim(), eposta: sonuc.eposta,
+        rol: sonuc.rol, durum: sonuc.durum, izinler: {}, salt, sifreHash,
+        olusturma: new Date().toISOString(), sonGiris: ''
+      });
+      toast(sonuc.ad + ' eklendi. Kullanıcı adı ve şifresini kendisine iletin.');
+    }
+  }
+
+  /* --------------------------------------------- modül bazlı izin matrisi */
+  async function kullaniciIzin(id) {
+    const k = S.bul('kullanicilar', id);
+    if (!k) return;
+    const duzenleyebilir = yetkiVar('kullanici', 'duzenle');
+    const mevcut = Yetki.izinler(k);
+    const rolTaban = Yetki.ROLLER[k.rol] || {};
+
+    const secim = await UI.modal({
+      baslik: k.ad + ' · yetkiler',
+      aciklama: `${k.rol} rolü temel alınır; aşağıdan modül bazında değiştirebilirsiniz.`,
+      icerik: `<div class="table-wrap"><table>
+          <thead><tr><th>Modül</th>
+            ${Yetki.SEVIYE.map((s) => `<th class="num">${Yetki.SEVIYE_ADI[s]}</th>`).join('')}
+            <th>Rol şablonu</th></tr></thead>
+          <tbody>${Yetki.MODULLER.map((m) => `<tr data-modul="${m.id}">
+            <td class="strong">${m.ad}</td>
+            ${Yetki.SEVIYE.map((s) => `<td class="num"><label class="secim-hucre">
+              <input type="radio" name="izin_${m.id}" value="${s}"
+                ${mevcut[m.id] === s ? 'checked' : ''} ${duzenleyebilir ? '' : 'disabled'}>
+            </label></td>`).join('')}
+            <td class="muted">${Yetki.SEVIYE_ADI[rolTaban[m.id] || 'yok']}</td>
+          </tr>`).join('')}</tbody>
+        </table></div>
+        <p class="modal-metin" style="margin-top:10px">
+          Rol şablonundan farklı seçtiğiniz satırlar bu kullanıcıya özel izin olarak kaydedilir.</p>`,
+      hazir: (kutu) => kutu.querySelector('.modal').classList.add('genis'),
+      dugmeler: duzenleyebilir
+        ? [{ ad: 'Rol şablonuna dön', deger: 'sifirla' },
+           { ad: 'İzinleri kaydet', tur: 'accent', deger: (kutu) => {
+             const ozel = {};
+             Yetki.MODULLER.forEach((m) => {
+               const sec = kutu.querySelector(`input[name="izin_${m.id}"]:checked`);
+               const deger = sec ? sec.value : 'yok';
+               if (deger !== (rolTaban[m.id] || 'yok')) ozel[m.id] = deger;
+             });
+             return { ozel };
+           } }]
+        : [{ ad: 'Kapat', tur: 'accent', deger: null }]
+    });
+    if (!secim) return;
+
+    if (secim === 'sifirla') {
+      S.guncelle('kullanicilar', id, { izinler: {} });
+      toast(k.ad + ' rol şablonuna döndürüldü.');
+    } else if (secim.ozel) {
+      /* Kendi yonetici yetkisini kapatmayi engelle */
+      const ben = Yetki.kullanici();
+      if (ben && ben._id === id && (secim.ozel.kullanici === 'yok' || secim.ozel.kullanici === 'goruntule')) {
+        toast('Kendi kullanıcı yönetimi yetkinizi kaldıramazsınız.');
+        return;
+      }
+      S.guncelle('kullanicilar', id, { izinler: secim.ozel });
+      const n = Object.keys(secim.ozel).length;
+      toast(n ? `${k.ad} için ${n} modülde özel izin kaydedildi.` : k.ad + ' rol şablonunu kullanıyor.');
+    }
+    if (Yetki.kullanici() && Yetki.kullanici()._id === id) Yetki.oturumYukle(kullaniciListesi());
+  }
+
+  async function kullaniciSifre(id) {
+    const k = S.bul('kullanicilar', id);
+    if (!k) return;
+    const sonuc = await UI.form({
+      baslik: k.ad + ' · şifre sıfırla',
+      aciklama: 'Yeni şifreyi kullanıcıya siz iletmelisiniz; şifre geri okunamaz.',
+      kaydetEtiketi: 'Şifreyi güncelle',
+      alanlar: [{ ad: 'sifre', etiket: 'Yeni şifre', tur: 'password', zorunlu: true, genis: true }],
+      dogrula: (c) => (c.sifre || '').length < 6 ? 'Şifre en az 6 karakter olmalı.' : null
+    });
+    if (!sonuc) return;
+    const { salt, sifreHash } = await Yetki.sifreAta(sonuc.sifre);
+    S.guncelle('kullanicilar', id, { salt, sifreHash });
+    toast(k.ad + ' için şifre güncellendi.');
+  }
+
+  async function kullaniciSil(id) {
+    const k = S.bul('kullanicilar', id);
+    if (!k) return;
+    const ben = Yetki.kullanici();
+    if (ben && ben._id === id) { toast('Kendi hesabınızı silemezsiniz.'); return; }
+    const yoneticiSayisi = kullaniciListesi().filter((x) =>
+      x.rol === 'Sistem Yöneticisi' && x.durum === 'Aktif').length;
+    if (k.rol === 'Sistem Yöneticisi' && yoneticiSayisi === 1) {
+      toast('Tek sistem yöneticisi silinemez.'); return;
+    }
+    if (!await UI.onay('Kullanıcıyı sil', `${k.ad} (${k.kullaniciAdi}) silinecek.`, 'Sil')) return;
+    S.sil('kullanicilar', id);
+    toast(k.ad + ' silindi.');
+  }
+
+  /* =========================================== kurulum ve oturum ekranları */
+
+  function kabukGoster(goster) {
+    document.querySelector('.shell').style.display = goster ? '' : 'none';
+    const g = document.getElementById('girisEkrani');
+    if (g) g.remove();
+  }
+
+  function girisKabugu(icerik) {
+    kabukGoster(false);
+    const el = document.createElement('div');
+    el.id = 'girisEkrani';
+    el.className = 'giris-ekrani';
+    el.innerHTML = `
+      <div class="giris-kart">
+        <div class="giris-marka">
+          <div class="brand-mark">H</div>
+          <div><b>Hakediş Panel</b><span>İnşaat proje yönetimi</span></div>
+        </div>
+        ${icerik}
+      </div>`;
+    document.body.appendChild(el);
+    return el;
+  }
+
+  /* Ilk acilis: sistem yoneticisi hesabi olusturulur */
+  function kurulumEkrani() {
+    const el = girisKabugu(`
+      <h2>Kurulum</h2>
+      <p class="giris-not">Panel ilk kez açılıyor. Yönetici hesabını oluşturun;
+         diğer kullanıcıları sonra bu hesapla ekleyebilirsiniz.</p>
+      <form id="kurulumForm" class="giris-form">
+        <label class="alan"><span>Ad soyad *</span><input name="ad" required></label>
+        <label class="alan"><span>Kullanıcı adı *</span><input name="kullaniciAdi" required autocomplete="username"></label>
+        <label class="alan"><span>Şifre *</span><input name="sifre" type="password" required
+          autocomplete="new-password"><em>En az 6 karakter</em></label>
+        <label class="alan"><span>Şifre tekrar *</span><input name="sifre2" type="password" required
+          autocomplete="new-password"></label>
+        <button class="btn accent" type="submit">Hesabı oluştur ve başla</button>
+        <div class="giris-hata" hidden></div>
+      </form>`);
+
+    el.querySelector('#kurulumForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      const hata = el.querySelector('.giris-hata');
+      const goster = (m) => { hata.textContent = m; hata.hidden = false; };
+      if (String(f.get('sifre')).length < 6) return goster('Şifre en az 6 karakter olmalı.');
+      if (f.get('sifre') !== f.get('sifre2')) return goster('Şifreler eşleşmiyor.');
+
+      const { salt, sifreHash } = await Yetki.sifreAta(String(f.get('sifre')));
+      const k = S.ekle('kullanicilar', {
+        ad: String(f.get('ad')).trim(), kullaniciAdi: String(f.get('kullaniciAdi')).trim(),
+        eposta: '', rol: 'Sistem Yöneticisi', durum: 'Aktif', izinler: {},
+        salt, sifreHash, olusturma: new Date().toISOString(), sonGiris: new Date().toISOString()
+      });
+      Yetki.oturumAc(k);
+      S.gunlukYaz('kurulum yaptı', 'kullanicilar', k);
+      kabukGoster(true);
+      mountPanel();
+      toast('Hoş geldiniz ' + k.ad + '. Kullanıcılar ekranından ekip arkadaşlarınızı ekleyebilirsiniz.');
+    });
+  }
+
+  function girisEkrani(mesaj) {
+    const el = girisKabugu(`
+      <h2>Giriş</h2>
+      <p class="giris-not">Panele erişmek için kullanıcı adınızı ve şifrenizi girin.</p>
+      <form id="girisForm" class="giris-form">
+        <label class="alan"><span>Kullanıcı adı</span><input name="kullaniciAdi" required autocomplete="username"></label>
+        <label class="alan"><span>Şifre</span><input name="sifre" type="password" required autocomplete="current-password"></label>
+        <button class="btn accent" type="submit">Giriş yap</button>
+        <div class="giris-hata" ${mesaj ? '' : 'hidden'}>${mesaj || ''}</div>
+      </form>`);
+
+    el.querySelector('#girisForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      const hata = el.querySelector('.giris-hata');
+      const dugme = e.target.querySelector('button');
+      dugme.disabled = true; dugme.textContent = 'Kontrol ediliyor…';
+
+      const ad = String(f.get('kullaniciAdi')).trim().toLowerCase();
+      const k = S.get('kullanicilar').find((x) => x.kullaniciAdi.toLowerCase() === ad);
+      const gecerli = k && k.durum === 'Aktif' && await Yetki.dogrula(String(f.get('sifre')), k);
+
+      dugme.disabled = false; dugme.textContent = 'Giriş yap';
+      if (!gecerli) {
+        hata.textContent = k && k.durum !== 'Aktif'
+          ? 'Bu hesap pasif durumda. Yöneticinizle görüşün.'
+          : 'Kullanıcı adı veya şifre hatalı.';
+        hata.hidden = false;
+        return;
+      }
+      Yetki.oturumAc(k);
+      S.guncelle('kullanicilar', k._id, { sonGiris: new Date().toISOString() });
+      kabukGoster(true);
+      mountPanel();
+      toast('Hoş geldiniz, ' + k.ad + ' · ' + k.rol);
+    });
+  }
+
+  function cikisYap() {
+    const k = Yetki.kullanici();
+    if (k) S.gunlukYaz('çıkış yaptı', 'oturum', k);   // once gunluge yaz, sonra oturumu kapat
+    Yetki.oturumKapat();
+    document.querySelector('.view').innerHTML = '';
+    girisEkrani('');
+  }
+
   /* ------------------------------------------------------- yonlendirme */
   function currentRoute() {
     const id = (location.hash || '#ozet').slice(1);
-    return VIEWS[id] ? id : 'ozet';
+    if (!VIEWS[id]) return ilkYetkiliRota();
+    return yetkiVar(id, 'goruntule') ? id : ilkYetkiliRota();
+  }
+
+  /* Kullanicinin gorebildigi ilk modul */
+  function ilkYetkiliRota() {
+    const m = Yetki.gorunurModuller().find((x) => VIEWS[x.id]);
+    return m ? m.id : 'ozet';
   }
 
   function render() {
+    if (!Yetki.kullanici()) return;
+    menuyuYaz();
     const route = currentRoute();
+    if (location.hash.slice(1) !== route) { location.hash = '#' + route; return; }
     document.getElementById('view').innerHTML = VIEWS[route]();
+    izinleriUygula(route);
     document.querySelectorAll('.nav a').forEach((a) =>
       a.classList.toggle('is-active', a.getAttribute('href') === '#' + route));
     document.querySelectorAll('.rail button[data-route]').forEach((b) =>
@@ -2836,6 +3178,13 @@
     if (hakedisDurum) hakedisDurum.addEventListener('change', () => {
       state.hakedisDurum = hakedisDurum.value; render();
     });
+
+    /* --- kullanıcılar --- */
+    tikla('[data-act="kullanici-ekle"]', () => kullaniciFormu(null));
+    tikla('[data-kullanici-duzenle]', (b) => kullaniciFormu(b.dataset.kullaniciDuzenle));
+    tikla('[data-kullanici-izin]', (b) => kullaniciIzin(b.dataset.kullaniciIzin));
+    tikla('[data-kullanici-sifre]', (b) => kullaniciSifre(b.dataset.kullaniciSifre));
+    tikla('[data-kullanici-sil]', (b) => kullaniciSil(b.dataset.kullaniciSil));
 
     /* --- işler --- */
     tikla('[data-act="is-ekle"]', () => isFormu(null));
@@ -3053,42 +3402,92 @@
 
 
   /* -------------------------------------------------------------- iskele */
-  function mount() {
+  /* Menu ve ikon rayi yalnizca yetkili modulleri gosterir */
+  function menuyuYaz() {
+    const gorunur = MENU.filter((m) => yetkiVar(m.id, 'goruntule'));
     document.querySelector('.nav').innerHTML =
-      MENU.map((m) => `<a href="#${m.id}">${m.ad}</a>`).join('');
+      gorunur.map((m) => `<a href="#${m.id}">${m.ad}</a>`).join('');
 
+    const ayrac = Math.min(7, gorunur.length);
     document.querySelector('.rail').innerHTML =
-      MENU.map((m, i) => (i === 7 ? '<div class="rail-sep"></div>' : '') +
+      gorunur.map((m, i) => (i === ayrac ? '<div class="rail-sep"></div>' : '') +
         `<button data-route="${m.id}" title="${m.ad}" aria-label="${m.ad}">${icon(m.ikon)}</button>`).join('') +
       '<div class="rail-sep"></div>' +
       `<button title="Bildirimler" data-rail="bildirim">${icon('bell')}</button>` +
       `<button title="Veri yönetimi" data-rail="veri">${icon('veri')}</button>`;
 
+    document.querySelectorAll('.rail button[data-route]').forEach((b) =>
+      b.addEventListener('click', () => { location.hash = '#' + b.dataset.route; }));
     document.querySelector('[data-rail="veri"]').addEventListener('click', veriYonetimi);
     document.querySelector('[data-rail="bildirim"]').addEventListener('click', () => {
       const bekleyen = S.get('hakedisler').filter((h) => h.durum === 'Onay Bekliyor').length;
       const kritik = kritikStok().length;
       toast(`${bekleyen} hakediş onay bekliyor · ${kritik} malzeme kritik seviyede`);
     });
+    kullaniciCubugu();
+  }
 
-    document.querySelectorAll('.rail button[data-route]').forEach((b) =>
-      b.addEventListener('click', () => { location.hash = '#' + b.dataset.route; }));
+  /* Ust cubukta aktif kullanici ve cikis */
+  function kullaniciCubugu() {
+    const k = Yetki.kullanici();
+    const kutu = document.querySelector('.role-switch');
+    if (!k || !kutu) return;
+    const bas = k.ad.split(' ').map((x) => x[0]).slice(0, 2).join('').toUpperCase();
+    kutu.innerHTML = `
+      <span class="aktif-kullanici" title="${k.ad} · ${k.rol}">
+        <i>${bas}</i><div><b>${k.ad}</b><small>${k.rol}</small></div>
+      </span>
+      <button data-cikis title="Çıkış yap">${icon('lock')} Çıkış</button>`;
+    kutu.querySelector('[data-cikis]').addEventListener('click', cikisYap);
+    const marka = document.querySelector('.brand-avatar');
+    if (marka) marka.textContent = bas;
+  }
 
-    document.querySelectorAll('.role-switch button').forEach((b) => {
-      b.addEventListener('click', () => {
-        state.rol = b.dataset.rol;
-        document.querySelectorAll('.role-switch button').forEach((x) =>
-          x.classList.toggle('is-active', x === b));
-        toast(state.rol === 'yonetici'
-          ? 'Yönetici görünümü: onay ve yetkilendirme açık.'
-          : 'Taşeron görünümü: yalnızca kendi işleri ve bilgi raporları.');
-        render();
-      });
-    });
+  /* Yetkisi olmayan islemlerin dugmelerini gizler */
+  function izinleriUygula(route) {
+    const duzenle = yetkiVar(route, 'duzenle');
+    const onayla = yetkiVar(route, 'onayla');
+    const kok = document.getElementById('view');
 
-    window.addEventListener('hashchange', render);
-    S.abone(() => render());     // veri degistiginde ekran yenilenir
+    if (!duzenle) {
+      kok.querySelectorAll(
+        '[data-act$="-ekle"], [class*="ikon-btn"][data-metraj-duzenle], .satir-islem .ikon-btn.tehlike,' +
+        '[data-metraj-duzenle], [data-metraj-sil], [data-metraj-dogrula],' +
+        '[data-pafta-sil], [data-is-duzenle], [data-is-sil],' +
+        '[data-taseron-duzenle], [data-taseron-sil], [data-proje-duzenle], [data-proje-sil],' +
+        '[data-personel-duzenle], [data-personel-sil], [data-puantaj-gir],' +
+        '[data-kalite-tekrar], [data-kalite-sil], [data-hakedis-sil],' +
+        '[data-stok-duzenle], [data-stok-sil], [data-stok-hareket], [data-stok-talep],' +
+        '[data-siparis-duzenle], [data-siparis-sil],' +
+        '[data-kullanici-duzenle], [data-kullanici-sil], [data-kullanici-sifre],' +
+        '[data-act="puantaj-toplu"]'
+      ).forEach((el) => el.remove());
+    }
+    if (!onayla) {
+      kok.querySelectorAll('[data-hakedis-ilerlet], [data-hakedis-red], [data-siparis-ilerlet]')
+         .forEach((el) => el.remove());
+    }
+    if (!duzenle) {
+      const bos = kok.querySelectorAll('.satir-islem');
+      bos.forEach((el) => { if (!el.children.length) el.remove(); });
+    }
+  }
+
+  function mountPanel() {
+    if (!Yetki.kullanici()) return;
+    menuyuYaz();
     render();
+  }
+
+  /* Acilis: kullanici yoksa kurulum, oturum yoksa giris, varsa panel */
+  function mount() {
+    window.addEventListener('hashchange', render);
+    S.abone(() => { if (Yetki.kullanici()) render(); });
+
+    if (!S.get('kullanicilar').length) { kurulumEkrani(); return; }
+    if (!Yetki.oturumYukle(S.get('kullanicilar'))) { girisEkrani(''); return; }
+    kabukGoster(true);
+    mountPanel();
   }
 
   document.addEventListener('DOMContentLoaded', mount);
