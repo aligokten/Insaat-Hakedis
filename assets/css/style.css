@@ -521,3 +521,107 @@ tfoot td { padding: 12px; border-top: 2px solid var(--line); font-weight: 600; f
   .grid.cols-4 { grid-template-columns: 1fr; }
   .match-card { flex-basis: 82vw; }
 }
+
+/* ==========================================================================
+   Diyalog, form ve tablo aksiyonlari
+   ========================================================================== */
+
+.modal-katman {
+  position: fixed; inset: 0; z-index: 100;
+  display: grid; place-items: center; padding: 24px;
+  background: rgba(23, 22, 26, .32);
+  backdrop-filter: blur(3px);
+  opacity: 0; transition: opacity .18s;
+}
+.modal-katman.acik { opacity: 1; }
+
+.modal {
+  width: min(660px, 100%); max-height: 88vh;
+  display: flex; flex-direction: column;
+  background: #fff; border-radius: var(--r-lg);
+  box-shadow: 0 30px 70px -30px rgba(23,22,26,.6);
+  transform: translateY(10px) scale(.985); transition: transform .18s;
+}
+.modal-katman.acik .modal { transform: none; }
+.modal.genis { width: min(940px, 100%); }
+
+.modal-bas { padding: 20px 22px 14px; border-bottom: 1px solid var(--line-soft); position: relative; }
+.modal-bas h3 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -.2px; padding-right: 30px; }
+.modal-bas p { margin: 5px 0 0; font-size: 12.5px; color: var(--ink-3); max-width: 62ch; }
+.modal-kapat {
+  position: absolute; top: 14px; right: 14px;
+  width: 30px; height: 30px; border-radius: 50%;
+  font-size: 20px; line-height: 1; color: var(--ink-3);
+}
+.modal-kapat:hover { background: var(--surface-2); color: var(--ink); }
+
+.modal-govde { padding: 18px 22px; overflow-y: auto; }
+.modal-metin { margin: 0; font-size: 13px; color: var(--ink-2); }
+.modal-alt {
+  padding: 14px 22px 18px; display: flex; justify-content: flex-end; gap: 8px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.form-izgara { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 14px; }
+.alan { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.alan.genis { grid-column: 1 / -1; }
+.alan > span { font-size: 11.5px; font-weight: 500; color: var(--ink-2); }
+.alan em { font-size: 10.5px; color: var(--ink-3); font-style: normal; }
+.alan input, .alan select, .alan textarea {
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  padding: 9px 11px; font-size: 13px; background: var(--surface-2);
+  outline: none; transition: border-color .16s, background .16s;
+  width: 100%; font-family: inherit;
+}
+.alan input:focus, .alan select:focus, .alan textarea:focus {
+  border-color: var(--accent); background: #fff;
+}
+.alan input[readonly] { color: var(--ink-3); }
+.alan .hatali { border-color: var(--bad); background: rgba(211,58,44,.05); }
+
+.kalem-tablo { margin-top: 16px; border-top: 1px solid var(--line-soft); padding-top: 12px; }
+.kalem-tablo h4 { margin: 0 0 8px; font-size: 12.5px; font-weight: 600; }
+.kalem-tablo table { font-size: 12px; }
+.kalem-tablo input[type="number"] {
+  width: 92px; padding: 5px 8px; text-align: right;
+  border: 1px solid var(--line); border-radius: 7px; background: var(--surface-2);
+}
+.kalem-tablo input[type="number"]:focus { border-color: var(--accent); background: #fff; outline: none; }
+.kalem-tablo input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent); }
+
+.ozet-satir {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 0; font-size: 12.5px; border-top: 1px solid var(--line-soft);
+}
+.ozet-satir span { color: var(--ink-2); }
+.ozet-satir b { margin-left: auto; font-variant-numeric: tabular-nums; }
+.ozet-satir.vurgu b { font-size: 15px; color: var(--accent); }
+
+.satir-islem { display: flex; gap: 4px; justify-content: flex-end; }
+.ikon-btn {
+  width: 28px; height: 28px; border-radius: 8px;
+  display: grid; place-items: center; color: var(--ink-3);
+  transition: background .16s, color .16s;
+}
+.ikon-btn:hover { background: var(--surface-3); color: var(--ink); }
+.ikon-btn.tehlike:hover { background: rgba(211,58,44,.12); color: var(--bad); }
+.ikon-btn svg { width: 14px; height: 14px; }
+
+.arac-cubugu { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.arac-cubugu select, .arac-cubugu input {
+  border: 1px solid var(--line-soft); border-radius: 999px;
+  padding: 7px 13px; font-size: 12px; background: rgba(255,255,255,.7);
+  outline: none;
+}
+.arac-cubugu select:focus, .arac-cubugu input:focus { border-color: var(--accent); background: #fff; }
+
+@media (max-width: 620px) {
+  .form-izgara { grid-template-columns: 1fr; }
+  .modal-katman { padding: 12px; }
+}
+
+.ozet-blok {
+  position: sticky; bottom: -18px; margin-top: 8px;
+  background: #fff; padding-bottom: 4px;
+  box-shadow: 0 -12px 16px -12px rgba(23,22,26,.18);
+}
