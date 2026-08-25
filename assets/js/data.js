@@ -133,6 +133,107 @@ window.DB = (function () {
   ];
 
 
+
+  /* Proje altindaki is kalemleri (imalat paketleri) */
+  const isler = [
+    { id: 'IS-001', ad: 'B1-B2 perde ve kolon betonarme imalatı', proje: 'PRJ-01', taseron: 'TSR-01',
+      mahal: 'A Blok · Bodrum', baslangic: '2026-06-01', bitis: '2026-09-15',
+      planlanan: 24500000, ilerleme: 78, durum: 'Devam', sorumlu: 'S. Arslan',
+      metrajIds: [], malzemeler: [{ kod: 'MLZ-001', miktar: 90 }, { kod: 'MLZ-002', miktar: 45 }],
+      personelIds: ['PRS-001', 'PRS-002', 'PRS-005'] },
+    { id: 'IS-002', ad: '3-6. kat duvar örgüsü', proje: 'PRJ-01', taseron: 'TSR-04',
+      mahal: 'A Blok · 3-6. Kat', baslangic: '2026-07-10', bitis: '2026-10-30',
+      planlanan: 8600000, ilerleme: 45, durum: 'Devam', sorumlu: 'H. Çetin',
+      metrajIds: [], malzemeler: [{ kod: 'MLZ-003', miktar: 2200 }],
+      personelIds: ['PRS-003', 'PRS-004'] },
+    { id: 'IS-003', ad: 'Islak hacim seramik kaplama', proje: 'PRJ-01', taseron: 'TSR-04',
+      mahal: 'A Blok · 1-2. Kat', baslangic: '2026-08-01', bitis: '2026-11-20',
+      planlanan: 5400000, ilerleme: 22, durum: 'Devam', sorumlu: 'H. Çetin',
+      metrajIds: [], malzemeler: [{ kod: 'MLZ-005', miktar: 940 }],
+      personelIds: ['PRS-006'] },
+    { id: 'IS-004', ad: 'Sıhhi tesisat ana hat montajı', proje: 'PRJ-02', taseron: 'TSR-02',
+      mahal: 'Kule 2 · Şaft', baslangic: '2026-07-01', bitis: '2026-09-30',
+      planlanan: 12300000, ilerleme: 60, durum: 'Durduruldu', sorumlu: 'S. Korkmaz',
+      metrajIds: [], malzemeler: [{ kod: 'MLZ-006', miktar: 300 }],
+      personelIds: ['PRS-007'] },
+    { id: 'IS-005', ad: 'Kuzey cephe mantolama', proje: 'PRJ-01', taseron: 'TSR-05',
+      mahal: 'A Blok · Kuzey cephe', baslangic: '2026-08-15', bitis: '2026-12-15',
+      planlanan: 7900000, ilerleme: 12, durum: 'Planlandı', sorumlu: 'E. Yılmaz',
+      metrajIds: [], malzemeler: [{ kod: 'MLZ-004', miktar: 800 }],
+      personelIds: [] }
+  ];
+
+  const PERSONEL_GOREV = ['Proje Müdürü', 'Şantiye Şefi', 'Formen', 'Usta', 'Kalfa',
+                          'Düz İşçi', 'Operatör', 'İSG Uzmanı', 'Tekniker'];
+  const PUANTAJ_DURUM = {
+    'Tam gün':      { katsayi: 1,    kind: 'ok' },
+    'Yarım gün':    { katsayi: 0.5,  kind: 'warn' },
+    'Fazla mesai':  { katsayi: 1.5,  kind: 'info' },
+    'İzinli':       { katsayi: 0,    kind: '' },
+    'Raporlu':      { katsayi: 0,    kind: 'warn' },
+    'Devamsız':     { katsayi: 0,    kind: 'bad' }
+  };
+
+  /* Saha personeli ozluk kartlari */
+  const personel = [
+    { id: 'PRS-001', ad: 'Mehmet Aydın', sicil: '1042', gorev: 'Formen', firma: 'TSR-01',
+      telefon: '0532 000 10 42', girisTarihi: '2024-03-04', yevmiye: 2400,
+      sgkDurum: 'Geçerli', sgkBitis: '2027-03-31', isgTarih: '2026-02-10', isgGecerlilik: '2029-02-10',
+      saglikRaporu: '2026-03-01', kanGrubu: '0 Rh+', acilKisi: 'Ayşe Aydın', acilTelefon: '0532 000 10 43',
+      durum: 'Aktif', notlar: 'Yüksekte çalışma sertifikası mevcut.' },
+    { id: 'PRS-002', ad: 'Hasan Demirtaş', sicil: '1055', gorev: 'Usta', firma: 'TSR-01',
+      telefon: '0533 000 10 55', girisTarihi: '2025-01-15', yevmiye: 2100,
+      sgkDurum: 'Geçerli', sgkBitis: '2027-01-15', isgTarih: '2025-11-20', isgGecerlilik: '2028-11-20',
+      saglikRaporu: '2025-12-05', kanGrubu: 'A Rh+', acilKisi: 'Fatma Demirtaş', acilTelefon: '0533 000 10 56',
+      durum: 'Aktif', notlar: 'Kalıp ustası.' },
+    { id: 'PRS-003', ad: 'Ramazan Koç', sicil: '1071', gorev: 'Usta', firma: 'TSR-04',
+      telefon: '0534 000 10 71', girisTarihi: '2025-06-01', yevmiye: 2050,
+      sgkDurum: 'Geçerli', sgkBitis: '2027-06-30', isgTarih: '2023-05-12', isgGecerlilik: '2026-05-12',
+      saglikRaporu: '2026-01-18', kanGrubu: 'B Rh-', acilKisi: 'Elif Koç', acilTelefon: '0534 000 10 72',
+      durum: 'Aktif', notlar: 'İSG eğitimi yenilenmeli.' },
+    { id: 'PRS-004', ad: 'Yusuf Bal', sicil: '1088', gorev: 'Düz İşçi', firma: 'TSR-04',
+      telefon: '0535 000 10 88', girisTarihi: '2026-02-10', yevmiye: 1500,
+      sgkDurum: 'Geçerli', sgkBitis: '2027-02-10', isgTarih: '2026-02-12', isgGecerlilik: '2029-02-12',
+      saglikRaporu: '2026-02-11', kanGrubu: 'A Rh-', acilKisi: 'Zeynep Bal', acilTelefon: '0535 000 10 89',
+      durum: 'Aktif', notlar: '' },
+    { id: 'PRS-005', ad: 'Serkan Uçar', sicil: '1090', gorev: 'Operatör', firma: 'Kendi bünyemiz',
+      telefon: '0536 000 10 90', girisTarihi: '2023-09-20', yevmiye: 2800,
+      sgkDurum: 'Geçerli', sgkBitis: '2027-09-20', isgTarih: '2025-08-01', isgGecerlilik: '2028-08-01',
+      saglikRaporu: '2026-04-02', kanGrubu: '0 Rh-', acilKisi: 'Nur Uçar', acilTelefon: '0536 000 10 91',
+      durum: 'Aktif', notlar: 'Kule vinç operatörü, G sınıfı belge.' },
+    { id: 'PRS-006', ad: 'İbrahim Şahin', sicil: '1103', gorev: 'Kalfa', firma: 'TSR-04',
+      telefon: '0537 000 11 03', girisTarihi: '2025-10-05', yevmiye: 1850,
+      sgkDurum: 'Süresi Doldu', sgkBitis: '2026-08-01', isgTarih: '2025-10-06', isgGecerlilik: '2028-10-06',
+      saglikRaporu: '2025-10-06', kanGrubu: 'AB Rh+', acilKisi: 'Hatice Şahin', acilTelefon: '0537 000 11 04',
+      durum: 'Aktif', notlar: 'SGK evrakı yenilenmeli.' },
+    { id: 'PRS-007', ad: 'Kemal Aslan', sicil: '1115', gorev: 'Usta', firma: 'TSR-02',
+      telefon: '0538 000 11 15', girisTarihi: '2026-04-12', yevmiye: 2250,
+      sgkDurum: 'Geçerli', sgkBitis: '2027-04-12', isgTarih: '2026-04-13', isgGecerlilik: '2029-04-13',
+      saglikRaporu: '2026-04-13', kanGrubu: 'B Rh+', acilKisi: 'Sevgi Aslan', acilTelefon: '0538 000 11 16',
+      durum: 'İzinli', notlar: 'Mekanik tesisat ustası.' },
+    { id: 'PRS-008', ad: 'Ali Doğan', sicil: '1120', gorev: 'Şantiye Şefi', firma: 'Kendi bünyemiz',
+      telefon: '0539 000 11 20', girisTarihi: '2022-05-02', yevmiye: 4200,
+      sgkDurum: 'Geçerli', sgkBitis: '2028-05-02', isgTarih: '2026-01-15', isgGecerlilik: '2029-01-15',
+      saglikRaporu: '2026-01-16', kanGrubu: 'A Rh+', acilKisi: 'Merve Doğan', acilTelefon: '0539 000 11 21',
+      durum: 'Aktif', notlar: 'İnşaat mühendisi.' }
+  ];
+
+  /* Gunluk puantaj kayitlari */
+  const puantaj = [
+    { personel: 'PRS-001', tarih: '2026-08-24', durum: 'Tam gün', is: 'IS-001', aciklama: '' },
+    { personel: 'PRS-002', tarih: '2026-08-24', durum: 'Fazla mesai', is: 'IS-001', aciklama: 'Beton dökümü' },
+    { personel: 'PRS-003', tarih: '2026-08-24', durum: 'Tam gün', is: 'IS-002', aciklama: '' },
+    { personel: 'PRS-004', tarih: '2026-08-24', durum: 'Yarım gün', is: 'IS-002', aciklama: 'Öğleden sonra ayrıldı' },
+    { personel: 'PRS-005', tarih: '2026-08-24', durum: 'Tam gün', is: 'IS-001', aciklama: '' },
+    { personel: 'PRS-006', tarih: '2026-08-24', durum: 'Devamsız', is: 'IS-003', aciklama: 'Bildirimsiz' },
+    { personel: 'PRS-007', tarih: '2026-08-24', durum: 'İzinli', is: 'IS-004', aciklama: 'Yıllık izin' },
+    { personel: 'PRS-008', tarih: '2026-08-24', durum: 'Tam gün', is: '', aciklama: '' },
+    { personel: 'PRS-001', tarih: '2026-08-23', durum: 'Tam gün', is: 'IS-001', aciklama: '' },
+    { personel: 'PRS-002', tarih: '2026-08-23', durum: 'Tam gün', is: 'IS-001', aciklama: '' },
+    { personel: 'PRS-003', tarih: '2026-08-23', durum: 'Tam gün', is: 'IS-002', aciklama: '' },
+    { personel: 'PRS-006', tarih: '2026-08-23', durum: 'Tam gün', is: 'IS-003', aciklama: '' }
+  ];
+
   /* Imalat turune gore kontrol sablonlari; agirlik puani skoru belirler */
   const KALITE_SABLON = {
     'Beton Dökümü': [
@@ -202,6 +303,7 @@ window.DB = (function () {
     { yil: 2026, deger: 100 }
   ];
 
-  return { projeler, paftalar, metraj, taseronlar, YETKI_LISTESI, KALITE_SABLON, KALITE_ESIK,
+  return { projeler, paftalar, metraj, taseronlar, isler, personel, puantaj,
+           YETKI_LISTESI, KALITE_SABLON, KALITE_ESIK, PERSONEL_GOREV, PUANTAJ_DURUM,
            kaliteKontrol, hakedisler, stok, hareketler, siparisler, raporlar, buyume };
 })();

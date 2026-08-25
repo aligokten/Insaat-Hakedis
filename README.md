@@ -19,13 +19,15 @@ git clone <repo> && cd Insaat-Hakedis
 |---|---|
 | **Genel Bakış** | Portföy özeti, hakediş hacmi yay grafiği, proje tamamlanma kartları, KPI'lar |
 | **Projeler & DWG** ✅ | Dosyayı gerçekten saklar (IndexedDB), indirir, siler; DXF'i ayrıştırıp katman/geometri/ölçüm çıkarır ve vektör önizleme çizer; DWG'nin gömülü küçük resmini ve sürümünü okur; katman ölçüsünü tek tıkla metraja aktarır |
+| **İşler** ✅ | Proje altında iş paketi ekle/düzenle/sil; taşeron ataması, personel görevlendirmesi, malzeme tahsisi (stokta rezerve ayırır), metraj kalemi bağlama, ilerleme ve termin takibi, CSV |
+| **Personel** ✅ | Özlük kartı (SGK, İSG, sağlık raporu, kan grubu, acil durum), evrak geçerlilik uyarıları, görevli olduğu işler, günlük puantaj ve hak ediş hesabı, toplu puantaj, CSV |
 | **Metraj** ✅ | Poz ekleme/düzenleme/silme, proje filtresi, otomatik tutar hesabı, manuel doğrulama, CSV dışa aktarma |
 | **Taşeronlar** ✅ | Taşeron ekle/düzenle/sil (bağlı kayıt uyarısıyla), sözleşme/SGK durumu ve modül bazlı yetki anahtarları |
 | **Kalite Kontrol** ✅ | İmalat türüne göre kontrol şablonları, madde bazlı Uygun / Uygun Değil / Kapsam Dışı işaretleme, ağırlıklı otomatik puanlama ve sonuç önerisi, saha fotoğrafı ekleme, sapma notları, yeniden kontrol zinciri, taşeron karnesi, CSV |
 | **Hakediş** ✅ | Metraj kalemlerinden hakediş oluşturma (canlı tutar özeti), kesinti/avans/KDV hesabı, Taslak → Kontrolde → Onay Bekliyor → Onaylandı akışı, red gerekçesi, kalem detayı ve CSV |
 | **Stok** ✅ | Malzeme kartı ekle/düzenle/sil, depo filtresi, giriş · çıkış · rezerve · sayım hareketleri (sınır kontrollü), hareket geçmişi, kritik seviye uyarısı, CSV |
 | **Tedarik** ✅ | Sipariş oluştur/düzenle/sil, Onay Bekliyor → Onaylandı → Yolda → Teslim Edildi akışı, teslim alındığında otomatik stok girişi, tarihe göre otomatik gecikme, teslim takvimi, CSV |
-| **Raporlar** | Üst yetkiliye yönetim özeti ve alt taşerona bilgi raporu; portföy ilerlemesi, nakit akış projeksiyonu, risk gündemi |
+| **Raporlar** ✅ | Dört rapor türü panel verisinden anlık üretilir (Üst Yönetim Özeti, Taşeron Bilgi Raporu, Personel ve Puantaj Raporu, Malzeme ve Tedarik Bülteni); A4 düzeninde yazdırılabilir çıktı (Yazdır → PDF) veya CSV, imza blokları dâhil |
 
 Sağ üstteki **Yönetici / Taşeron** anahtarı rolü değiştirir; taşeron rolünde hakediş
 onay butonları gizlenir.
@@ -70,9 +72,34 @@ değiştirilecek şekilde tasarlandı; görünüm kodunda değişiklik gerekmez.
 
 ### Modül durumu
 
-- ✅ **Bağlandı:** Projeler & DWG (proje kayıtları dâhil), Metraj, Taşeronlar, Kalite Kontrol,
-  Hakediş, Stok, Tedarik, veri yönetimi
-- ⏳ **Sırada:** Raporlama
+Tüm modüller bağlı; panelde demo amaçlı bırakılmış işlev kalmadı.
+
+## İş paketi ve kaynak atama
+
+Bir **iş**, projenin altındaki imalat paketidir (örn. "3-6. kat duvar örgüsü"). İş kartından:
+
+- **Taşeron** atanır, saha sorumlusu ve termin girilir.
+- **Personel** görevlendirilir; kişi kartındaki "görevli olduğu işler" listesi otomatik güncellenir.
+- **Malzeme tahsis edilir**: tahsis edilen miktar stokta *rezerve* olarak ayrılır, bir stok
+  hareketi yazılır ve kullanılabilir miktardan düşer. Tahsis kaldırılınca rezerve serbest bırakılır.
+- **Metraj kalemi bağlanır**; işin metraj karşılığı, malzeme tahsisi ve puantajdan gelen işgücü
+  maliyeti detay penceresinde birlikte görünür.
+
+## Puantaj ve hak ediş
+
+Puantaj durumları katsayılıdır: Tam gün 1 · Yarım gün 0,5 · Fazla mesai 1,5 ·
+İzinli / Raporlu / Devamsız 0. Kişinin hak edişi *yevmiye günü × günlük yevmiye* olarak
+hesaplanır; işin işgücü maliyeti o işe yazılan puantajlardan toplanır.
+
+Özlük evrakları izlenir: SGK geçersiz ya da 30 günden az kalmışsa, İSG eğitimi süresi dolmuş
+ya da 60 günden az kalmışsa, sağlık raporu bir yılı aşmışsa uyarı üretilir; bu uyarılar
+personel ekranında, personel kartında ve raporların risk gündeminde görünür.
+
+## Raporlar
+
+Raporlar sabit metin değildir — çağrıldığı anda depodaki veriden üretilir. "Raporu aç" yeni bir
+sekmede A4 düzeninde, imza bloklu bir çıktı açar; tarayıcının **Yazdır → PDF olarak kaydet**
+seçeneğiyle PDF alınır. Aynı rapor CSV olarak da indirilebilir.
 
 ## Stok ve tedarik akışı
 

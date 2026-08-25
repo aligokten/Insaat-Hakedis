@@ -681,3 +681,17 @@ tfoot td { padding: 12px; border-top: 2px solid var(--line); font-weight: 600; f
 .uyari-kutu span { color: var(--ink-2); font-size: 11.5px; }
 
 .nowrap { white-space: nowrap; }
+
+/* ------------------------------------------------- iş ve personel kartı */
+.is-karti .card-head { align-items: flex-start; }
+.is-karti h3 { font-size: 15px; line-height: 1.25; }
+
+.ozluk-izgara {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px 14px; margin-top: 4px;
+}
+.ozluk-izgara > div { min-width: 0; }
+.ozluk-izgara span { display: block; font-size: 10.5px; color: var(--ink-3); }
+.ozluk-izgara b { font-size: 12.5px; font-weight: 600; word-break: break-word; }
+
+.arac-cubugu input[type="date"] { font-variant-numeric: tabular-nums; }

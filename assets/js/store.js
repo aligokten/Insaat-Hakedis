@@ -3,9 +3,9 @@
    data.js icindeki ornek veri tohum olarak yazilir. */
 window.Store = (function () {
   const KEY = 'insaat-hakedis:v1';
-  const KOLEKSIYONLAR = ['projeler', 'paftalar', 'metraj', 'taseronlar',
-                         'kaliteKontrol', 'hakedisler', 'stok', 'hareketler',
-                         'siparisler', 'raporlar'];
+  const KOLEKSIYONLAR = ['projeler', 'paftalar', 'metraj', 'taseronlar', 'isler',
+                         'personel', 'puantaj', 'kaliteKontrol', 'hakedisler',
+                         'stok', 'hareketler', 'siparisler', 'raporlar'];
 
   let db = null;
   const aboneler = [];
