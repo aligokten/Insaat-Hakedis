@@ -16,7 +16,8 @@
     personelFirma: 'hepsi',
     puantajTarihi: new Date().toISOString().slice(0, 10),
     raporTaseron: '',
-    acikTaseron: null
+    acikTaseron: null,
+    ozetProje: null
   };
 
   /* Hakedis onay akisi ve rol yetkileri */
@@ -78,18 +79,17 @@
 
   /* ------------------------------------------------------- genel bakis */
   function viewOzet() {
-    const seri = DB.buyume.map((b, i) => ({
-      ...b,
-      etiket: moneyShort(b.deger / 100 * 1.05e9)
-    }));
+    const projeler = S.get('projeler');
+    const secili = projeler.find((p) => p.id === state.ozetProje) || projeler[0] || null;
+    const asama = secili ? Asama.asamaBul(secili.ilerleme) : Asama.ASAMALAR[0];
 
-    const kartlar = S.get('projeler').slice(0, 4).map((p, i) => `
-      <article class="match-card ${i === 1 ? 'is-featured' : ''}" data-goto="hakedis">
-        <button class="go" aria-label="Ac">${icon('arrowUR')}</button>
+    const kartlar = projeler.slice(0, 4).map((p, i) => `
+      <article class="match-card ${i === 1 ? 'is-featured' : ''}" data-goto="isler">
+        <button class="go" aria-label="Aç">${icon('arrowUR')}</button>
         <h3>${p.ad}</h3>
         <div class="sub">${p.blok} · ${p.guncelleme}</div>
         <div class="match-body">
-          ${donut(p.ilerleme, { caption: p.ilerleme >= 80 ? 'Yüksek İlerleme' : 'İlerleme', size: i === 1 ? 100 : 92 })}
+          ${donut(p.ilerleme, { caption: Asama.asamaBul(p.ilerleme).ad, size: i === 1 ? 100 : 92 })}
           <div class="check-list">
             ${p.etiketler.map((e) => `<div>${icon('check')}<span>${e}</span></div>`).join('')}
           </div>
@@ -99,15 +99,13 @@
     return `
     <section class="hero">
       <div>
-        <div>
-          <span class="hero-chip"><i></i> DWG Destekli</span>
-        </div>
+        <div><span class="hero-chip"><i></i> DWG Destekli</span></div>
         <h1>PROJE<br><span class="thin">HAKEDİŞ</span> PANELİ</h1>
         <p>Yüklediğiniz mimari ve statik paftalardan metraj otomatik çıkarılır;
            taşeron yetkisi, kalite kontrolü ve hakediş onayı tek akışta ilerler.</p>
         <div class="hero-actions">
           <div class="circle-group">
-            <button class="circle-btn" title="Pafta yukle" data-goto="paftalar">${icon('upload')}</button>
+            <button class="circle-btn" title="Pafta yükle" data-goto="paftalar">${icon('upload')}</button>
             <button class="circle-btn" title="Metraj" data-goto="metraj">${icon('ruler')}</button>
             <button class="circle-btn" title="Hakediş" data-goto="hakedis">${icon('receipt')}</button>
           </div>
@@ -115,20 +113,29 @@
         </div>
       </div>
 
-      <div class="arc-wrap">
-        ${arcChart(seri)}
-        <div class="arc-caption">Platform üzerinde onaylanan hakediş hacminin gelişimi</div>
-        <div class="arc-side">
-          <div class="mini-card">
-            <h4>Portföy Özeti</h4>
-            <div class="mini-row">${icon('building')}<span>Projeler</span><b>${S.get('projeler').length}</b></div>
-            <div class="mini-row">${icon('users')}<span>Taşeronlar</span><b>${S.get('taseronlar').length}</b></div>
-            <div class="mini-row">${icon('layers')}<span>Paftalar</span><b>${paftalarAll().length}</b></div>
-            <div class="mini-row">${icon('receipt')}<span>Hakedişler</span><b>${S.get('hakedisler').length}</b></div>
+      <div class="asama-alan">
+        ${secili ? `
+          <div class="asama-bilgi">
+            <h3>${secili.ad}</h3>
+            <p>${asama.aciklama}</p>
+            <span class="oran">${pct(secili.ilerleme)}</span>
           </div>
-          <div class="select-pill">Metraj Endeksi ${icon('down')}</div>
-          <div class="select-pill">Nakit Akışı ${icon('down')}</div>
-        </div>
+          ${Asama.sahne(secili)}
+          <div class="asama-serit">
+            ${Asama.ASAMALAR.map((a) => {
+              const durum = secili.ilerleme >= a.ust ? 'gecti'
+                          : a.id === asama.id ? 'aktif' : '';
+              return `<div class="asama-adim ${durum}">
+                <span>${a.alt}%+</span><b>${a.ad}</b></div>`;
+            }).join('')}
+          </div>
+          <div class="asama-secim">
+            <span>Proje</span>
+            <select id="ozetProje" aria-label="Proje seçimi">
+              ${projeler.map((p) => `<option value="${p.id}" ${secili.id === p.id ? 'selected' : ''}>${p.ad}</option>`).join('')}
+            </select>
+          </div>`
+        : '<div class="empty">Henüz proje tanımlanmadı.</div>'}
       </div>
     </section>
 
@@ -140,7 +147,7 @@
       <div class="spacer"></div>
       <div class="pager">
         <button data-strip="-1">${icon('left')}</button>
-        <b>0${Math.min(S.get('projeler').length, 4)}</b><span>/ ${S.get('projeler').length}</span>
+        <b>0${Math.min(projeler.length, 4)}</b><span>/ ${projeler.length}</span>
         <button data-strip="1">${icon('right')}</button>
       </div>
     </div>
@@ -230,6 +237,21 @@
       </div>
 
       <div class="grid" style="gap:14px">
+        <div class="card">
+          <div class="card-head"><h3>Belgeden veri aktar</h3></div>
+          <p class="modal-metin" style="margin-bottom:12px">
+            Keşif/metraj listesi, iş programı ya da malzeme listesi içeren
+            <b>CSV</b>, <b>TSV</b> veya <b>XLSX</b> dosyasını yükleyin; sütunları eşleştirip
+            projeye aktarın.</p>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            <button class="btn sm" data-act="ice-metraj">${icon('ruler')} Metraj listesi</button>
+            <button class="btn ghost sm" data-act="ice-isler">${icon('briefcase')} İş programı</button>
+            <button class="btn ghost sm" data-act="ice-stok">${icon('box')} Malzeme listesi</button>
+          </div>
+          <p class="modal-metin" style="margin-top:10px;font-size:11px">
+            DWG/DXF paftalarından metraj çıkarmak için pafta kartındaki
+            <b>Metraja aktar</b> düğmesini kullanın.</p>
+        </div>
         <div class="card">
           <div class="card-head"><h3>Projeler</h3><div class="spacer"></div>
             <button class="btn accent sm" data-act="proje-ekle">${icon('plus')} Proje ekle</button></div>
@@ -578,6 +600,7 @@
               ${S.get('projeler').map((p) => `<option value="${p.id}" ${state.metrajProje === p.id ? 'selected' : ''}>${p.ad}</option>`).join('')}
             </select>
             <button class="btn ghost sm" data-act="metraj-csv">${icon('download')} CSV</button>
+            <button class="btn ghost sm" data-act="ice-metraj">${icon('upload')} İçe aktar</button>
             <button class="btn accent sm" data-act="metraj-ekle">${icon('plus')} Poz ekle</button>
           </div></div>
         <div class="table-wrap"><table>
@@ -804,6 +827,7 @@
            ${S.get('projeler').map((p) => `<option value="${p.id}" ${state.isProje === p.id ? 'selected' : ''}>${p.ad}</option>`).join('')}
          </select>
          <button class="btn ghost sm" data-act="is-csv">${icon('download')} CSV</button>
+         <button class="btn ghost sm" data-act="ice-isler">${icon('upload')} İçe aktar</button>
          <button class="btn accent sm" data-act="is-ekle">${icon('plus')} İş ekle</button>
        </div>`)}
     <div class="grid cols-4" style="padding:0 10px 14px">
@@ -2017,6 +2041,7 @@
               ${depolar.map((d) => `<option value="${d}" ${state.stokDepo === d ? 'selected' : ''}>${d}</option>`).join('')}
             </select>
             <button class="btn ghost sm" data-act="stok-csv">${icon('download')} CSV</button>
+            <button class="btn ghost sm" data-act="ice-stok">${icon('upload')} İçe aktar</button>
             <button class="btn accent sm" data-act="stok-ekle">${icon('plus')} Malzeme ekle</button>
           </div></div>
         <div class="table-wrap"><table>
@@ -3025,8 +3050,7 @@
     el.innerHTML = `
       <div class="giris-kart">
         <div class="giris-marka">
-          <div class="brand-mark">H</div>
-          <div><b>Hakediş Panel</b><span>İnşaat proje yönetimi</span></div>
+          <img src="assets/img/logo.png" alt="Proje Hakediş">
         </div>
         ${icerik}
       </div>`;
@@ -3117,6 +3141,259 @@
     Yetki.oturumKapat();
     document.querySelector('.view').innerHTML = '';
     girisEkrani('');
+  }
+
+  /* ==================================================== belgeden içe aktarma */
+
+  /* Hedef sema: her alan icin olasi baslik adlari (otomatik eslestirme icin) */
+  const ICE_SEMA = {
+    metraj: {
+      ad: 'Metraj kalemleri',
+      koleksiyon: 'metraj',
+      alanlar: [
+        { ad: 'poz', etiket: 'Poz No', zorunlu: true, ipucu: ['poz', 'poz no', 'pozno', 'kod', 'no'] },
+        { ad: 'tanim', etiket: 'İmalat tanımı', zorunlu: true, ipucu: ['tanım', 'tanim', 'imalat', 'açıklama', 'aciklama', 'iş', 'is'] },
+        { ad: 'miktar', etiket: 'Miktar', zorunlu: true, sayi: true, ipucu: ['miktar', 'metraj', 'adet'] },
+        { ad: 'birim', etiket: 'Birim', ipucu: ['birim', 'ölçü', 'olcu', 'br'] },
+        { ad: 'birimFiyat', etiket: 'Birim fiyat', sayi: true, ipucu: ['birim fiyat', 'birimfiyat', 'fiyat', 'b.fiyat', 'bf'] },
+        { ad: 'pafta', etiket: 'Pafta / kaynak', ipucu: ['pafta', 'kaynak', 'çizim', 'cizim'] }
+      ]
+    },
+    isler: {
+      ad: 'İş paketleri',
+      koleksiyon: 'isler',
+      alanlar: [
+        { ad: 'ad', etiket: 'İş tanımı', zorunlu: true, ipucu: ['iş', 'is', 'ad', 'imalat', 'tanım', 'tanim', 'açıklama'] },
+        { ad: 'mahal', etiket: 'Mahal / blok', ipucu: ['mahal', 'blok', 'kat', 'yer', 'bölüm'] },
+        { ad: 'planlanan', etiket: 'Planlanan bedel', sayi: true, ipucu: ['bedel', 'tutar', 'planlanan', 'sözleşme', 'fiyat'] },
+        { ad: 'ilerleme', etiket: 'İlerleme (%)', sayi: true, ipucu: ['ilerleme', 'gerçekleşme', 'yüzde', '%'] },
+        { ad: 'baslangic', etiket: 'Başlangıç', ipucu: ['başlangıç', 'baslangic', 'start'] },
+        { ad: 'bitis', etiket: 'Bitiş', ipucu: ['bitiş', 'bitis', 'termin', 'finish'] },
+        { ad: 'sorumlu', etiket: 'Saha sorumlusu', ipucu: ['sorumlu', 'şef', 'sef', 'yetkili'] }
+      ]
+    },
+    stok: {
+      ad: 'Malzeme listesi',
+      koleksiyon: 'stok',
+      alanlar: [
+        { ad: 'ad', etiket: 'Malzeme adı', zorunlu: true, ipucu: ['malzeme', 'ad', 'ürün', 'urun', 'tanım'] },
+        { ad: 'kod', etiket: 'Stok kodu', ipucu: ['kod', 'stok kodu', 'sku'] },
+        { ad: 'mevcut', etiket: 'Mevcut miktar', sayi: true, ipucu: ['mevcut', 'miktar', 'stok'] },
+        { ad: 'birim', etiket: 'Birim', ipucu: ['birim', 'ölçü', 'br'] },
+        { ad: 'kritik', etiket: 'Kritik seviye', sayi: true, ipucu: ['kritik', 'min', 'asgari'] },
+        { ad: 'birimFiyat', etiket: 'Birim fiyat', sayi: true, ipucu: ['fiyat', 'birim fiyat'] },
+        { ad: 'depo', etiket: 'Depo', ipucu: ['depo', 'ambar', 'lokasyon'] }
+      ]
+    }
+  };
+
+  const normalize = (s) => String(s || '').toLocaleLowerCase('tr')
+    .replace(/[ıİ]/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g')
+    .replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c')
+    .replace(/[^a-z0-9]/g, '');
+
+  /* Belgedeki basliklari sema alanlariyla otomatik eslestirir */
+  function otomatikEslestir(basliklar, alanlar) {
+    const es = {};
+    alanlar.forEach((a) => {
+      const adaylar = [a.etiket, a.ad].concat(a.ipucu || []).map(normalize);
+      let bulunan = -1;
+      basliklar.forEach((b, i) => {
+        if (bulunan > -1) return;
+        const nb = normalize(b);
+        if (!nb) return;
+        if (adaylar.some((c) => nb === c)) bulunan = i;
+      });
+      if (bulunan < 0) {
+        basliklar.forEach((b, i) => {
+          if (bulunan > -1) return;
+          const nb = normalize(b);
+          if (nb && adaylar.some((c) => c.length > 2 && (nb.includes(c) || c.includes(nb)))) bulunan = i;
+        });
+      }
+      if (bulunan > -1) es[a.ad] = bulunan;
+    });
+    return es;
+  }
+
+  /* Sihirbaz: dosya oku -> sutun eslestir -> onizle -> aktar */
+  async function belgedenAktar(varsayilanTur) {
+    const projeler = S.get('projeler');
+    if (!projeler.length) { toast('Önce bir proje tanımlayın.'); return; }
+
+    const dosya = await dosyaSec('.csv,.tsv,.txt,.xlsx,.xlsm');
+    if (!dosya) return;
+
+    let tablo;
+    try {
+      tablo = await TabloOku.oku(dosya);
+    } catch (e) {
+      UI.modal({
+        baslik: 'Belge okunamadı',
+        icerik: `<p class="modal-metin">${e.message}</p>
+          <p class="modal-metin" style="margin-top:8px">Desteklenen biçimler: <b>CSV</b>, <b>TSV</b>,
+          <b>XLSX</b>. Excel'de <i>Farklı Kaydet → CSV UTF-8</i> ya da <i>.xlsx</i> seçebilirsiniz.</p>`,
+        dugmeler: [{ ad: 'Kapat', tur: 'accent', deger: null }]
+      });
+      return;
+    }
+
+    const secim = await UI.form({
+      baslik: 'Belgeden içe aktar',
+      aciklama: `${dosya.name} · ${tablo.format} · ${tablo.satirlar.length} satır okundu. ` +
+                'Hedefi seçin, sütun eşleşmesini kontrol edin.',
+      kaydetEtiketi: 'Aktar',
+      alanlar: [
+        { ad: 'tur', etiket: 'Hedef', tur: 'secim', deger: varsayilanTur || 'metraj',
+          secenekler: Object.keys(ICE_SEMA).map((k) => ({ deger: k, ad: ICE_SEMA[k].ad })) },
+        { ad: 'proje', etiket: 'Proje', tur: 'secim',
+          secenekler: projeler.map((p) => ({ deger: p.id, ad: p.ad })) }
+      ],
+      ek: `<div class="kalem-tablo">
+             <h4>Sütun eşleştirme</h4>
+             <div id="eslesme" class="eslesme-izgara"></div>
+             <h4 style="margin-top:14px">Önizleme <em id="onizlemeBilgi"></em></h4>
+             <div class="table-wrap"><table id="onizleme"></table></div>
+             <div class="ozet-blok">
+               <div class="ozet-satir"><span>Aktarılacak satır</span><b id="ozetSatir">—</b></div>
+               <div class="ozet-satir"><span>Atlanacak satır</span><b id="ozetAtla">—</b></div>
+             </div>
+           </div>`,
+      hazir: (kutu) => {
+        kutu.querySelector('.modal').classList.add('genis');
+        const turSec = kutu.querySelector('#f_tur');
+        const eslesmeKutu = kutu.querySelector('#eslesme');
+        const onizleme = kutu.querySelector('#onizleme');
+
+        const yenile = () => {
+          const sema = ICE_SEMA[turSec.value];
+          const otomatik = otomatikEslestir(tablo.basliklar, sema.alanlar);
+
+          eslesmeKutu.innerHTML = sema.alanlar.map((a) => `
+            <label class="alan">
+              <span>${a.etiket}${a.zorunlu ? ' *' : ''}</span>
+              <select data-alan="${a.ad}">
+                <option value="">— yok —</option>
+                ${tablo.basliklar.map((b, i) =>
+                  `<option value="${i}" ${otomatik[a.ad] === i ? 'selected' : ''}>${b}</option>`).join('')}
+              </select>
+            </label>`).join('');
+
+          eslesmeKutu.querySelectorAll('select').forEach((s2) =>
+            s2.addEventListener('change', onizle));
+          onizle();
+        };
+
+        const eslesmeAl = () => {
+          const es = {};
+          eslesmeKutu.querySelectorAll('select').forEach((s2) => {
+            if (s2.value !== '') es[s2.dataset.alan] = Number(s2.value);
+          });
+          return es;
+        };
+
+        const onizle = () => {
+          const sema = ICE_SEMA[turSec.value];
+          const es = eslesmeAl();
+          const kayitlar = satirlariCevir(tablo, sema, es);
+          const gecerli = kayitlar.filter((k) => k.gecerli);
+
+          kutu.querySelector('#ozetSatir').textContent = gecerli.length + ' kayıt';
+          kutu.querySelector('#ozetAtla').textContent =
+            (kayitlar.length - gecerli.length) + ' satır';
+          kutu.querySelector('#onizlemeBilgi').textContent =
+            gecerli.length ? '(ilk ' + Math.min(5, gecerli.length) + ' satır)' : '';
+
+          onizleme.innerHTML = `
+            <thead><tr>${sema.alanlar.map((a) => `<th>${a.etiket}</th>`).join('')}</tr></thead>
+            <tbody>${gecerli.slice(0, 5).map((k) => `<tr>${sema.alanlar.map((a) => {
+              const v = k.kayit[a.ad];
+              return `<td>${a.sayi ? num2(v || 0) : (v === undefined || v === '' ? '—' : v)}</td>`;
+            }).join('')}</tr>`).join('') ||
+            `<tr><td colspan="${sema.alanlar.length}"><div class="empty">
+               Zorunlu sütunlar eşleşmeden önizleme yapılamaz.</div></td></tr>`}</tbody>`;
+        };
+
+        turSec.addEventListener('change', yenile);
+        yenile();
+        kutu._eslesmeAl = eslesmeAl;
+      },
+      topla: (kutu) => ({ eslesme: kutu._eslesmeAl() }),
+      dogrula: (c) => {
+        const sema = ICE_SEMA[c.tur];
+        const eksik = sema.alanlar.filter((a) => a.zorunlu && c.eslesme[a.ad] === undefined);
+        if (eksik.length) return 'Zorunlu sütunları eşleştirin: ' + eksik.map((a) => a.etiket).join(', ');
+        const kayitlar = satirlariCevir(tablo, sema, c.eslesme).filter((k) => k.gecerli);
+        if (!kayitlar.length) return 'Aktarılabilecek geçerli satır bulunamadı.';
+        return null;
+      }
+    });
+    if (!secim) return;
+
+    const sema = ICE_SEMA[secim.tur];
+    const kayitlar = satirlariCevir(tablo, sema, secim.eslesme).filter((k) => k.gecerli);
+    let eklenen = 0;
+
+    kayitlar.forEach((k, i) => {
+      const kayit = { ...k.kayit };
+      if (secim.tur === 'metraj') {
+        Object.assign(kayit, {
+          proje: secim.proje, kaynak: 'Belge', guven: 1,
+          birim: kayit.birim || 'adet', birimFiyat: kayit.birimFiyat || 0,
+          pafta: kayit.pafta || dosya.name, kaynakDetay: dosya.name
+        });
+      } else if (secim.tur === 'isler') {
+        Object.assign(kayit, {
+          id: 'IS-' + String(S.get('isler').length + 1 + i).padStart(3, '0'),
+          proje: secim.proje, taseron: '', durum: 'Planlandı',
+          ilerleme: Math.max(0, Math.min(100, kayit.ilerleme || 0)),
+          planlanan: kayit.planlanan || 0,
+          baslangic: kayit.baslangic || bugun(), bitis: kayit.bitis || '',
+          metrajIds: [], malzemeler: [], personelIds: []
+        });
+      } else {
+        Object.assign(kayit, {
+          kod: kayit.kod || 'MLZ-' + String(S.get('stok').length + 1 + i).padStart(3, '0'),
+          birim: kayit.birim || 'adet', rezerve: 0,
+          mevcut: kayit.mevcut || 0, kritik: kayit.kritik || 0,
+          birimFiyat: kayit.birimFiyat || 0,
+          depo: kayit.depo || 'Merkez Depo', sonHareket: bugun()
+        });
+      }
+      S.ekle(sema.koleksiyon, kayit);
+      eklenen++;
+    });
+
+    S.gunlukYaz('içe aktardı (' + dosya.name + ')', sema.koleksiyon, { ad: eklenen + ' kayıt' });
+    toast(`${dosya.name} · ${eklenen} ${sema.ad.toLocaleLowerCase('tr')} aktarıldı.`);
+  }
+
+  /* Tablo satirlarini sema alanlarina cevirir; zorunlu alani bos olan satir atlanir */
+  function satirlariCevir(tablo, sema, eslesme) {
+    return tablo.satirlar.map((satir) => {
+      const kayit = {};
+      let gecerli = true;
+      sema.alanlar.forEach((a) => {
+        const i = eslesme[a.ad];
+        const ham = i === undefined ? '' : String(satir[i] === undefined ? '' : satir[i]).trim();
+        if (a.sayi) kayit[a.ad] = TabloOku.sayi(ham);
+        else kayit[a.ad] = ham;
+        if (a.zorunlu && (a.sayi ? !(kayit[a.ad] > 0) : !ham)) gecerli = false;
+      });
+      return { kayit, gecerli };
+    });
+  }
+
+  /* Dosya secme penceresi */
+  function dosyaSec(kabul) {
+    return new Promise((coz) => {
+      const girdi = document.createElement('input');
+      girdi.type = 'file';
+      girdi.accept = kabul;
+      girdi.addEventListener('change', () => coz(girdi.files[0] || null));
+      girdi.addEventListener('cancel', () => coz(null));
+      girdi.click();
+    });
   }
 
   /* ------------------------------------------------------- yonlendirme */
@@ -3211,6 +3488,11 @@
     if (hakedisDurum) hakedisDurum.addEventListener('change', () => {
       state.hakedisDurum = hakedisDurum.value; render();
     });
+
+    /* --- belgeden içe aktarma --- */
+    tikla('[data-act="ice-metraj"]', () => belgedenAktar('metraj'));
+    tikla('[data-act="ice-isler"]', () => belgedenAktar('isler'));
+    tikla('[data-act="ice-stok"]', () => belgedenAktar('stok'));
 
     /* --- kullanıcılar --- */
     tikla('[data-act="kullanici-ekle"]', () => kullaniciFormu(null));
@@ -3479,8 +3761,6 @@
       </span>
       <button data-cikis title="Çıkış yap">${icon('lock')} Çıkış</button>`;
     kutu.querySelector('[data-cikis]').addEventListener('click', cikisYap);
-    const marka = document.querySelector('.brand-avatar');
-    if (marka) marka.textContent = bas;
   }
 
   /* Yetkisi olmayan islemlerin dugmelerini gizler */

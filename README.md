@@ -17,7 +17,7 @@ git clone <repo> && cd Insaat-Hakedis
 
 | Modül | Ne yapar |
 |---|---|
-| **Genel Bakış** | Portföy özeti, hakediş hacmi yay grafiği, proje tamamlanma kartları, KPI'lar |
+| **Genel Bakış** ✅ | Projenin bulunduğu inşaat aşamasını anlatan 2B animasyonlu sahne, aşama şeridi, proje tamamlanma kartları, KPI'lar |
 | **Projeler & DWG** ✅ | Dosyayı gerçekten saklar (IndexedDB), indirir, siler; DXF'i ayrıştırıp katman/geometri/ölçüm çıkarır ve vektör önizleme çizer; DWG'nin gömülü küçük resmini ve sürümünü okur; katman ölçüsünü tek tıkla metraja aktarır |
 | **İşler** ✅ | Proje altında iş paketi ekle/düzenle/sil; taşeron ataması, personel görevlendirmesi, malzeme tahsisi (stokta rezerve ayırır), metraj kalemi bağlama, ilerleme ve termin takibi, CSV |
 | **Personel** ✅ | Özlük kartı (SGK, İSG, sağlık raporu, kan grubu, acil durum), evrak geçerlilik uyarıları, görevli olduğu işler, günlük puantaj ve hak ediş hesabı, toplu puantaj, CSV |
@@ -59,6 +59,40 @@ Site GitHub Pages üzerinden `gh-pages` dalından yayınlanır.
 `gh-pages` dalını günceller ve GitHub Pages siteyi yeniden yayınlar
 (genellikle 1-2 dakika içinde).
 
+## Proje aşama animasyonu
+
+Genel Bakış'taki sahne, seçili projenin **ilerleme yüzdesine göre** o anki inşaat aşamasını
+canlandırır. Aşamalar: Hazırlık ve Kazı (%0-12) · Temel ve Perde (%12-30) · Kaba Yapı (%30-55) ·
+Cephe ve Çatı (%55-72) · İnce İşler (%72-90) · Teslime Hazırlık (%90+).
+
+Her sahne saf SVG + CSS animasyonudur (harici kütüphane yok): kazıda ekskavatör kepçesi çalışır
+ve kamyon geçer, temelde mikser tamburu döner ve beton akar, kaba yapıda vinç bomu salınır ve
+en üst kat "dökülüyor" olarak taranır, cephede camlar sırayla ışıldar ve cephe asansörü hareket
+eder, ince işlerde rulo duvarda gezinir ve tesisat hattı akar, teslimde onay işareti çizilir ve
+konfeti düşer. Yapılar kalıcı çizilir; yalnızca ekipman animasyonludur, böylece döngü tekrar
+ettiğinde bina yanıp sönmez. `prefers-reduced-motion` açıksa tüm animasyonlar durur.
+
+Sahnenin altındaki şeritte tamamlanan aşamalar soluk, o anki aşama vurgulu gösterilir;
+sağ üstteki seçim kutusundan proje değiştirilebilir.
+
+## Belgeden veri içe aktarma
+
+Keşif/metraj listesi, iş programı veya malzeme listesi içeren **CSV, TSV ve XLSX** dosyaları
+panele aktarılabilir (Projeler & DWG ekranı ile Metraj, İşler ve Stok araç çubukları).
+
+Sihirbaz dosyayı okur, sütun başlıklarını hedef alanlarla **otomatik eşleştirir**
+(Türkçe karakter ve kısaltma toleranslı), eşleşmeyi düzeltebileceğiniz bir matris ve ilk beş
+satırlık önizleme gösterir, kaç satırın aktarılacağını / atlanacağını sayar. Zorunlu sütun
+eşleşmeden aktarım yapılmaz.
+
+Sayılar Türkçe biçimde okunur: `2.412,75` → 2412.75, `28.400,00` → 28400. Zorunlu alanı boş
+olan satırlar atlanır.
+
+**XLSX harici kütüphane olmadan okunur:** dosya bir ZIP arşividir; merkezi dizini elle
+çözümlenir ve içerik tarayıcının `DecompressionStream('deflate-raw')` API'siyle açılır, ardından
+`sharedStrings.xml` ve ilk çalışma sayfası ayrıştırılır. Eski `.xls` biçimi desteklenmez —
+dosyayı XLSX veya CSV olarak kaydedin. PDF'ten metin çıkarma da yoktur; PDF paftalar arşivlenir.
+
 ## Liquid Glass teması
 
 Arka planda sabit duran yumuşak renk kümeleri (`body::before`) tüm yüzeylerin altında bir
@@ -73,6 +107,9 @@ azalan dolgu), `--glass-border`, `--glass-hi`, `--blur`, `--shadow-glass`. Bir y
 çevirmek için bu token'ları kullanmak yeterlidir.
 
 ## Kullanıcılar ve yetkilendirme
+
+Kurulum ve giriş ekranlarında marka logosu, üst çubukta ise monogram kullanılır
+(`assets/img/`, arka planı saydam PNG).
 
 Panel ilk açıldığında **kurulum ekranı** çıkar ve sistem yöneticisi hesabı oluşturulur;
 sonraki açılışlarda **giriş ekranı** gelir. Oturum 12 saat sonra kendiliğinden düşer.
