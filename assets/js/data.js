@@ -107,12 +107,21 @@ window.DB = (function () {
     { kod: 'MLZ-007', ad: 'NYA Kablo 3x2.5', birim: 'm', mevcut: 7200, kritik: 3000, rezerve: 1500, depo: 'Merkez Depo', sonHareket: '2026-08-18', birimFiyat: 42 }
   ];
 
+  /* Stok giris/cikis hareketleri */
+  const hareketler = [
+    { malzeme: 'MLZ-001', tur: 'Giriş', miktar: 120, tarih: '2026-08-23', aciklama: 'SIP-3301 kısmi teslimat', kaynak: 'Tedarik' },
+    { malzeme: 'MLZ-003', tur: 'Çıkış', miktar: 1800, tarih: '2026-08-21', aciklama: '3. kat duvar imalatı', kaynak: 'Saha' },
+    { malzeme: 'MLZ-005', tur: 'Çıkış', miktar: 640, tarih: '2026-08-22', aciklama: '2. kat seramik kaplama', kaynak: 'Saha' },
+    { malzeme: 'MLZ-002', tur: 'Çıkış', miktar: 24, tarih: '2026-08-24', aciklama: 'Perde donatı imalatı', kaynak: 'Saha' },
+    { malzeme: 'MLZ-007', tur: 'Giriş', miktar: 3000, tarih: '2026-08-18', aciklama: 'Devir sayımı', kaynak: 'Sayım' }
+  ];
+
   const siparisler = [
     { no: 'SIP-3301', tedarikci: 'Batı Çimento', malzeme: 'Çimento CEM I 42.5R', miktar: '120 ton', tutar: 582000, siparis: '2026-08-10', teslim: '2026-08-27', durum: 'Yolda', ilerleme: 70 },
     { no: 'SIP-3302', tedarikci: 'Demirsan Metal', malzeme: 'İnşaat Demiri 12mm', miktar: '80 ton', tutar: 2272000, siparis: '2026-08-12', teslim: '2026-08-26', durum: 'Yolda', ilerleme: 55 },
     { no: 'SIP-3303', tedarikci: 'Yalıtım Market', malzeme: 'XPS Levha 8cm', miktar: '2400 m2', tutar: 744000, siparis: '2026-08-14', teslim: '2026-09-02', durum: 'Onaylandı', ilerleme: 30 },
     { no: 'SIP-3304', tedarikci: 'Anadolu Seramik', malzeme: 'Seramik 60x60', miktar: '1800 m2', tutar: 1116000, siparis: '2026-08-05', teslim: '2026-08-20', durum: 'Teslim Edildi', ilerleme: 100 },
-    { no: 'SIP-3305', tedarikci: 'Poliboru A.Ş.', malzeme: 'PPRC Boru 32mm', miktar: '3000 m', tutar: 288000, siparis: '2026-08-18', teslim: '2026-09-08', durum: 'Gecikmeli', ilerleme: 20 },
+    { no: 'SIP-3305', tedarikci: 'Poliboru A.Ş.', malzeme: 'PPRC Boru 32mm', miktar: '3000 m', tutar: 288000, siparis: '2026-08-18', teslim: '2026-08-19', durum: 'Onaylandı', ilerleme: 30 },
     { no: 'SIP-3306', tedarikci: 'Volt Kablo', malzeme: 'NYA Kablo 3x2.5', miktar: '10000 m', tutar: 420000, siparis: '2026-08-21', teslim: '2026-09-05', durum: 'Onay Bekliyor', ilerleme: 10 }
   ];
 
@@ -194,5 +203,5 @@ window.DB = (function () {
   ];
 
   return { projeler, paftalar, metraj, taseronlar, YETKI_LISTESI, KALITE_SABLON, KALITE_ESIK,
-           kaliteKontrol, hakedisler, stok, siparisler, raporlar, buyume };
+           kaliteKontrol, hakedisler, stok, hareketler, siparisler, raporlar, buyume };
 })();

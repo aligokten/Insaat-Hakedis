@@ -70,10 +70,22 @@
       ${a.not ? `<em>${a.not}</em>` : ''}</label>`;
   }
 
-  /* alanlar: [{ad, etiket, tur, deger, secenekler, zorunlu, genis}] */
+  /* alanlar: [{ad, etiket, tur, deger, secenekler, zorunlu, genis}]
+     dogrula(cikti, kutu) -> hata metni dondurursa pencere kapanmaz */
   function form(opts) {
     const icerik = `<div class="form-izgara">${opts.alanlar.map(alanHTML).join('')}</div>` +
                    (opts.ek || '');
+
+    const degerleriTopla = (kutu) => {
+      const cikti = {};
+      opts.alanlar.forEach((a) => {
+        const el = kutu.querySelector(`#f_${a.ad}`);
+        cikti[a.ad] = (a.tur === 'number') ? Number(el.value) : el.value;
+      });
+      if (opts.topla) Object.assign(cikti, opts.topla(kutu));
+      return cikti;
+    };
+
     return modal({
       baslik: opts.baslik,
       aciklama: opts.aciklama,
@@ -86,20 +98,19 @@
           oncePolitika: (kutu) => {
             const f = kutu.querySelector('.modal-govde');
             const eksik = [...f.querySelectorAll('[required]')].find((el) => !String(el.value).trim());
-            if (eksik) { eksik.focus(); eksik.classList.add('hatali');
+            if (eksik) {
+              eksik.focus(); eksik.classList.add('hatali');
               setTimeout(() => eksik.classList.remove('hatali'), 1200);
-              UI.toast('Zorunlu alanları doldurun.'); return false; }
+              UI.toast('Zorunlu alanları doldurun.');
+              return false;
+            }
+            if (opts.dogrula) {
+              const hata = opts.dogrula(degerleriTopla(kutu), kutu);
+              if (hata) { UI.toast(hata); return false; }   // pencere acik kalir
+            }
             return true;
           },
-          deger: (kutu) => {
-            const cikti = {};
-            opts.alanlar.forEach((a) => {
-              const el = kutu.querySelector(`#f_${a.ad}`);
-              cikti[a.ad] = (a.tur === 'number') ? Number(el.value) : el.value;
-            });
-            if (opts.topla) Object.assign(cikti, opts.topla(kutu));
-            return cikti;
-          }
+          deger: degerleriTopla
         }
       ]
     });

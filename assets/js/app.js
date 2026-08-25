@@ -10,7 +10,9 @@
     rol: 'yonetici',           // yonetici | taseron
     metrajProje: 'hepsi',
     hakedisDurum: 'hepsi',
-    kaliteSonuc: 'hepsi'
+    kaliteSonuc: 'hepsi',
+    stokDepo: 'hepsi',
+    siparisDurum: 'hepsi'
   };
 
   /* Hakedis onay akisi ve rol yetkileri */
@@ -221,6 +223,22 @@
       </div>
 
       <div class="grid" style="gap:14px">
+        <div class="card">
+          <div class="card-head"><h3>Projeler</h3><div class="spacer"></div>
+            <button class="btn accent sm" data-act="proje-ekle">${icon('plus')} Proje ekle</button></div>
+          ${S.get('projeler').map((p) => `
+            <div class="list-item">
+              <div class="ico">${icon('building')}</div>
+              <div class="txt"><b>${p.ad}</b>
+                <span>${p.blok || '—'} · ${p.isveren || '—'} · ${moneyShort(p.sozlesme)}</span></div>
+              <div class="spacer"></div>
+              ${badge(p.durum, durumKind(p.durum))}
+              <div class="satir-islem">
+                <button class="ikon-btn" title="Düzenle" data-proje-duzenle="${p._id}">${icon('kalem')}</button>
+                <button class="ikon-btn tehlike" title="Sil" data-proje-sil="${p._id}">${icon('cop')}</button>
+              </div>
+            </div>`).join('') || '<div class="empty">Kayıtlı proje yok.</div>'}
+        </div>
         <div class="card">
           <div class="card-head"><h3>Pafta türü dağılımı</h3></div>
           ${barChart(sayim, { height: 140 })}
@@ -637,6 +655,10 @@
           </div>
           <div class="spacer"></div>
           ${badge(t.durum, durumKind(t.durum))}
+          <div class="satir-islem">
+            <button class="ikon-btn" title="Düzenle" data-taseron-duzenle="${t._id}">${icon('kalem')}</button>
+            <button class="ikon-btn tehlike" title="Sil" data-taseron-sil="${t._id}">${icon('cop')}</button>
+          </div>
         </div>
         <div class="stat-inline" style="margin-bottom:12px">
           <div><span>Sözleşme</span><b>${moneyShort(t.sozlesme)}</b></div>
@@ -657,8 +679,11 @@
       </div>`).join('');
 
     return `
-    ${pageHead('TAŞERONLAR', 'Alt yüklenici tanımları ve modül bazlı yetkilendirme. Yetki değişiklikleri anında portala yansır.')}
-    <div class="grid cols-3" style="padding:0 10px">${kartlar}</div>`;
+    ${pageHead('TAŞERONLAR', 'Alt yüklenici tanımları ve modül bazlı yetkilendirme. Yetki değişiklikleri anında portala yansır.',
+               `<button class="btn accent sm" data-act="taseron-ekle">${icon('plus')} Taşeron ekle</button>`)}
+    <div class="grid cols-3" style="padding:0 10px">
+      ${kartlar || '<div class="empty">Kayıtlı taşeron yok.</div>'}
+    </div>`;
   }
 
   /* ----------------------------------------------------------- kalite */
@@ -1183,6 +1208,8 @@
         projeSec.addEventListener('change', kalemleriYaz);
         kalemleriYaz();
       },
+      dogrula: (c) => c.kalemler.length ? null
+        : 'En az bir kalem seçip bu dönem miktarını girmelisiniz.',
       topla: (kutu) => {
         const kalemler = [];
         kutu.querySelectorAll('[data-kalem]').forEach((tr) => {
@@ -1199,7 +1226,6 @@
     });
 
     if (!sonuc) return;
-    if (!sonuc.kalemler.length) { toast('En az bir kalem seçip miktar girmelisiniz.'); return; }
 
     const tutarlar = hakedisHesapla(sonuc.kalemler, sonuc.avansMahsup);
     const sira = S.get('hakedisler').length + 14;
@@ -1285,104 +1311,404 @@
 
 
   /* ------------------------------------------------------------- stok */
+  const HAREKET_TURU = ['Giriş', 'Çıkış', 'Rezerve', 'Rezerve İptal', 'Sayım Düzeltme'];
+
+  const kullanilabilir = (s) => s.mevcut - s.rezerve;
+  const stokKritikMi = (s) => kullanilabilir(s) < s.kritik;
+
+  function stokListesi() {
+    const hepsi = S.get('stok');
+    return state.stokDepo === 'hepsi' ? hepsi : hepsi.filter((s) => s.depo === state.stokDepo);
+  }
+
   function viewStok() {
-    const rows = S.get('stok').map((s) => {
-      const kullanilabilir = s.mevcut - s.rezerve;
-      const oran = Math.min(100, (kullanilabilir / (s.kritik || 1)) * 100);
-      const kritikMi = kullanilabilir < s.kritik;
+    const liste = stokListesi();
+    const hepsi = S.get('stok');
+    const depolar = [...new Set(hepsi.map((s) => s.depo))];
+
+    const rows = liste.map((s) => {
+      const kalan = kullanilabilir(s);
+      const oran = Math.min(100, (kalan / (s.kritik || 1)) * 100);
       return `<tr>
         <td><span class="strong">${s.ad}</span><div class="muted">${s.kod} · ${s.depo}</div></td>
         <td class="num">${num2(s.mevcut)} ${s.birim}</td>
         <td class="num">${num2(s.rezerve)}</td>
-        <td class="num ${kritikMi ? '' : ''}">${num2(kullanilabilir)}</td>
+        <td class="num strong">${num2(kalan)}</td>
         <td class="num">${num2(s.kritik)}</td>
-        <td style="min-width:130px">${bar(oran, kritikMi ? 'bad' : oran > 150 ? 'ok' : 'warn')}</td>
+        <td style="min-width:120px">${bar(oran, stokKritikMi(s) ? 'bad' : oran > 150 ? 'ok' : 'warn')}</td>
         <td class="num">${money(s.mevcut * s.birimFiyat)}</td>
-        <td>${kritikMi ? badge('Sipariş ver', 'bad') : badge('Yeterli', 'ok')}</td>
+        <td>${stokKritikMi(s) ? badge('Kritik', 'bad') : badge('Yeterli', 'ok')}</td>
+        <td>
+          <div class="satir-islem">
+            <button class="ikon-btn" title="Stok hareketi" data-stok-hareket="${s._id}">${icon('trend')}</button>
+            <button class="ikon-btn" title="Düzenle" data-stok-duzenle="${s._id}">${icon('kalem')}</button>
+            <button class="ikon-btn tehlike" title="Sil" data-stok-sil="${s._id}">${icon('cop')}</button>
+          </div>
+        </td>
       </tr>`;
-    }).join('');
+    }).join('') || '<tr><td colspan="9"><div class="empty">Bu depoda malzeme kaydı yok.</div></td></tr>';
 
-    const stokDeger = S.get('stok').reduce((s, x) => s + x.mevcut * x.birimFiyat, 0);
+    const stokDeger = hepsi.reduce((t, x) => t + x.mevcut * x.birimFiyat, 0);
+    const kritikler = hepsi.filter(stokKritikMi);
+    const sonHareketler = S.get('hareketler').slice(0, 6);
 
     return `
-    ${pageHead('MALZEME STOK', 'Depo bazlı mevcut, rezerve ve kullanilabilir miktarlar ile kritik seviye uyarıları.')}
+    ${pageHead('MALZEME STOK', 'Depo bazlı mevcut, rezerve ve kullanılabilir miktarlar; giriş/çıkış hareketleri ve kritik seviye uyarıları.')}
     <div class="grid cols-4" style="padding:0 10px 14px">
-      ${kpi(moneyShort(stokDeger), 'Toplam stok değeri', 'up', S.get('stok').length + ' kalem')}
-      ${kpi(String(kritikStok().length), 'Kritik seviye', 'down', 'sipariş önerilir')}
-      ${kpi(String(new Set(S.get('stok').map((s) => s.depo)).size), 'Aktif depo', 'up', 'saha + merkez')}
-      ${kpi(moneyShort(S.get('stok').reduce((s, x) => s + x.rezerve * x.birimFiyat, 0)), 'Rezerve tutar', 'up', 'imalata ayrılan')}
+      ${kpi(moneyShort(stokDeger), 'Toplam stok değeri', 'up', hepsi.length + ' kalem')}
+      ${kpi(num(kritikler.length), 'Kritik seviye', kritikler.length ? 'down' : 'up', 'sipariş önerilir')}
+      ${kpi(num(depolar.length), 'Aktif depo', 'up', depolar.join(' · ') || '—')}
+      ${kpi(moneyShort(hepsi.reduce((t, x) => t + x.rezerve * x.birimFiyat, 0)), 'Rezerve tutar', 'up', 'imalata ayrılan')}
     </div>
     <div class="grid side" style="padding:0 10px">
       <div class="card">
         <div class="card-head"><h3>Stok durumu</h3><div class="spacer"></div>
-          <button class="btn ghost sm" data-act="sayim">${icon('check')} Sayım başlat</button></div>
+          <div class="arac-cubugu">
+            <select id="stokDepo" aria-label="Depo filtresi">
+              <option value="hepsi">Tüm depolar</option>
+              ${depolar.map((d) => `<option value="${d}" ${state.stokDepo === d ? 'selected' : ''}>${d}</option>`).join('')}
+            </select>
+            <button class="btn ghost sm" data-act="stok-csv">${icon('download')} CSV</button>
+            <button class="btn accent sm" data-act="stok-ekle">${icon('plus')} Malzeme ekle</button>
+          </div></div>
         <div class="table-wrap"><table>
           <thead><tr><th>Malzeme</th><th class="num">Mevcut</th><th class="num">Rezerve</th>
             <th class="num">Kullanılabilir</th><th class="num">Kritik</th><th>Seviye</th>
-            <th class="num">Değer</th><th>Durum</th></tr></thead>
+            <th class="num">Değer</th><th>Durum</th><th></th></tr></thead>
           <tbody>${rows}</tbody>
         </table></div>
       </div>
-      <div class="card">
-        <div class="card-head"><h3>Sipariş önerileri</h3></div>
-        ${kritikStok().map((s) => `
-          <div class="list-item">
-            <div class="ico">${icon('box')}</div>
-            <div class="txt"><b>${s.ad}</b>
-              <span>Eksik ${num2(s.kritik - (s.mevcut - s.rezerve))} ${s.birim}</span></div>
-            <div class="spacer"></div>
-            <button class="btn sm" data-act="siparis">Talep</button>
-          </div>`).join('') || '<div class="empty">Kritik seviyede malzeme yok.</div>'}
-      </div>
-    </div>`;
-  }
-
-  /* ---------------------------------------------------------- tedarik */
-  function viewTedarik() {
-    const rows = S.get('siparisler').map((o) => `
-      <tr>
-        <td><span class="strong">${o.no}</span><div class="muted">${o.sipariş}</div></td>
-        <td>${o.tedarikci}</td>
-        <td>${o.malzeme}<div class="muted">${o.miktar}</div></td>
-        <td class="num">${money(o.tutar)}</td>
-        <td class="num">${o.teslim}</td>
-        <td style="min-width:130px">${bar(o.ilerleme, o.durum === 'Gecikmeli' ? 'bad' : o.ilerleme === 100 ? 'ok' : '')}</td>
-        <td>${badge(o.durum, durumKind(o.durum))}</td>
-      </tr>`).join('');
-
-    const toplam = S.get('siparisler').reduce((s, o) => s + o.tutar, 0);
-    const geciken = S.get('siparisler').filter((o) => o.durum === 'Gecikmeli');
-
-    return `
-    ${pageHead('TEDARİK & SİPARİŞ', 'Satın alma siparişlerinin onay, sevkiyat ve teslim takibi.')}
-    <div class="grid cols-4" style="padding:0 10px 14px">
-      ${kpi(moneyShort(toplam), 'Acik sipariş tutari', 'up', S.get('siparisler').length + ' sipariş')}
-      ${kpi(String(S.get('siparisler').filter((o) => o.durum === 'Yolda').length), 'Sevkiyatta', 'up', 'yolda')}
-      ${kpi(String(geciken.length), 'Geciken teslim', 'down', 'takip gerekli')}
-      ${kpi(String(S.get('siparisler').filter((o) => o.durum === 'Onay Bekliyor').length), 'Onay bekleyen', 'down', 'satın alma')}
-    </div>
-    <div class="grid side" style="padding:0 10px">
-      <div class="card">
-        <div class="card-head"><h3>Sipariş listesi</h3><div class="spacer"></div>
-          <button class="btn accent sm" data-act="yeni-siparis">${icon('plus')} Sipariş oluştur</button></div>
-        <div class="table-wrap"><table>
-          <thead><tr><th>No</th><th>Tedarikçi</th><th>Malzeme</th><th class="num">Tutar</th>
-            <th class="num">Teslim</th><th>İlerleme</th><th>Durum</th></tr></thead>
-          <tbody>${rows}</tbody>
-          <tfoot><tr><td colspan="3">Toplam</td><td class="num">${money(toplam)}</td>
-            <td colspan="3"></td></tr></tfoot>
-        </table></div>
-      </div>
-      <div class="card">
-        <div class="card-head"><h3>Teslim takvimi</h3></div>
-        <div class="timeline">
-          ${S.get('siparisler').slice().sort((a, b) => a.teslim.localeCompare(b.teslim)).map((o) => `
-            <div class="tl"><b>${o.teslim} · ${o.malzeme}</b>
-              <span>${o.tedarikci} · ${o.miktar} · ${o.durum}</span></div>`).join('')}
+      <div class="grid" style="gap:14px">
+        <div class="card">
+          <div class="card-head"><h3>Sipariş önerileri</h3></div>
+          ${kritikler.map((s) => `
+            <div class="list-item">
+              <div class="ico">${icon('box')}</div>
+              <div class="txt"><b>${s.ad}</b>
+                <span>Eksik ${num2(s.kritik - kullanilabilir(s))} ${s.birim}</span></div>
+              <div class="spacer"></div>
+              <button class="btn sm" data-stok-talep="${s._id}">Talep</button>
+            </div>`).join('') || '<div class="empty">Kritik seviyede malzeme yok.</div>'}
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>Son hareketler</h3><div class="spacer"></div>
+            <span class="hint">${S.get('hareketler').length} kayıt</span></div>
+          ${sonHareketler.map((h) => {
+            const m = S.get('stok').find((s) => s.kod === h.malzeme);
+            const artan = h.tur === 'Giriş' || h.tur === 'Rezerve İptal';
+            return `<div class="list-item">
+              <div class="ico">${icon(artan ? 'trend' : 'trendDown')}</div>
+              <div class="txt"><b>${m ? m.ad : h.malzeme}</b>
+                <span>${h.tur} · ${num2(h.miktar)} · ${h.tarih}${h.aciklama ? ' · ' + h.aciklama : ''}</span></div>
+            </div>`;
+          }).join('') || '<div class="empty">Hareket kaydı yok.</div>'}
         </div>
       </div>
     </div>`;
   }
+
+  async function stokFormu(id) {
+    const s = id ? S.bul('stok', id) : null;
+    const depolar = [...new Set(S.get('stok').map((x) => x.depo))];
+    const sonuc = await UI.form({
+      baslik: s ? 'Malzemeyi düzenle' : 'Yeni malzeme',
+      kaydetEtiketi: s ? 'Güncelle' : 'Ekle',
+      alanlar: [
+        { ad: 'ad', etiket: 'Malzeme adı', zorunlu: true, genis: true, deger: s ? s.ad : '' },
+        { ad: 'kod', etiket: 'Stok kodu', zorunlu: true,
+          deger: s ? s.kod : 'MLZ-' + String(S.get('stok').length + 1).padStart(3, '0') },
+        { ad: 'birim', etiket: 'Birim', tur: 'secim', deger: s ? s.birim : 'adet', secenekler: BIRIMLER },
+        { ad: 'mevcut', etiket: 'Mevcut miktar', tur: 'number', min: 0, adim: '0.01', deger: s ? s.mevcut : 0 },
+        { ad: 'rezerve', etiket: 'Rezerve miktar', tur: 'number', min: 0, adim: '0.01', deger: s ? s.rezerve : 0 },
+        { ad: 'kritik', etiket: 'Kritik seviye', tur: 'number', min: 0, adim: '0.01', deger: s ? s.kritik : 0,
+          not: 'Kullanılabilir miktar bu değerin altına düşünce uyarı verilir.' },
+        { ad: 'birimFiyat', etiket: 'Birim fiyat (₺)', tur: 'number', min: 0, adim: '0.01', deger: s ? s.birimFiyat : 0 },
+        { ad: 'depo', etiket: 'Depo', zorunlu: true, deger: s ? s.depo : (depolar[0] || 'Saha Depo A'),
+          not: depolar.length ? 'Mevcut depolar: ' + depolar.join(', ') : '' }
+      ]
+    });
+    if (!sonuc) return;
+    const kayit = { ...sonuc, sonHareket: new Date().toISOString().slice(0, 10) };
+    if (s) { S.guncelle('stok', id, kayit); toast(kayit.ad + ' güncellendi.'); }
+    else { S.ekle('stok', kayit); toast(kayit.ad + ' stok kartı oluşturuldu.'); }
+  }
+
+  /* Giris/cikis/rezerve hareketi; miktarlar stok kartina islenir */
+  async function stokHareketi(id, onTur, onMiktar, onAciklama) {
+    const s = S.bul('stok', id);
+    if (!s) return;
+    const sonuc = await UI.form({
+      baslik: 'Stok hareketi · ' + s.ad,
+      aciklama: `Mevcut ${num2(s.mevcut)} ${s.birim} · rezerve ${num2(s.rezerve)} · kullanılabilir ${num2(kullanilabilir(s))}`,
+      kaydetEtiketi: 'Hareketi işle',
+      alanlar: [
+        { ad: 'tur', etiket: 'Hareket türü', tur: 'secim', deger: onTur || 'Giriş', secenekler: HAREKET_TURU },
+        { ad: 'miktar', etiket: 'Miktar (' + s.birim + ')', tur: 'number', min: 0, adim: '0.01',
+          zorunlu: true, deger: onMiktar || '' },
+        { ad: 'tarih', etiket: 'Tarih', tur: 'date', deger: new Date().toISOString().slice(0, 10) },
+        { ad: 'aciklama', etiket: 'Açıklama', genis: true, deger: onAciklama || '',
+          ipucu: 'örn. 3. kat duvar imalatı' }
+      ],
+      /* Sinir asimlarinda pencere kapanmaz, girilenler korunur */
+      dogrula: (c) => {
+        const m = Number(c.miktar);
+        if (!(m > 0)) return 'Miktar sıfırdan büyük olmalı.';
+        if (c.tur === 'Çıkış' && m > kullanilabilir(s)) {
+          return `Kullanılabilir miktar ${num2(kullanilabilir(s))} ${s.birim}; daha fazlası çıkılamaz.`;
+        }
+        if (c.tur === 'Rezerve' && m > kullanilabilir(s)) {
+          return 'Rezerve, kullanılabilir miktarı aşamaz.';
+        }
+        return null;
+      }
+    });
+    if (!sonuc) return;
+
+    const m = Number(sonuc.miktar);
+    let mevcut = s.mevcut, rezerve = s.rezerve;
+    if (sonuc.tur === 'Giriş') mevcut += m;
+    else if (sonuc.tur === 'Çıkış') mevcut -= m;
+    else if (sonuc.tur === 'Rezerve') rezerve += m;
+    else if (sonuc.tur === 'Rezerve İptal') rezerve = Math.max(0, rezerve - m);
+    else if (sonuc.tur === 'Sayım Düzeltme') mevcut = m;
+
+    S.guncelle('stok', id, { mevcut, rezerve, sonHareket: sonuc.tarih });
+    S.ekle('hareketler', { malzeme: s.kod, tur: sonuc.tur, miktar: m,
+                           tarih: sonuc.tarih, aciklama: sonuc.aciklama, kaynak: 'Manuel' });
+    toast(`${s.ad} · ${sonuc.tur} ${num2(m)} ${s.birim} işlendi.`);
+  }
+
+  function stokCSV() {
+    const basliklar = ['Kod', 'Malzeme', 'Depo', 'Mevcut', 'Rezerve', 'Kullanılabilir',
+                       'Kritik', 'Birim', 'Birim Fiyat', 'Değer'];
+    const satirlar = stokListesi().map((s) => [s.kod, s.ad, s.depo, s.mevcut, s.rezerve,
+      kullanilabilir(s), s.kritik, s.birim, s.birimFiyat, s.mevcut * s.birimFiyat]);
+    indir('stok-durumu.csv', 'text/csv;charset=utf-8',
+      '﻿' + [basliklar].concat(satirlar)
+        .map((r) => r.map((c) => '"' + String(c).replace(/"/g, '""') + '"').join(';')).join('\n'));
+    toast('Stok durumu indirildi.');
+  }
+
+
+  /* ---------------------------------------------------------- tedarik */
+  const SIPARIS_AKIS = {
+    'Onay Bekliyor': { sonraki: 'Onaylandı',     eylem: 'Onayla',      ilerleme: 30, rol: 'yonetici' },
+    'Onaylandı':     { sonraki: 'Yolda',         eylem: 'Sevk edildi', ilerleme: 65, rol: 'her' },
+    'Yolda':         { sonraki: 'Teslim Edildi', eylem: 'Teslim al',   ilerleme: 100, rol: 'her' }
+  };
+
+  const bugun = () => new Date().toISOString().slice(0, 10);
+
+  /* Teslim tarihi gecmis ve tamamlanmamis siparis gecikmeli sayilir */
+  function etkinDurum(o) {
+    if (o.durum === 'Teslim Edildi' || o.durum === 'İptal') return o.durum;
+    return o.teslim < bugun() ? 'Gecikmeli' : o.durum;
+  }
+
+  function siparisListesi() {
+    const hepsi = S.get('siparisler');
+    return state.siparisDurum === 'hepsi'
+      ? hepsi : hepsi.filter((o) => etkinDurum(o) === state.siparisDurum);
+  }
+
+  function viewTedarik() {
+    const liste = siparisListesi();
+    const hepsi = S.get('siparisler');
+
+    const rows = liste.map((o) => {
+      const durum = etkinDurum(o);
+      const adim = SIPARIS_AKIS[o.durum];
+      const ilerletilebilir = adim && (adim.rol !== 'yonetici' || state.rol === 'yonetici');
+      return `<tr>
+        <td><span class="strong nowrap">${o.no}</span><div class="muted nowrap">${o.siparis}</div></td>
+        <td>${o.tedarikci}</td>
+        <td>${o.malzeme}<div class="muted">${o.miktar}</div></td>
+        <td class="num">${money(o.tutar)}</td>
+        <td class="num nowrap">${o.teslim}</td>
+        <td style="min-width:120px">${bar(o.ilerleme, durum === 'Gecikmeli' ? 'bad' : o.ilerleme === 100 ? 'ok' : '')}</td>
+        <td>${badge(durum, durumKind(durum))}</td>
+        <td>
+          <div class="satir-islem">
+            ${ilerletilebilir ? `<button class="btn sm" data-siparis-ilerlet="${o._id}">${adim.eylem}</button>` : ''}
+            <button class="ikon-btn" title="Düzenle" data-siparis-duzenle="${o._id}">${icon('kalem')}</button>
+            <button class="ikon-btn tehlike" title="Sil" data-siparis-sil="${o._id}">${icon('cop')}</button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="8"><div class="empty">Bu filtrede sipariş yok.</div></td></tr>';
+
+    const acik = hepsi.filter((o) => etkinDurum(o) !== 'Teslim Edildi');
+    const geciken = hepsi.filter((o) => etkinDurum(o) === 'Gecikmeli');
+
+    return `
+    ${pageHead('TEDARİK & SİPARİŞ', 'Satın alma siparişlerinin onay, sevkiyat ve teslim takibi. Teslim alınan sipariş stok girişine dönüşür.')}
+    <div class="grid cols-4" style="padding:0 10px 14px">
+      ${kpi(moneyShort(acik.reduce((t, o) => t + o.tutar, 0)), 'Açık sipariş tutarı', 'up', acik.length + ' sipariş')}
+      ${kpi(num(hepsi.filter((o) => etkinDurum(o) === 'Yolda').length), 'Sevkiyatta', 'up', 'yolda')}
+      ${kpi(num(geciken.length), 'Geciken teslim', geciken.length ? 'down' : 'up', 'takip gerekli')}
+      ${kpi(num(hepsi.filter((o) => o.durum === 'Onay Bekliyor').length), 'Onay bekleyen', 'down', 'satın alma')}
+    </div>
+    <div class="grid side" style="padding:0 10px">
+      <div class="card">
+        <div class="card-head"><h3>Sipariş listesi</h3><div class="spacer"></div>
+          <div class="arac-cubugu">
+            <select id="siparisDurum" aria-label="Durum filtresi">
+              <option value="hepsi">Tüm durumlar</option>
+              ${['Onay Bekliyor', 'Onaylandı', 'Yolda', 'Gecikmeli', 'Teslim Edildi'].map((d) =>
+                `<option value="${d}" ${state.siparisDurum === d ? 'selected' : ''}>${d}</option>`).join('')}
+            </select>
+            <button class="btn ghost sm" data-act="siparis-csv">${icon('download')} CSV</button>
+            <button class="btn accent sm" data-act="siparis-ekle">${icon('plus')} Sipariş oluştur</button>
+          </div></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>No</th><th>Tedarikçi</th><th>Malzeme</th><th class="num">Tutar</th>
+            <th class="num">Teslim</th><th>İlerleme</th><th>Durum</th><th></th></tr></thead>
+          <tbody>${rows}</tbody>
+          <tfoot><tr><td colspan="3">Listelenen toplam</td>
+            <td class="num">${money(liste.reduce((t, o) => t + o.tutar, 0))}</td>
+            <td colspan="4"></td></tr></tfoot>
+        </table></div>
+      </div>
+      <div class="grid" style="gap:14px">
+        <div class="card">
+          <div class="card-head"><h3>Teslim takvimi</h3></div>
+          <div class="timeline">
+            ${hepsi.filter((o) => o.durum !== 'Teslim Edildi')
+                   .sort((a, b) => a.teslim.localeCompare(b.teslim)).slice(0, 6).map((o) => `
+              <div class="tl"><b>${o.teslim} · ${o.malzeme}</b>
+                <span>${o.tedarikci} · ${o.miktar} · ${etkinDurum(o)}</span></div>`).join('') ||
+              '<div class="empty">Bekleyen teslimat yok.</div>'}
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>Sipariş akışı</h3></div>
+          <div class="timeline">
+            <div class="tl"><b>Onay Bekliyor</b><span>Saha talebi satın almaya iletildi</span></div>
+            <div class="tl"><b>Onaylandı</b><span>Tedarikçiye sipariş geçildi</span></div>
+            <div class="tl"><b>Yolda</b><span>Sevkiyat başladı</span></div>
+            <div class="tl"><b>Teslim Edildi</b><span>İrsaliye girildi, stok girişi yapıldı</span></div>
+          </div>
+          <p class="modal-metin" style="margin-top:10px">
+            Teslim tarihi geçen ve tamamlanmamış siparişler otomatik <b>Gecikmeli</b> gösterilir.</p>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  async function siparisFormu(id, onDeger) {
+    const o = id ? S.bul('siparisler', id) : null;
+    const stoklar = S.get('stok');
+    const varsayilanTeslim = new Date(Date.now() + 12096e5).toISOString().slice(0, 10);  // +14 gün
+
+    const sonuc = await UI.form({
+      baslik: o ? 'Siparişi düzenle' : 'Yeni satın alma siparişi',
+      aciklama: 'Malzemeyi stok kartından seçerseniz teslim alındığında stok girişi otomatik yapılır.',
+      kaydetEtiketi: o ? 'Güncelle' : 'Siparişi oluştur',
+      alanlar: [
+        { ad: 'tedarikci', etiket: 'Tedarikçi', zorunlu: true, deger: o ? o.tedarikci : '' },
+        { ad: 'malzemeKod', etiket: 'Stok kartı', tur: 'secim',
+          deger: o ? (o.malzemeKod || '') : ((onDeger && onDeger.malzemeKod) || ''),
+          secenekler: [{ deger: '', ad: 'Stok kartı dışı (serbest)' }]
+            .concat(stoklar.map((s) => ({ deger: s.kod, ad: `${s.ad} (${s.kod})` }))) },
+        { ad: 'malzeme', etiket: 'Malzeme açıklaması', zorunlu: true, genis: true,
+          deger: o ? o.malzeme : ((onDeger && onDeger.malzeme) || '') },
+        { ad: 'siparisMiktar', etiket: 'Miktar', tur: 'number', min: 0, adim: '0.01', zorunlu: true,
+          deger: o ? (o.siparisMiktar || '') : ((onDeger && onDeger.siparisMiktar) || '') },
+        { ad: 'birim', etiket: 'Birim', tur: 'secim', deger: o ? (o.birim || 'adet')
+            : ((onDeger && onDeger.birim) || 'adet'), secenekler: BIRIMLER },
+        { ad: 'tutar', etiket: 'Sipariş tutarı (₺)', tur: 'number', min: 0, adim: '0.01', zorunlu: true,
+          deger: o ? o.tutar : ((onDeger && onDeger.tutar) || '') },
+        { ad: 'siparis', etiket: 'Sipariş tarihi', tur: 'date', deger: o ? o.siparis : bugun() },
+        { ad: 'teslim', etiket: 'Planlanan teslim', tur: 'date', deger: o ? o.teslim : varsayilanTeslim }
+      ]
+    });
+    if (!sonuc) return;
+
+    const kayit = {
+      ...sonuc,
+      miktar: num2(sonuc.siparisMiktar) + ' ' + sonuc.birim
+    };
+    if (o) { S.guncelle('siparisler', id, kayit); toast(o.no + ' güncellendi.'); }
+    else {
+      const yeni = S.ekle('siparisler', {
+        ...kayit,
+        no: 'SIP-' + (3301 + S.get('siparisler').length),
+        durum: 'Onay Bekliyor', ilerleme: 10
+      });
+      toast(yeni.no + ' oluşturuldu, onay bekliyor.');
+    }
+  }
+
+  /* Kritik stoktan dogrudan siparis talebi */
+  function stokTalebi(stokId) {
+    const s = S.bul('stok', stokId);
+    if (!s) return;
+    const eksik = Math.max(0, s.kritik - kullanilabilir(s));
+    const oneri = Math.ceil(eksik * 1.2);        // %20 emniyet payı
+    siparisFormu(null, {
+      malzemeKod: s.kod, malzeme: s.ad, siparisMiktar: oneri,
+      birim: s.birim, tutar: Math.round(oneri * s.birimFiyat)
+    });
+  }
+
+  async function siparisIlerlet(id) {
+    const o = S.bul('siparisler', id);
+    if (!o) return;
+    const adim = SIPARIS_AKIS[o.durum];
+    if (!adim) return;
+
+    /* Teslim alma: irsaliye miktari girilir ve stok girisine donusur */
+    if (adim.sonraki === 'Teslim Edildi') {
+      const stokKarti = o.malzemeKod ? S.get('stok').find((s) => s.kod === o.malzemeKod) : null;
+      const sonuc = await UI.form({
+        baslik: 'Teslim alma · ' + o.no,
+        aciklama: stokKarti
+          ? `${stokKarti.ad} stok kartına giriş yapılacak (mevcut ${num2(stokKarti.mevcut)} ${stokKarti.birim}).`
+          : 'Bu sipariş bir stok kartına bağlı değil; yalnızca sipariş durumu güncellenir.',
+        kaydetEtiketi: 'Teslim al',
+        alanlar: [
+          { ad: 'gelenMiktar', etiket: 'İrsaliye miktarı' + (stokKarti ? ' (' + stokKarti.birim + ')' : ''),
+            tur: 'number', min: 0, adim: '0.01', deger: o.siparisMiktar || 0,
+            not: stokKarti ? 'Bu miktar stok girişi olarak işlenir.' : 'Stok kartı yok, giriş yapılmaz.' },
+          { ad: 'teslimTarihi', etiket: 'Teslim tarihi', tur: 'date', deger: bugun() },
+          { ad: 'irsaliye', etiket: 'İrsaliye no', deger: '', genis: true }
+        ]
+      });
+      if (!sonuc) return;
+
+      if (stokKarti && Number(sonuc.gelenMiktar) > 0) {
+        S.guncelle('stok', stokKarti._id, {
+          mevcut: stokKarti.mevcut + Number(sonuc.gelenMiktar),
+          sonHareket: sonuc.teslimTarihi
+        });
+        S.ekle('hareketler', {
+          malzeme: stokKarti.kod, tur: 'Giriş', miktar: Number(sonuc.gelenMiktar),
+          tarih: sonuc.teslimTarihi, kaynak: 'Tedarik',
+          aciklama: o.no + ' teslimatı' + (sonuc.irsaliye ? ' · irsaliye ' + sonuc.irsaliye : '')
+        });
+      }
+      S.guncelle('siparisler', id, { durum: 'Teslim Edildi', ilerleme: 100,
+                                     teslim: sonuc.teslimTarihi, irsaliye: sonuc.irsaliye });
+      toast(stokKarti && Number(sonuc.gelenMiktar) > 0
+        ? `${o.no} teslim alındı · ${num2(sonuc.gelenMiktar)} ${stokKarti.birim} stoğa girdi.`
+        : `${o.no} teslim alındı.`);
+      return;
+    }
+
+    S.guncelle('siparisler', id, { durum: adim.sonraki, ilerleme: adim.ilerleme });
+    toast(o.no + ' → ' + adim.sonraki);
+  }
+
+  function siparisCSV() {
+    const basliklar = ['No', 'Tedarikçi', 'Malzeme', 'Miktar', 'Tutar', 'Sipariş', 'Teslim', 'Durum'];
+    const satirlar = siparisListesi().map((o) => [o.no, o.tedarikci, o.malzeme, o.miktar,
+      o.tutar, o.siparis, o.teslim, etkinDurum(o)]);
+    indir('siparisler.csv', 'text/csv;charset=utf-8',
+      '﻿' + [basliklar].concat(satirlar)
+        .map((r) => r.map((c) => '"' + String(c).replace(/"/g, '""') + '"').join(';')).join('\n'));
+    toast('Sipariş listesi indirildi.');
+  }
+
 
   /* ----------------------------------------------------------- rapor */
   function viewRapor() {
@@ -1447,12 +1773,12 @@
     </div>`;
   }
 
-  function pageHead(baslik, aciklama) {
+  function pageHead(baslik, aciklama, ek) {
     return `<div class="page-head">
       <div><h2>${baslik}</h2><p>${aciklama}</p></div>
       <div class="spacer"></div>
-      <button class="chip">${icon('filter')} Filtre</button>
-      <button class="chip">${icon('search')} Ara</button>
+      ${ek || `<button class="chip">${icon('filter')} Filtre</button>
+               <button class="chip">${icon('search')} Ara</button>`}
     </div>`;
   }
 
@@ -1460,6 +1786,117 @@
     ozet: viewOzet, paftalar: viewPaftalar, metraj: viewMetraj, taseron: viewTaseron,
     kalite: viewKalite, hakedis: viewHakedis, stok: viewStok, tedarik: viewTedarik, rapor: viewRapor
   };
+
+  /* ============================================ proje ve taşeron kayıtları */
+
+  /* Bir kaydin baska modullerde kullanilip kullanilmadigini sayar */
+  function bagliKayitlar(tur, id) {
+    if (tur === 'proje') {
+      return [
+        { ad: 'metraj kalemi', n: S.get('metraj').filter((m) => m.proje === id).length },
+        { ad: 'pafta', n: S.get('paftalar').filter((p) => p.proje === id).length },
+        { ad: 'hakediş', n: S.get('hakedisler').filter((h) => h.proje === id).length }
+      ].filter((x) => x.n);
+    }
+    return [
+      { ad: 'hakediş', n: S.get('hakedisler').filter((h) => h.taseron === id).length },
+      { ad: 'kalite kaydı', n: S.get('kaliteKontrol').filter((q) => q.taseron === id).length }
+    ].filter((x) => x.n);
+  }
+
+  async function projeFormu(id) {
+    const p = id ? S.bul('projeler', id) : null;
+    const sonuc = await UI.form({
+      baslik: p ? 'Projeyi düzenle' : 'Yeni proje',
+      kaydetEtiketi: p ? 'Güncelle' : 'Projeyi ekle',
+      alanlar: [
+        { ad: 'ad', etiket: 'Proje adı', zorunlu: true, genis: true, deger: p ? p.ad : '' },
+        { ad: 'id', etiket: 'Proje kodu', zorunlu: true,
+          deger: p ? p.id : 'PRJ-' + String(S.get('projeler').length + 1).padStart(2, '0'),
+          not: p ? 'Kodu değiştirmek bağlı kayıtları etkiler.' : '' },
+        { ad: 'blok', etiket: 'Blok / kısım', deger: p ? p.blok : '' },
+        { ad: 'isveren', etiket: 'İşveren', deger: p ? p.isveren : '' },
+        { ad: 'sehir', etiket: 'Şehir', deger: p ? p.sehir : '' },
+        { ad: 'sozlesme', etiket: 'Sözleşme bedeli (₺)', tur: 'number', min: 0, adim: '1000',
+          zorunlu: true, deger: p ? p.sozlesme : '' },
+        { ad: 'gerceklesen', etiket: 'Gerçekleşen imalat (₺)', tur: 'number', min: 0, adim: '1000',
+          deger: p ? p.gerceklesen : 0 },
+        { ad: 'ilerleme', etiket: 'İlerleme (%)', tur: 'number', min: 0, deger: p ? p.ilerleme : 0 },
+        { ad: 'durum', etiket: 'Durum', tur: 'secim', deger: p ? p.durum : 'Devam',
+          secenekler: ['Devam', 'Riskli', 'Beklemede', 'Tamamlandı'] },
+        { ad: 'etiketlerMetin', etiket: 'Etiketler', genis: true,
+          deger: p ? (p.etiketler || []).join(', ') : '', ipucu: 'Kaba Yapı, Mekanik, İnce İşler' }
+      ]
+    });
+    if (!sonuc) return;
+    const kayit = {
+      ...sonuc,
+      ilerleme: Math.max(0, Math.min(100, sonuc.ilerleme)),
+      etiketler: sonuc.etiketlerMetin.split(',').map((x) => x.trim()).filter(Boolean),
+      guncelleme: 'az önce'
+    };
+    delete kayit.etiketlerMetin;
+    if (p) { S.guncelle('projeler', id, kayit); toast(kayit.ad + ' güncellendi.'); }
+    else { S.ekle('projeler', kayit); toast(kayit.ad + ' projesi eklendi.'); }
+  }
+
+  async function projeSil(id) {
+    const p = S.bul('projeler', id);
+    if (!p) return;
+    const bagli = bagliKayitlar('proje', p.id);
+    const uyari = bagli.length
+      ? `Bu projeye bağlı ${bagli.map((b) => b.n + ' ' + b.ad).join(', ')} var. ` +
+        'Proje silinince bu kayıtlar projesiz kalır.'
+      : 'Bu projeye bağlı başka kayıt yok.';
+    if (!await UI.onay('Projeyi sil', `${p.ad} silinecek. ${uyari}`, 'Sil')) return;
+    S.sil('projeler', id);
+    toast(p.ad + ' silindi.');
+  }
+
+  async function taseronFormu(id) {
+    const t = id ? S.bul('taseronlar', id) : null;
+    const sonuc = await UI.form({
+      baslik: t ? 'Taşeronu düzenle' : 'Yeni taşeron',
+      kaydetEtiketi: t ? 'Güncelle' : 'Taşeronu ekle',
+      alanlar: [
+        { ad: 'ad', etiket: 'Firma adı', zorunlu: true, genis: true, deger: t ? t.ad : '' },
+        { ad: 'id', etiket: 'Taşeron kodu', zorunlu: true,
+          deger: t ? t.id : 'TSR-' + String(S.get('taseronlar').length + 1).padStart(2, '0') },
+        { ad: 'brans', etiket: 'Branş', tur: 'secim', deger: t ? t.brans : 'Kaba Yapı',
+          secenekler: ['Kaba Yapı', 'İnce İşler', 'Mekanik', 'Elektrik', 'Cephe', 'Altyapı', 'Tadilat'] },
+        { ad: 'yetkili', etiket: 'Yetkili kişi', deger: t ? t.yetkili : '' },
+        { ad: 'sozlesme', etiket: 'Sözleşme bedeli (₺)', tur: 'number', min: 0, adim: '1000',
+          zorunlu: true, deger: t ? t.sozlesme : '' },
+        { ad: 'aktifIs', etiket: 'Aktif iş sayısı', tur: 'number', min: 0, deger: t ? t.aktifIs : 0 },
+        { ad: 'puan', etiket: 'Değerlendirme puanı (0-5)', tur: 'number', min: 0, adim: '0.1',
+          deger: t ? t.puan : 4 },
+        { ad: 'sgk', etiket: 'SGK durumu', tur: 'secim', deger: t ? t.sgk : 'Geçerli',
+          secenekler: ['Geçerli', 'Süresi Doldu', 'Eksik Evrak'] },
+        { ad: 'sozlesmeBitis', etiket: 'Sözleşme bitişi', tur: 'date', deger: t ? t.sozlesmeBitis : '' },
+        { ad: 'durum', etiket: 'Durum', tur: 'secim', deger: t ? t.durum : 'Aktif',
+          secenekler: ['Aktif', 'Uyarı', 'Askıda'] }
+      ]
+    });
+    if (!sonuc) return;
+    const kayit = { ...sonuc, puan: Math.max(0, Math.min(5, sonuc.puan)) };
+    if (t) { S.guncelle('taseronlar', id, kayit); toast(kayit.ad + ' güncellendi.'); }
+    else {
+      S.ekle('taseronlar', { ...kayit, yetkiler: [] });
+      toast(kayit.ad + ' eklendi. Yetkileri karttan tanımlayabilirsiniz.');
+    }
+  }
+
+  async function taseronSil(id) {
+    const t = S.bul('taseronlar', id);
+    if (!t) return;
+    const bagli = bagliKayitlar('taseron', t.id);
+    const uyari = bagli.length
+      ? `Bu taşerona bağlı ${bagli.map((b) => b.n + ' ' + b.ad).join(', ')} var; kayıtlar silinmez ama taşeron adı görünmez olur.`
+      : 'Bu taşerona bağlı başka kayıt yok.';
+    if (!await UI.onay('Taşeronu sil', `${t.ad} silinecek. ${uyari}`, 'Sil')) return;
+    S.sil('taseronlar', id);
+    toast(t.ad + ' silindi.');
+  }
 
   /* ------------------------------------------------------- yonlendirme */
   function currentRoute() {
@@ -1543,6 +1980,47 @@
       state.hakedisDurum = hakedisDurum.value; render();
     });
 
+    /* --- stok --- */
+    tikla('[data-act="stok-ekle"]', () => stokFormu(null));
+    tikla('[data-act="stok-csv"]', stokCSV);
+    tikla('[data-stok-duzenle]', (b) => stokFormu(b.dataset.stokDuzenle));
+    tikla('[data-stok-hareket]', (b) => stokHareketi(b.dataset.stokHareket));
+    tikla('[data-stok-talep]', (b) => stokTalebi(b.dataset.stokTalep));
+    tikla('[data-stok-sil]', async (b) => {
+      const s2 = S.bul('stok', b.dataset.stokSil);
+      if (!s2) return;
+      if (await UI.onay('Malzemeyi sil', `${s2.ad} (${s2.kod}) stok kartı silinecek.`, 'Sil')) {
+        S.sil('stok', s2._id); toast(s2.ad + ' silindi.');
+      }
+    });
+    const stokDepo = document.getElementById('stokDepo');
+    if (stokDepo) stokDepo.addEventListener('change', () => { state.stokDepo = stokDepo.value; render(); });
+
+    /* --- tedarik --- */
+    tikla('[data-act="siparis-ekle"]', () => siparisFormu(null));
+    tikla('[data-act="siparis-csv"]', siparisCSV);
+    tikla('[data-siparis-duzenle]', (b) => siparisFormu(b.dataset.siparisDuzenle));
+    tikla('[data-siparis-ilerlet]', (b) => siparisIlerlet(b.dataset.siparisIlerlet));
+    tikla('[data-siparis-sil]', async (b) => {
+      const o = S.bul('siparisler', b.dataset.siparisSil);
+      if (!o) return;
+      if (await UI.onay('Siparişi sil', `${o.no} · ${o.malzeme} siparişi silinecek.`, 'Sil')) {
+        S.sil('siparisler', o._id); toast(o.no + ' silindi.');
+      }
+    });
+    const siparisDurum = document.getElementById('siparisDurum');
+    if (siparisDurum) siparisDurum.addEventListener('change', () => {
+      state.siparisDurum = siparisDurum.value; render();
+    });
+
+    /* --- proje ve taşeron kayıtları --- */
+    tikla('[data-act="proje-ekle"]', () => projeFormu(null));
+    tikla('[data-proje-duzenle]', (b) => projeFormu(b.dataset.projeDuzenle));
+    tikla('[data-proje-sil]', (b) => projeSil(b.dataset.projeSil));
+    tikla('[data-act="taseron-ekle"]', () => taseronFormu(null));
+    tikla('[data-taseron-duzenle]', (b) => taseronFormu(b.dataset.taseronDuzenle));
+    tikla('[data-taseron-sil]', (b) => taseronSil(b.dataset.taseronSil));
+
     /* --- kalite kontrol --- */
     tikla('[data-act="kalite-ekle"]', () => kaliteFormu(null));
     tikla('[data-act="kalite-csv"]', () => kaliteCSV(kaliteListesi()));
@@ -1588,9 +2066,6 @@
     /* henuz baglanmamis demo aksiyonlari */
     const mesaj = {
       dogrula: 'Kalem manuel doğrulama kuyruğuna alındı.',
-      'yeni-siparis': 'Tedarik modülü bir sonraki adımda bağlanacak.',
-      siparis: 'Tedarik modülü bir sonraki adımda bağlanacak.',
-      sayim: 'Stok modülü bir sonraki adımda bağlanacak.',
       gonder: 'Raporlama modülü bir sonraki adımda bağlanacak.',
       pdf: 'Raporlama modülü bir sonraki adımda bağlanacak.'
     };

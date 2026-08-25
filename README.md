@@ -20,11 +20,11 @@ git clone <repo> && cd Insaat-Hakedis
 | **Genel Bakış** | Portföy özeti, hakediş hacmi yay grafiği, proje tamamlanma kartları, KPI'lar |
 | **Projeler & DWG** ✅ | Dosyayı gerçekten saklar (IndexedDB), indirir, siler; DXF'i ayrıştırıp katman/geometri/ölçüm çıkarır ve vektör önizleme çizer; DWG'nin gömülü küçük resmini ve sürümünü okur; katman ölçüsünü tek tıkla metraja aktarır |
 | **Metraj** ✅ | Poz ekleme/düzenleme/silme, proje filtresi, otomatik tutar hesabı, manuel doğrulama, CSV dışa aktarma |
-| **Taşeronlar** | Alt yüklenici kartları, sözleşme/SGK durumu ve modül bazlı yetki anahtarları (metraj görüntüleme, DWG indirme, hakediş hazırlama, kalite formu, stok talebi) |
+| **Taşeronlar** ✅ | Taşeron ekle/düzenle/sil (bağlı kayıt uyarısıyla), sözleşme/SGK durumu ve modül bazlı yetki anahtarları |
 | **Kalite Kontrol** ✅ | İmalat türüne göre kontrol şablonları, madde bazlı Uygun / Uygun Değil / Kapsam Dışı işaretleme, ağırlıklı otomatik puanlama ve sonuç önerisi, saha fotoğrafı ekleme, sapma notları, yeniden kontrol zinciri, taşeron karnesi, CSV |
 | **Hakediş** ✅ | Metraj kalemlerinden hakediş oluşturma (canlı tutar özeti), kesinti/avans/KDV hesabı, Taslak → Kontrolde → Onay Bekliyor → Onaylandı akışı, red gerekçesi, kalem detayı ve CSV |
-| **Stok** | Depo bazlı mevcut/rezerve/kullanılabilir miktar, kritik seviye uyarısı ve sipariş önerileri |
-| **Tedarik** | Satın alma siparişlerinin onay–sevkiyat–teslim takibi ve teslim takvimi |
+| **Stok** ✅ | Malzeme kartı ekle/düzenle/sil, depo filtresi, giriş · çıkış · rezerve · sayım hareketleri (sınır kontrollü), hareket geçmişi, kritik seviye uyarısı, CSV |
+| **Tedarik** ✅ | Sipariş oluştur/düzenle/sil, Onay Bekliyor → Onaylandı → Yolda → Teslim Edildi akışı, teslim alındığında otomatik stok girişi, tarihe göre otomatik gecikme, teslim takvimi, CSV |
 | **Raporlar** | Üst yetkiliye yönetim özeti ve alt taşerona bilgi raporu; portföy ilerlemesi, nakit akış projeksiyonu, risk gündemi |
 
 Sağ üstteki **Yönetici / Taşeron** anahtarı rolü değiştirir; taşeron rolünde hakediş
@@ -70,8 +70,23 @@ değiştirilecek şekilde tasarlandı; görünüm kodunda değişiklik gerekmez.
 
 ### Modül durumu
 
-- ✅ **Bağlandı:** Projeler & DWG, Metraj, Kalite Kontrol, Hakediş, taşeron yetkileri, veri yönetimi
-- ⏳ **Sırada:** Stok, Tedarik, Raporlama
+- ✅ **Bağlandı:** Projeler & DWG (proje kayıtları dâhil), Metraj, Taşeronlar, Kalite Kontrol,
+  Hakediş, Stok, Tedarik, veri yönetimi
+- ⏳ **Sırada:** Raporlama
+
+## Stok ve tedarik akışı
+
+Kritik seviyeye düşen malzemede **Talep** düğmesi, eksik miktarın %20 emniyet payıyla
+hesaplanmış ön dolu bir sipariş formu açar. Sipariş
+`Onay Bekliyor → Onaylandı → Yolda → Teslim Edildi` akışında ilerler; onay adımı yalnızca
+yönetici rolünde görünür. Teslim alma penceresinde girilen irsaliye miktarı, sipariş bir
+stok kartına bağlıysa **otomatik stok girişine** dönüşür ve hareket geçmişine yazılır.
+
+Teslim tarihi geçmiş ve tamamlanmamış siparişler listede otomatik **Gecikmeli** gösterilir;
+bu türetilmiş bir durumdur, siparişin akışını kilitlemez.
+
+Stok hareketleri (Giriş, Çıkış, Rezerve, Rezerve İptal, Sayım Düzeltme) sınır kontrollüdür:
+çıkış ve rezerve, kullanılabilir miktarı (mevcut − rezerve) aşamaz.
 
 ## Kalite puanlama
 

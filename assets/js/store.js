@@ -4,7 +4,8 @@
 window.Store = (function () {
   const KEY = 'insaat-hakedis:v1';
   const KOLEKSIYONLAR = ['projeler', 'paftalar', 'metraj', 'taseronlar',
-                         'kaliteKontrol', 'hakedisler', 'stok', 'siparisler', 'raporlar'];
+                         'kaliteKontrol', 'hakedisler', 'stok', 'hareketler',
+                         'siparisler', 'raporlar'];
 
   let db = null;
   const aboneler = [];
@@ -51,9 +52,11 @@ window.Store = (function () {
 
   /* ------------------------------------------------------------------ API */
 
+  /* Eski bir yedekte olmayan koleksiyon istenirse bos olarak olusturulur */
   function get(koleksiyon) {
     if (!db) db = yukle();
-    return db[koleksiyon] || [];
+    if (!Array.isArray(db[koleksiyon])) { db[koleksiyon] = []; kaydet(); }
+    return db[koleksiyon];
   }
 
   function bul(koleksiyon, id) {
