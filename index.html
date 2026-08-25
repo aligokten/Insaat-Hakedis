@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>İnşaat Hakediş Paneli</title>
+<meta name="description" content="DWG tabanlı metraj, taşeron yetkilendirme, kalite kontrol, hakediş, stok ve tedarik takibi için proje yönetim paneli.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@300;400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<div class="shell">
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">H</div>
+      <div class="brand-avatar">AG</div>
+      <div class="brand-name">Hakediş Panel<small>Marina Rezidans · A Blok</small></div>
+    </div>
+
+    <nav class="nav" aria-label="Ana menü"></nav>
+
+    <div class="role-switch" role="group" aria-label="Rol seçimi">
+      <button data-rol="yonetici" class="is-active">Yönetici</button>
+      <button data-rol="taseron">Taşeron</button>
+    </div>
+  </header>
+
+  <div class="body-grid">
+    <aside class="rail" aria-label="Modüller"></aside>
+    <main class="view" id="view"></main>
+  </div>
+
+</div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
