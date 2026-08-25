@@ -1941,14 +1941,16 @@
 
     const rows = liste.map((s) => {
       const kalan = kullanilabilir(s);
-      const oran = Math.min(100, (kalan / (s.kritik || 1)) * 100);
+      const oran = (kalan / (s.kritik || 1)) * 100;          // kritik seviyeye gore doluluk
+      const kind = stokKritikMi(s) ? 'bad' : oran > 150 ? 'ok' : 'warn';
       return `<tr>
-        <td><span class="strong">${s.ad}</span><div class="muted">${s.kod} · ${s.depo}</div></td>
+        <td style="min-width:180px"><span class="strong">${s.ad}</span>
+            <div class="muted">${s.kod} · ${s.depo}</div></td>
         <td class="num">${num2(s.mevcut)} ${s.birim}</td>
         <td class="num">${num2(s.rezerve)}</td>
         <td class="num strong">${num2(kalan)}</td>
         <td class="num">${num2(s.kritik)}</td>
-        <td style="min-width:120px">${bar(oran, stokKritikMi(s) ? 'bad' : oran > 150 ? 'ok' : 'warn')}</td>
+        <td style="min-width:120px">${bar(Math.min(100, oran), kind)}</td>
         <td class="num">${money(s.mevcut * s.birimFiyat)}</td>
         <td>${stokKritikMi(s) ? badge('Kritik', 'bad') : badge('Yeterli', 'ok')}</td>
         <td>
@@ -2478,51 +2480,40 @@
     };
   }
 
-  /* Raporu yazdirilabilir bir pencerede acar (yazdir -> PDF) */
-  function raporYazdir(r) {
-    const stil = `
-      <style>
-        @page { size: A4; margin: 16mm; }
-        body { font-family: Inter, Arial, sans-serif; color: #17161a; font-size: 11px; margin: 0; }
-        h1 { font-size: 21px; margin: 0 0 2px; letter-spacing: -.4px; }
-        .alt { color: #8b8792; font-size: 11px; margin-bottom: 16px; }
-        .ozet { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
-        .ozet div { border: 1px solid #e6e3e0; border-radius: 8px; padding: 9px 11px; }
-        .ozet span { display: block; color: #8b8792; font-size: 10px; }
-        .ozet b { font-size: 14px; }
-        h2 { font-size: 13px; margin: 18px 0 7px; padding-bottom: 5px; border-bottom: 2px solid #f0421c; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
-        th { text-align: left; font-size: 9.5px; text-transform: uppercase; letter-spacing: .05em;
-             color: #8b8792; padding: 5px 7px; border-bottom: 1px solid #e6e3e0; }
-        td { padding: 6px 7px; border-bottom: 1px solid #f1efed; }
-        tr:nth-child(even) td { background: #faf9f8; }
-        .bos { color: #8b8792; padding: 8px 7px; }
-        .imza { margin-top: 28px; display: flex; gap: 40px; font-size: 10px; color: #8b8792; }
-        .imza div { flex: 1; border-top: 1px solid #cfcac5; padding-top: 6px; }
-        @media print { .yazdir { display: none; } }
-        .yazdir { position: fixed; top: 12px; right: 12px; background: #f0421c; color: #fff;
-                  border: 0; border-radius: 999px; padding: 9px 18px; font-size: 12px; cursor: pointer; }
-      </style>`;
-
+  /* Raporu sayfa icinde, arka plani bulaniklastirilmis bir pencerede acar.
+     Yazdirmada yalnizca rapor govdesi kagida gider (bkz. @media print). */
+  function raporGoster(r) {
     const govde = `
-      <button class="yazdir" onclick="window.print()">Yazdır / PDF olarak kaydet</button>
-      <h1>${r.baslik}</h1>
-      <div class="alt">${r.altbaslik}</div>
-      <div class="ozet">${(r.ozet || []).map((o) =>
-        `<div><span>${o.ad}</span><b>${o.deger}</b></div>`).join('')}</div>
-      ${r.bloklar.map((b) => `
-        <h2>${b.ad}</h2>
-        ${b.satirlar.length ? `<table>
-          <thead><tr>${b.basliklar.map((h) => `<th>${h}</th>`).join('')}</tr></thead>
-          <tbody>${b.satirlar.map((s) => `<tr>${s.map((c) => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody>
-        </table>` : '<div class="bos">Kayıt yok.</div>'}`).join('')}
-      <div class="imza"><div>Hazırlayan</div><div>Kontrol eden</div><div>Onaylayan</div></div>`;
+      <div class="rapor">
+        <div class="rapor-ozet">
+          ${(r.ozet || []).map((o) => `<div><span>${o.ad}</span><b>${o.deger}</b></div>`).join('')}
+        </div>
+        ${r.bloklar.map((b) => `
+          <section class="rapor-blok">
+            <h4>${b.ad}</h4>
+            ${b.satirlar.length ? `<div class="table-wrap"><table>
+              <thead><tr>${b.basliklar.map((h) => `<th>${h}</th>`).join('')}</tr></thead>
+              <tbody>${b.satirlar.map((sat) =>
+                `<tr>${sat.map((c) => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody>
+            </table></div>` : '<div class="empty">Kayıt yok.</div>'}
+          </section>`).join('')}
+        <div class="rapor-imza">
+          <div>Hazırlayan</div><div>Kontrol eden</div><div>Onaylayan</div>
+        </div>
+      </div>`;
 
-    const pencere = window.open('', '_blank');
-    if (!pencere) { toast('Tarayıcı açılır pencereyi engelledi. İzin verip tekrar deneyin.'); return; }
-    pencere.document.write(`<!doctype html><html lang="tr"><head><meta charset="utf-8">
-      <title>${r.baslik} — ${r.altbaslik}</title>${stil}</head><body>${govde}</body></html>`);
-    pencere.document.close();
+    UI.modal({
+      baslik: r.baslik,
+      aciklama: r.altbaslik,
+      icerik: govde,
+      hazir: (kutu) => kutu.querySelector('.modal').classList.add('genis', 'rapor-pencere'),
+      dugmeler: [
+        { ad: 'CSV indir', deger: 'csv' },
+        /* pencere acik kalir, yalnizca yazdirma iletisim kutusu acilir */
+        { ad: 'Yazdır / PDF', tur: 'accent',
+          oncePolitika: () => { window.print(); return false; } }
+      ]
+    }).then((secim) => { if (secim === 'csv') raporCSV(r); });
   }
 
   function raporCSV(r) {
@@ -2905,7 +2896,7 @@
     }
     tikla('[data-rapor-ac]', (b) => {
       const r = raporUret(b.dataset.raporAc, state.raporTaseron);
-      if (r) raporYazdir(r); else toast('Rapor için yeterli veri yok.');
+      if (r) raporGoster(r); else toast('Rapor için yeterli veri yok.');
     });
     tikla('[data-rapor-csv]', (b) => {
       const r = raporUret(b.dataset.raporCsv, state.raporTaseron);

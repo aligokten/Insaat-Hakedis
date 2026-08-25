@@ -1,7 +1,7 @@
 # İnşaat Hakediş Paneli
 
-Referans dashboard tasarımının (yumuşak gri-beyaz zemin, kapsül navigasyon, turuncu
-vurgu, yay grafik ve donut ilerleme kartları) inşaat proje yönetimi için klonlanmış hâli.
+Referans dashboard tasarımının (kapsül navigasyon, turuncu vurgu, yay grafik ve donut
+ilerleme kartları) inşaat proje yönetimi için klonlanmış hâli; **Liquid Glass** temasıyla.
 
 **Canlı:** https://aligokten.github.io/Insaat-Hakedis/
 
@@ -58,6 +58,19 @@ Site GitHub Pages üzerinden `gh-pages` dalından yayınlanır.
 `gh-pages` dalını günceller ve GitHub Pages siteyi yeniden yayınlar
 (genellikle 1-2 dakika içinde).
 
+## Liquid Glass teması
+
+Arka planda sabit duran yumuşak renk kümeleri (`body::before`) tüm yüzeylerin altında bir
+renk zemini oluşturur. Panel yüzeyleri — kartlar, navigasyon, ikon rayı, çipler, diyaloglar —
+yarı saydam dolgu + `backdrop-filter: saturate(180%) blur(20px)` ile bu zemini bulanıklaştırıp
+doygunlaştırarak gösterir; böylece her yüzey bulunduğu yerin rengini alır. Derinlik üç katmanla
+kurulur: üst kenarda ince ışık yansıması (`::before` sheen), içeriden aydınlatan `inset`
+kenar çizgisi ve aşağıya doğru açılan yumuşak gölge.
+
+Token'lar `:root` içinde toplanmıştır: `--glass`, `--glass-strong`, `--glass-fill` (üstten alta
+azalan dolgu), `--glass-border`, `--glass-hi`, `--blur`, `--shadow-glass`. Bir yüzeyi cama
+çevirmek için bu token'ları kullanmak yeterlidir.
+
 ## Veri katmanı
 
 Kayıtlar tarayıcının `localStorage` alanında (`insaat-hakedis:v1` anahtarı) saklanır;
@@ -97,9 +110,13 @@ personel ekranında, personel kartında ve raporların risk gündeminde görün�
 
 ## Raporlar
 
-Raporlar sabit metin değildir — çağrıldığı anda depodaki veriden üretilir. "Raporu aç" yeni bir
-sekmede A4 düzeninde, imza bloklu bir çıktı açar; tarayıcının **Yazdır → PDF olarak kaydet**
-seçeneğiyle PDF alınır. Aynı rapor CSV olarak da indirilebilir.
+Raporlar sabit metin değildir — çağrıldığı anda depodaki veriden üretilir. "Raporu aç" sayfadan
+ayrılmadan bir pencere açar; arka plandaki panel bulanıklaşır. Pencerede özet kutuları, bölüm
+tabloları ve imza blokları yer alır.
+
+**Yazdır / PDF** düğmesi pencereyi kapatmadan tarayıcının yazdırma iletişimini açar;
+`@media print` kuralları panelin tamamını gizleyip yalnızca rapor gövdesini A4 düzeninde,
+beyaz zeminde kağıda gönderir. Aynı rapor CSV olarak da indirilebilir.
 
 ## Stok ve tedarik akışı
 
