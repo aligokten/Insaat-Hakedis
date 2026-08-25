@@ -1,38 +1,29 @@
 name: GitHub Pages
 
+# Pages yayın kaynağı: gh-pages dalı.
+# main'e yapılan her push'ta site içeriği gh-pages dalına yansıtılır.
+
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Pages yapılandırması
-        uses: actions/configure-pages@v5
-        with:
-          enablement: true
-
-      - name: Statik siteyi paketle
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: .
-
-      - name: Yayına al
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: gh-pages dalını güncelle
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git branch -f gh-pages HEAD
+          git push --force origin gh-pages
