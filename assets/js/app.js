@@ -15,7 +15,8 @@
     isProje: 'hepsi',
     personelFirma: 'hepsi',
     puantajTarihi: new Date().toISOString().slice(0, 10),
-    raporTaseron: ''
+    raporTaseron: '',
+    acikTaseron: null
   };
 
   /* Hakedis onay akisi ve rol yetkileri */
@@ -652,29 +653,59 @@
 
   /* ---------------------------------------------------------- taşeron */
   function viewTaseron() {
-    const kartlar = S.get('taseronlar').map((t) => `
-      <div class="card">
-        <div class="card-head">
-          <div>
-            <h3>${t.ad}</h3>
-            <div class="muted" style="font-size:11px;color:var(--ink-3)">${t.brans} · ${t.yetkili} · Puan ${num2(t.puan)}</div>
+    const kartlar = S.get('taseronlar').map((t) => {
+      const isleri = S.get('isler').filter((i) => i.taseron === t.id);
+      const devamEden = isleri.filter((i) => i.durum === 'Devam').length;
+      const acik = state.acikTaseron === t._id;
+      const izin = S.yetkiler(t.id);
+
+      const isSatirlari = isleri.map((i) => `
+        <div class="is-satir">
+          <div class="txt">
+            <b>${i.ad}</b>
+            <span>${projeAd(i.proje)}${i.mahal ? ' · ' + i.mahal : ''} · ${moneyShort(i.planlanan)}</span>
           </div>
-          <div class="spacer"></div>
+          <div class="is-satir-sag">
+            ${badge(i.durum, durumKind(i.durum))}
+            <div class="bar ${i.ilerleme >= 80 ? 'ok' : i.ilerleme >= 40 ? 'warn' : 'bad'}">
+              <span style="width:${Math.max(0, Math.min(100, i.ilerleme))}%"></span></div>
+            <b class="oran">${pct(i.ilerleme)}</b>
+          </div>
+        </div>`).join('');
+
+      return `
+      <div class="card taseron-karti ${acik ? 'izin-acik' : ''}">
+        <div class="satir-islem taseron-islem">
+          <button class="ikon-btn" title="Düzenle" data-taseron-duzenle="${t._id}">${icon('kalem')}</button>
+          <button class="ikon-btn tehlike" title="Sil" data-taseron-sil="${t._id}">${icon('cop')}</button>
+        </div>
+        <button class="taseron-bas" data-taseron-ac="${t._id}"
+                aria-expanded="${acik}" title="Panel yetkilerini göster/gizle">
+          <span class="taseron-kimlik">
+            <b>${t.ad}</b>
+            <em>${t.brans} · ${t.yetkili || '—'} · Puan ${num2(t.puan)}</em>
+          </span>
+          <span class="spacer"></span>
           ${badge(t.durum, durumKind(t.durum))}
-          <div class="satir-islem">
-            <button class="ikon-btn" title="Düzenle" data-taseron-duzenle="${t._id}">${icon('kalem')}</button>
-            <button class="ikon-btn tehlike" title="Sil" data-taseron-sil="${t._id}">${icon('cop')}</button>
-          </div>
-        </div>
-        <div class="stat-inline" style="margin-bottom:12px">
+          <span class="chevron">${icon('down')}</span>
+        </button>
+
+        <div class="stat-inline">
           <div><span>Sözleşme</span><b>${moneyShort(t.sozlesme)}</b></div>
-          <div><span>Aktif iş</span><b>${t.aktifIs}</b></div>
+          <div><span>Devam eden iş</span><b>${devamEden} / ${isleri.length}</b></div>
           <div><span>SGK</span><b style="font-size:12.5px">${t.sgk}</b></div>
-          <div><span>Bitiş</span><b style="font-size:12.5px">${t.sozlesmeBitis}</b></div>
+          <div><span>Bitiş</span><b style="font-size:12.5px">${t.sozlesmeBitis || '—'}</b></div>
         </div>
-        <div style="border-top:1px solid var(--line-soft);padding-top:6px">
+
+        <div class="taseron-isler">
+          <h4>Üstlendiği işler <em>(${isleri.length})</em></h4>
+          ${isSatirlari || '<div class="empty">Bu taşerona atanmış iş yok.</div>'}
+        </div>
+
+        <div class="izin-bolum" ${acik ? '' : 'hidden'}>
+          <h4>Panel yetkileri</h4>
           ${DB.YETKI_LISTESI.map((y) => {
-            const on = S.yetkiler(t.id).indexOf(y.key) > -1;
+            const on = izin.indexOf(y.key) > -1;
             return `<div class="perm-row">
               ${icon('lock')}<span>${y.ad}</span><div class="spacer"></div>
               <button class="switch ${on ? 'on' : ''}" data-yetki="${t.id}|${y.key}"
@@ -682,15 +713,17 @@
             </div>`;
           }).join('')}
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
 
     return `
-    ${pageHead('TAŞERONLAR', 'Alt yüklenici tanımları ve modül bazlı yetkilendirme. Yetki değişiklikleri anında portala yansır.',
+    ${pageHead('TAŞERONLAR', 'Alt yüklenici tanımları, üstlendikleri işler ve panel yetkileri. Kart başlığına tıklayarak yetkileri açıp kapatabilirsiniz.',
                `<button class="btn accent sm" data-act="taseron-ekle">${icon('plus')} Taşeron ekle</button>`)}
-    <div class="grid cols-3" style="padding:0 10px">
+    <div class="grid cols-2" style="padding:0 10px">
       ${kartlar || '<div class="empty">Kayıtlı taşeron yok.</div>'}
     </div>`;
   }
+
 
   /* --------------------------------------------------------------- işler */
   const IS_DURUM = ['Planlandı', 'Devam', 'Durduruldu', 'Tamamlandı'];
@@ -3283,6 +3316,13 @@
     const siparisDurum = document.getElementById('siparisDurum');
     if (siparisDurum) siparisDurum.addEventListener('change', () => {
       state.siparisDurum = siparisDurum.value; render();
+    });
+
+    /* Taşeron kartı başlığı: yetki bölümünü açar/kapatır */
+    tikla('[data-taseron-ac]', (b) => {
+      const id = b.dataset.taseronAc;
+      state.acikTaseron = state.acikTaseron === id ? null : id;
+      render();
     });
 
     /* --- proje ve taşeron kayıtları --- */

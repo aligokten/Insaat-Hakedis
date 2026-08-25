@@ -22,7 +22,7 @@ git clone <repo> && cd Insaat-Hakedis
 | **İşler** ✅ | Proje altında iş paketi ekle/düzenle/sil; taşeron ataması, personel görevlendirmesi, malzeme tahsisi (stokta rezerve ayırır), metraj kalemi bağlama, ilerleme ve termin takibi, CSV |
 | **Personel** ✅ | Özlük kartı (SGK, İSG, sağlık raporu, kan grubu, acil durum), evrak geçerlilik uyarıları, görevli olduğu işler, günlük puantaj ve hak ediş hesabı, toplu puantaj, CSV |
 | **Metraj** ✅ | Poz ekleme/düzenleme/silme, proje filtresi, otomatik tutar hesabı, manuel doğrulama, CSV dışa aktarma |
-| **Taşeronlar** ✅ | Taşeron ekle/düzenle/sil (bağlı kayıt uyarısıyla), sözleşme/SGK durumu ve modül bazlı yetki anahtarları |
+| **Taşeronlar** ✅ | Taşeron ekle/düzenle/sil (bağlı kayıt uyarısıyla), sözleşme/SGK durumu, üstlendiği işlerin ilerleme listesi; kart başlığına tıklanınca açılan panel yetkileri |
 | **Kalite Kontrol** ✅ | İmalat türüne göre kontrol şablonları, madde bazlı Uygun / Uygun Değil / Kapsam Dışı işaretleme, ağırlıklı otomatik puanlama ve sonuç önerisi, saha fotoğrafı ekleme, sapma notları, yeniden kontrol zinciri, taşeron karnesi, CSV |
 | **Hakediş** ✅ | Metraj kalemlerinden hakediş oluşturma (canlı tutar özeti), kesinti/avans/KDV hesabı, Taslak → Kontrolde → Onay Bekliyor → Onaylandı akışı, red gerekçesi, kalem detayı ve CSV |
 | **Stok** ✅ | Malzeme kartı ekle/düzenle/sil, depo filtresi, giriş · çıkış · rezerve · sayım hareketleri (sınır kontrollü), hareket geçmişi, kritik seviye uyarısı, CSV |

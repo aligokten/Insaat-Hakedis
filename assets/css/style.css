@@ -87,6 +87,10 @@ body::before {
   filter: blur(34px);
 }
 
+/* Olcusu tanimlanmamis satir ici ikonlar 16px'te kalir; grafikler (width niteligi
+   ya da kendi kurali olanlar) bu kuraldan etkilenmez. */
+svg:not([width]) { width: 16px; height: 16px; flex: none; }
+
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; border: 0; background: none; }
 a { color: inherit; text-decoration: none; }
@@ -276,6 +280,7 @@ a { color: inherit; text-decoration: none; }
 
 .arc-wrap { position: relative; min-height: 300px; }
 .arc-wrap svg { display: block; width: 100%; height: auto; }
+.donut svg { width: 100%; height: 100%; }
 .arc-caption { text-align: center; font-size: 12px; color: var(--ink-3); margin-top: -6px; }
 
 .arc-side {
@@ -541,6 +546,7 @@ tfoot td { padding: 12px; border-top: 2px solid var(--line); font-weight: 600; f
 .perm-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 12.5px; }
 .perm-row + .perm-row { border-top: 1px solid var(--line-soft); }
 .perm-row .spacer { flex: 1; }
+.perm-row svg { width: 14px; height: 14px; color: var(--ink-3); flex: none; }
 
 /* ---------------------------------------------------------------- misc */
 
@@ -920,4 +926,61 @@ tfoot td { padding: 12px; border-top: 2px solid var(--line); font-weight: 600; f
 @media (max-width: 860px) {
   .aktif-kullanici small { display: none; }
   .aktif-kullanici { max-width: 130px; }
+}
+
+/* ------------------------------------------------------- taşeron kartı */
+.taseron-karti { padding: 16px 18px 18px; }
+
+.taseron-karti { position: relative; align-self: start; }
+.taseron-islem { position: absolute; top: 14px; right: 16px; z-index: 1; }
+
+.taseron-bas {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; text-align: left;
+  margin: -4px -6px 12px; padding: 6px 74px 10px 6px;
+  border-bottom: 1px solid var(--line-soft);
+  border-radius: var(--r-sm);
+  transition: background .16s;
+}
+.taseron-bas:hover { background: rgba(255,255,255,.5); }
+.taseron-bas:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.taseron-kimlik { min-width: 0; display: block; }
+.taseron-kimlik b { display: block; font-size: 15px; font-weight: 600; letter-spacing: -.15px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.taseron-kimlik em { font-style: normal; font-size: 11px; color: var(--ink-3); }
+.taseron-bas .spacer { flex: 1; }
+.taseron-bas .chevron {
+  display: grid; place-items: center; width: 26px; height: 26px;
+  border-radius: 50%; color: var(--ink-3); flex: none;
+  transition: transform .2s, background .16s;
+}
+.taseron-bas:hover .chevron { background: var(--surface-2); color: var(--ink); }
+.izin-acik .taseron-bas .chevron { transform: rotate(180deg); }
+
+.taseron-isler { margin-top: 14px; }
+.taseron-isler h4, .izin-bolum h4 {
+  margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--ink-2);
+}
+.taseron-isler h4 em, .izin-bolum h4 em { font-style: normal; color: var(--ink-3); font-weight: 500; }
+
+.is-satir {
+  display: flex; align-items: center; gap: 12px;
+  padding: 9px 0; border-top: 1px solid var(--line-soft);
+}
+.is-satir .txt { min-width: 0; flex: 1; }
+.is-satir .txt b { display: block; font-size: 12.5px; font-weight: 600; line-height: 1.25; }
+.is-satir .txt span { font-size: 11px; color: var(--ink-3); }
+.is-satir-sag { display: flex; align-items: center; gap: 8px; flex: none; }
+.is-satir-sag .bar { width: 64px; min-width: 0; }
+.is-satir-sag .oran { font-size: 11.5px; font-variant-numeric: tabular-nums; min-width: 34px; text-align: right; }
+
+.izin-bolum {
+  margin-top: 14px; padding-top: 12px;
+  border-top: 1px solid var(--line-soft);
+}
+.izin-bolum[hidden] { display: none; }
+
+@media (max-width: 720px) {
+  .is-satir { flex-wrap: wrap; }
+  .is-satir-sag { width: 100%; justify-content: flex-end; }
 }
