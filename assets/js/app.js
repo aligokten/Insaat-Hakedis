@@ -154,45 +154,65 @@
   }
 
   /* ---------------------------------------------------------- paftalar */
+  const FORMAT_RENK = { DXF: 'ok', DWG: 'info', PDF: '', Bilinmiyor: 'warn' };
+
   function viewPaftalar() {
-    const rows = paftalarAll().map((d) => `
+    const liste = paftalarAll();
+
+    const rows = liste.map((d) => `
       <tr>
-        <td><div class="strong">${d.ad}</div><div class="muted">${d.id} · Rev ${d.rev} · ${d.boyut}</div></td>
+        <td style="width:74px">
+          ${d.kucukResim
+            ? `<img class="pafta-kucuk" src="${d.kucukResim}" alt="${d.ad} önizleme">`
+            : `<div class="pafta-kucuk bos">${icon('file')}</div>`}
+        </td>
+        <td><div class="strong">${d.ad}</div>
+            <div class="muted">${d.id} · Rev ${d.rev} · ${d.boyut}${d.surum ? ' · ' + d.surum : ''}</div></td>
+        <td>${badge(d.format || '—', FORMAT_RENK[d.format] !== undefined ? FORMAT_RENK[d.format] : '')}</td>
         <td>${badge(d.tur, 'info')}</td>
         <td>${d.disiplin}</td>
         <td>${projeAd(d.proje)}</td>
-        <td class="num">${d.olcek}</td>
-        <td class="num">${d.katman}</td>
-        <td class="num">${d.alanM2 ? num(d.alanM2) + ' m²' : '—'}</td>
+        <td class="num">${d.katman || '—'}</td>
+        <td class="num">${d.varlikSayisi ? num(d.varlikSayisi) : '—'}</td>
+        <td class="num">${d.alanM2 ? num2(d.alanM2) + ' m²' : '—'}</td>
         <td>${badge(d.durum, durumKind(d.durum))}</td>
-        <td class="num"><button class="btn ghost sm" data-goto="metraj">Metraja git</button></td>
-      </tr>`).join('');
+        <td>
+          <div class="satir-islem">
+            <button class="ikon-btn" title="Önizleme ve katmanlar" data-pafta-ac="${d._id}">${icon('goz')}</button>
+            ${d.dosyaId ? `<button class="ikon-btn" title="İndir" data-pafta-indir="${d._id}">${icon('download')}</button>` : ''}
+            <button class="ikon-btn tehlike" title="Sil" data-pafta-sil="${d._id}">${icon('cop')}</button>
+          </div>
+        </td>
+      </tr>`).join('') ||
+      '<tr><td colspan="11"><div class="empty">Henüz pafta yüklenmedi.</div></td></tr>';
 
     const turler = ['Kat Planı', 'Kesit', 'Görünüş', 'Detay', 'Kalıp Planı'];
     const sayim = turler.map((t) => ({
       label: t.split(' ')[0],
-      short: String(paftalarAll().filter((d) => d.tur === t).length),
-      value: paftalarAll().filter((d) => d.tur === t).length || 0.2
+      short: String(liste.filter((d) => d.tur === t).length),
+      value: liste.filter((d) => d.tur === t).length || 0.2
     }));
+    const cozulen = liste.filter((d) => d.format === 'DXF').length;
 
     return `
-    ${pageHead('PROJELER & DWG', 'Mimari ve statik paftaları yükleyin; sistem katmanları ayrıştırır ve metraj kuyruğuna alır.')}
+    ${pageHead('PROJELER & DWG', 'Mimari ve statik paftaları yükleyin. DXF dosyalarının katmanları ve geometrisi okunur, DWG dosyalarının gömülü önizlemesi çıkarılır.')}
     <div class="grid side" style="padding:0 10px">
       <div class="grid" style="gap:14px">
         <div class="dropzone" id="dz">
           <div class="dz-icon">${icon('upload')}</div>
           <h3>Pafta dosyalarını buraya bırakın</h3>
-          <p>DWG, DXF, PDF · kat planı, kesit, görünüş, detay, kalıp planı · en fazla 200 MB</p>
+          <p>DXF · DWG · PDF &nbsp;—&nbsp; kat planı, kesit, görünüş, detay, kalıp planı</p>
           <label class="btn accent">${icon('plus')} Dosya seç
             <input type="file" id="fileInput" multiple hidden accept=".dwg,.dxf,.pdf">
           </label>
+          <p style="margin-top:10px;font-size:11px">Dosyalar bu tarayıcıda saklanır, sunucuya gönderilmez.</p>
         </div>
         <div class="card">
           <div class="card-head"><h3>Yüklenen paftalar</h3><div class="spacer"></div>
-            <span class="hint">${paftalarAll().length} dosya</span></div>
+            <span class="hint" id="depoBilgi">${liste.length} dosya</span></div>
           <div class="table-wrap"><table>
-            <thead><tr><th>Dosya</th><th>Tür</th><th>Disiplin</th><th>Proje</th>
-              <th class="num">Ölçek</th><th class="num">Katman</th><th class="num">Alan</th>
+            <thead><tr><th></th><th>Dosya</th><th>Format</th><th>Tür</th><th>Disiplin</th><th>Proje</th>
+              <th class="num">Katman</th><th class="num">Varlık</th><th class="num">Alan</th>
               <th>Durum</th><th></th></tr></thead>
             <tbody>${rows}</tbody>
           </table></div>
@@ -205,17 +225,272 @@
           ${barChart(sayim, { height: 140 })}
         </div>
         <div class="card">
+          <div class="card-head"><h3>Format desteği</h3></div>
+          <div class="list-item">
+            <div class="ico">${icon('layers')}</div>
+            <div class="txt"><b>DXF — tam okuma</b><span>Katman, geometri, uzunluk ve alan ölçümü</span></div>
+            <div class="spacer"></div>${badge(cozulen + ' dosya', 'ok')}
+          </div>
+          <div class="list-item">
+            <div class="ico">${icon('file')}</div>
+            <div class="txt"><b>DWG — gömülü önizleme</b><span>Sürüm bilgisi ve çizim küçük resmi</span></div>
+            <div class="spacer"></div>${badge(liste.filter((d) => d.format === 'DWG').length + ' dosya', 'info')}
+          </div>
+          <div class="list-item">
+            <div class="ico">${icon('report')}</div>
+            <div class="txt"><b>PDF — arşiv</b><span>Saklanır, indirilir; ölçüm yapılmaz</span></div>
+            <div class="spacer"></div>${badge(liste.filter((d) => d.format === 'PDF').length + ' dosya', '')}
+          </div>
+          <p class="modal-metin" style="margin-top:10px">
+            DWG kapalı bir ikili formattır; geometrisi tarayıcıda çözülemez.
+            Metraj çıkarımı için CAD programından <b>DXF</b> olarak dışa aktarın.</p>
+        </div>
+        <div class="card">
           <div class="card-head"><h3>İşleme hattı</h3></div>
           <div class="timeline">
-            <div class="tl"><b>Dosya alındı</b><span>Sürüm ve revizyon kaydı oluşturulur</span></div>
-            <div class="tl"><b>Katman ayrıştırma</b><span>Duvar, döşeme, donatı katmanları etiketlenir</span></div>
-            <div class="tl"><b>Metraj çıkarımı</b><span>Alan, uzunluk ve adet değerleri poz ile eşleşir</span></div>
-            <div class="tl"><b>Kontrol ve onay</b><span>Kontrol şefi sapmaları onaylar</span></div>
+            <div class="tl"><b>Dosya alındı</b><span>İçerik IndexedDB'ye yazılır, revizyon kaydı açılır</span></div>
+            <div class="tl"><b>Başlık çözümleme</b><span>Format, sürüm, çizim birimi ve sınırlar okunur</span></div>
+            <div class="tl"><b>Katman ayrıştırma</b><span>Katman başına uzunluk, alan ve varlık sayısı</span></div>
+            <div class="tl"><b>Metraja aktarım</b><span>Seçilen katman ölçüsü poz olarak metraja yazılır</span></div>
           </div>
         </div>
       </div>
     </div>`;
   }
+
+  /* -------------------------------------------------- yukleme ve cozumleme */
+  function turTahmin(ad) {
+    const s = ad.toLowerCase();
+    if (s.includes('kesit')) return 'Kesit';
+    if (s.includes('gorunus') || s.includes('görünüş') || s.includes('cephe')) return 'Görünüş';
+    if (s.includes('detay')) return 'Detay';
+    if (s.includes('kalip') || s.includes('kalıp')) return 'Kalıp Planı';
+    return 'Kat Planı';
+  }
+
+  /* Onizleme kucuk resmi: DWG gomulu goruntusu ya da DXF vektor cizimi */
+  function kucukResimUret(coz) {
+    return new Promise((coz2) => {
+      const tuval = document.createElement('canvas');
+      tuval.width = 320; tuval.height = 200;
+      const c = tuval.getContext('2d');
+      c.fillStyle = '#faf9f8'; c.fillRect(0, 0, 320, 200);
+
+      if (coz.onizleme && coz.onizleme.blob) {
+        const url = URL.createObjectURL(coz.onizleme.blob);
+        const img = new Image();
+        img.onload = () => {
+          const o = Math.min(320 / img.naturalWidth, 200 / img.naturalHeight);
+          const g = img.naturalWidth * o, y = img.naturalHeight * o;
+          c.imageSmoothingEnabled = img.naturalWidth > 40;
+          c.drawImage(img, (320 - g) / 2, (200 - y) / 2, g, y);
+          URL.revokeObjectURL(url);
+          coz2(tuval.toDataURL('image/png'));
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); coz2(null); };
+        img.src = url;
+        return;
+      }
+      if (coz.onizleme && coz.onizleme.tur === 'vektor' && coz.onizleme.cizim.length) {
+        PaftaAnaliz.ciz(tuval, coz.onizleme.cizim, coz.onizleme.sinir);
+        coz2(tuval.toDataURL('image/png'));
+        return;
+      }
+      coz2(null);
+    });
+  }
+
+  async function addFiles(files) {
+    if (!files || !files.length) return;
+    let eklenen = 0, hata = 0;
+
+    for (const f of Array.from(files)) {
+      try {
+        const coz = await PaftaAnaliz.cozumle(f);
+        const kucukResim = await kucukResimUret(coz);
+
+        /* ayni ada sahip onceki surum -> revizyon */
+        const oncekiler = S.get('paftalar').filter((p) => p.ad === f.name);
+        const rev = oncekiler.length
+          ? String.fromCharCode(65 + Math.min(25, oncekiler.length)) : 'A';
+
+        const dosyaId = S.uid('DOS');
+        await Dosya.yaz(dosyaId, f, f.name);
+
+        const katmanlar = (coz.katmanlar || []).map((k) =>
+          ({ ad: k.ad, uzunluk: k.uzunluk, alan: k.alan, adet: k.adet }));
+        const varlikSayisi = Object.values(coz.varliklar || {}).reduce((a, b) => a + b, 0);
+        const toplamAlan = katmanlar.reduce((t, k) => t + k.alan, 0);
+
+        S.ekle('paftalar', {
+          id: 'DWG-' + (2000 + S.get('paftalar').length),
+          ad: f.name,
+          tur: turTahmin(f.name),
+          disiplin: /^s[-_]/i.test(f.name) ? 'Statik' : 'Mimari',
+          proje: state.metrajProje !== 'hepsi' ? state.metrajProje
+                 : (S.get('projeler')[0] ? S.get('projeler')[0].id : 'PRJ-01'),
+          rev,
+          olcek: '1/50',
+          boyut: f.size >= 1048576 ? (f.size / 1048576).toFixed(1) + ' MB'
+                 : f.size >= 1024 ? Math.round(f.size / 1024) + ' KB' : f.size + ' B',
+          tarih: new Date().toISOString().slice(0, 10),
+          durum: coz.cozulebilir ? 'İşlendi' : (coz.format === 'DWG' ? 'Önizleme' : 'Arşiv'),
+          format: coz.format,
+          surum: coz.surum || '',
+          birimAdi: coz.birimAdi || '',
+          katman: katmanlar.length,
+          katmanlar,
+          varliklar: coz.varliklar || {},
+          varlikSayisi,
+          sinir: coz.sinir || null,
+          alanM2: toplamAlan,
+          kucukResim,
+          dosyaId,
+          not: coz.not || ''
+        });
+        eklenen++;
+      } catch (e) {
+        console.error(e); hata++;
+      }
+    }
+    toast(hata ? `${eklenen} pafta yüklendi, ${hata} dosya okunamadı.`
+               : `${eklenen} pafta yüklendi ve çözümlendi.`);
+  }
+
+  /* ------------------------------------------------ pafta detay penceresi */
+  async function paftaAc(id) {
+    const d = S.bul('paftalar', id);
+    if (!d) return;
+    const katmanlar = d.katmanlar || [];
+    const varlikListe = Object.entries(d.varliklar || {})
+      .sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ×${v}`).join(' · ');
+
+    const secim = await UI.modal({
+      baslik: d.ad,
+      aciklama: `${d.format} · ${d.surum || 'sürüm bilinmiyor'} · ${d.boyut}` +
+                (d.birimAdi ? ` · çizim birimi ${d.birimAdi}` : ''),
+      icerik: `
+        <div class="onizleme-alan">
+          <canvas id="paftaTuval" width="860" height="440"></canvas>
+          <img id="paftaResim" alt="${d.ad} önizleme" hidden>
+          <div id="paftaYok" class="empty" hidden>Bu dosya için önizleme üretilemedi.</div>
+        </div>
+        ${d.not ? `<p class="modal-metin" style="margin-top:10px">${d.not}</p>` : ''}
+        ${varlikListe ? `<p class="modal-metin" style="margin-top:8px"><b>Varlıklar:</b> ${varlikListe}</p>` : ''}
+        ${katmanlar.length ? `
+          <div class="kalem-tablo">
+            <h4>Katmanlar ve ölçümler</h4>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Katman</th><th class="num">Uzunluk</th><th class="num">Alan</th>
+                <th class="num">Varlık</th><th></th></tr></thead>
+              <tbody>${katmanlar.map((k, i) => `<tr>
+                <td class="strong">${k.ad}</td>
+                <td class="num">${k.uzunluk ? num2(k.uzunluk) + ' m' : '—'}</td>
+                <td class="num">${k.alan ? num2(k.alan) + ' m²' : '—'}</td>
+                <td class="num">${k.adet}</td>
+                <td class="num"><button class="btn ghost sm" data-vurgu="${i}">Göster</button></td>
+              </tr>`).join('')}</tbody>
+            </table></div>
+          </div>` : ''}`,
+      hazir: (kutu) => {
+        kutu.querySelector('.modal').classList.add('genis');
+        const tuval = kutu.querySelector('#paftaTuval');
+        const resim = kutu.querySelector('#paftaResim');
+        const yok = kutu.querySelector('#paftaYok');
+
+        /* Vektor cizim localStorage'da tutulmaz; dosya IndexedDB'den yeniden cozulur */
+        (async () => {
+          try {
+            const kayit = d.dosyaId ? await Dosya.oku(d.dosyaId) : null;
+            if (!kayit) throw new Error('dosya yok');
+            const coz = await PaftaAnaliz.cozumle(new File([kayit.blob], d.ad));
+            if (coz.onizleme && coz.onizleme.tur === 'vektor' && coz.onizleme.cizim.length) {
+              tuval.hidden = false;
+              PaftaAnaliz.ciz(tuval, coz.onizleme.cizim, coz.onizleme.sinir);
+              kutu.querySelectorAll('[data-vurgu]').forEach((b) => b.addEventListener('click', () => {
+                const k = katmanlar[Number(b.dataset.vurgu)];
+                PaftaAnaliz.ciz(tuval, coz.onizleme.cizim, coz.onizleme.sinir, k.ad);
+                toast(k.ad + ' katmanı vurgulandı.');
+              }));
+            } else if (coz.onizleme && coz.onizleme.blob) {
+              tuval.hidden = true; resim.hidden = false;
+              resim.src = URL.createObjectURL(coz.onizleme.blob);
+            } else if (d.kucukResim) {
+              tuval.hidden = true; resim.hidden = false; resim.src = d.kucukResim;
+            } else {
+              tuval.hidden = true; yok.hidden = false;
+            }
+          } catch (e) {
+            tuval.hidden = true;
+            if (d.kucukResim) { resim.hidden = false; resim.src = d.kucukResim; }
+            else yok.hidden = false;
+          }
+        })();
+      },
+      dugmeler: [
+        { ad: 'Sil', deger: 'sil' },
+        { ad: 'İndir', deger: 'indir' },
+        katmanlar.length ? { ad: 'Metraja aktar', tur: 'accent', deger: 'metraj' }
+                         : { ad: 'Kapat', tur: 'accent', deger: null }
+      ]
+    });
+
+    if (secim === 'indir') Dosya.indir(d.dosyaId, d.ad).catch(() => toast('Dosya bulunamadı.'));
+    else if (secim === 'sil') paftaSil(id);
+    else if (secim === 'metraj') metrajaAktar(id);
+  }
+
+  async function paftaSil(id) {
+    const d = S.bul('paftalar', id);
+    if (!d) return;
+    if (!await UI.onay('Paftayı sil', `${d.ad} ve dosya içeriği silinecek.`, 'Sil')) return;
+    if (d.dosyaId) { try { await Dosya.sil(d.dosyaId); } catch (e) { /* yoksa gec */ } }
+    S.sil('paftalar', id);
+    toast(d.ad + ' silindi.');
+  }
+
+  /* ---------------------------------------- katman olcusunu metraja yazma */
+  async function metrajaAktar(id) {
+    const d = S.bul('paftalar', id);
+    if (!d || !(d.katmanlar || []).length) return;
+    const olculu = d.katmanlar.filter((k) => k.uzunluk > 0 || k.alan > 0 || k.adet > 0);
+
+    const sonuc = await UI.form({
+      baslik: 'Katman ölçüsünü metraja aktar',
+      aciklama: `${d.ad} · ölçüler çizim biriminden (${d.birimAdi || '—'}) metreye çevrilmiştir.`,
+      kaydetEtiketi: 'Metraja ekle',
+      alanlar: [
+        { ad: 'katman', etiket: 'Katman', tur: 'secim',
+          secenekler: olculu.map((k, i) => ({ deger: String(i),
+            ad: `${k.ad} — ${num2(k.uzunluk)} m / ${num2(k.alan)} m² / ${k.adet} adet` })) },
+        { ad: 'olcu', etiket: 'Aktarılacak ölçü', tur: 'secim',
+          secenekler: [{ deger: 'alan', ad: 'Alan (m²)' }, { deger: 'uzunluk', ad: 'Uzunluk (m)' },
+                       { deger: 'adet', ad: 'Adet' }] },
+        { ad: 'poz', etiket: 'Poz No', zorunlu: true, ipucu: 'örn. 18.233/3' },
+        { ad: 'birimFiyat', etiket: 'Birim fiyat (₺)', tur: 'number', min: 0, adim: '0.01', zorunlu: true },
+        { ad: 'tanim', etiket: 'İmalat tanımı', zorunlu: true, genis: true,
+          deger: '' }
+      ]
+    });
+    if (!sonuc) return;
+
+    const k = olculu[Number(sonuc.katman)];
+    const miktar = sonuc.olcu === 'alan' ? k.alan : sonuc.olcu === 'uzunluk' ? k.uzunluk : k.adet;
+    if (!miktar) { toast('Seçilen katmanda bu ölçü sıfır.'); return; }
+
+    S.ekle('metraj', {
+      poz: sonuc.poz, tanim: sonuc.tanim, proje: d.proje,
+      miktar: Math.round(miktar * 100) / 100,
+      birim: sonuc.olcu === 'alan' ? 'm2' : sonuc.olcu === 'uzunluk' ? 'm' : 'adet',
+      birimFiyat: sonuc.birimFiyat,
+      pafta: d.ad.split('_')[0],
+      kaynak: 'Otomatik',
+      guven: d.format === 'DXF' ? 0.95 : 0.7,
+      kaynakDetay: d.ad + ' · ' + k.ad + ' katmanı'
+    });
+    toast(`${k.ad} katmanından ${num2(miktar)} ${sonuc.olcu === 'alan' ? 'm²' : sonuc.olcu === 'uzunluk' ? 'm' : 'adet'} metraja eklendi.`);
+  }
+
 
   /* ------------------------------------------------------------ metraj */
   function metrajListesi() {
@@ -980,6 +1255,15 @@
       state.hakedisDurum = hakedisDurum.value; render();
     });
 
+    /* --- paftalar --- */
+    tikla('[data-pafta-ac]', (b) => paftaAc(b.dataset.paftaAc));
+    tikla('[data-pafta-sil]', (b) => paftaSil(b.dataset.paftaSil));
+    tikla('[data-pafta-indir]', (b) => {
+      const d = S.bul('paftalar', b.dataset.paftaIndir);
+      if (d) Dosya.indir(d.dosyaId, d.ad).catch(() => toast('Dosya içeriği bulunamadı.'));
+    });
+    depoBilgisiniYaz();
+
     /* dosya yukleme */
     const dz = document.getElementById('dz');
     const input = document.getElementById('fileInput');
@@ -1010,30 +1294,20 @@
     });
   }
 
-  function addFiles(files) {
-    if (!files || !files.length) return;
-    const turTahmin = (ad) => {
-      const s = ad.toLowerCase();
-      if (s.includes('kesit')) return 'Kesit';
-      if (s.includes('gorunus') || s.includes('görünüş') || s.includes('cephe')) return 'Görünüş';
-      if (s.includes('detay')) return 'Detay';
-      if (s.includes('kalip') || s.includes('kalıp')) return 'Kalıp Planı';
-      return 'Kat Planı';
-    };
-    Array.from(files).forEach((f) => {
-      S.ekle('paftalar', {
-        id: 'DWG-' + (2000 + S.get('paftalar').length),
-        ad: f.name,
-        tur: turTahmin(f.name),
-        disiplin: /^s[-_]/i.test(f.name) ? 'Statik' : 'Mimari',
-        proje: S.get('projeler')[0] ? S.get('projeler')[0].id : 'PRJ-01',
-        rev: 'A', olcek: '1/50',
-        boyut: (f.size / 1048576).toFixed(1) + ' MB',
-        tarih: new Date().toISOString().slice(0, 10),
-        durum: 'Kuyrukta', katman: 0, alanM2: 0
-      });
-    });
-    toast(files.length + ' pafta yüklendi, metraj kuyruğuna alındı.');
+  /* Depolama kullanimini pafta kartinin basligina yazar */
+  async function depoBilgisiniYaz() {
+    const el = document.getElementById('depoBilgi');
+    if (!el) return;
+    const adet = S.get('paftalar').length;
+    try {
+      const k = await Dosya.kota();
+      if (k && k.toplam) {
+        el.textContent = `${adet} dosya · ${(k.kullanilan / 1048576).toFixed(1)} MB / ` +
+                         `${(k.toplam / 1048576).toFixed(0)} MB kullanılıyor`;
+        return;
+      }
+    } catch (e) { /* kota bilgisi yoksa yalnizca adet */ }
+    el.textContent = adet + ' dosya';
   }
 
   /* --------------------------------------------------------- veri yonetimi */

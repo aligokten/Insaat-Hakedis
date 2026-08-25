@@ -625,3 +625,26 @@ tfoot td { padding: 12px; border-top: 2px solid var(--line); font-weight: 600; f
   background: #fff; padding-bottom: 4px;
   box-shadow: 0 -12px 16px -12px rgba(23,22,26,.18);
 }
+
+/* ------------------------------------------------- pafta onizleme */
+.pafta-kucuk {
+  width: 62px; height: 40px; object-fit: cover;
+  border-radius: 8px; border: 1px solid var(--line-soft);
+  background: var(--surface-2); display: block;
+}
+.pafta-kucuk.bos { display: grid; place-items: center; color: var(--ink-3); }
+.pafta-kucuk.bos svg { width: 15px; height: 15px; }
+
+.onizleme-alan {
+  border: 1px solid var(--line-soft); border-radius: var(--r-md);
+  background:
+    linear-gradient(90deg, rgba(23,22,26,.035) 1px, transparent 1px) 0 0 / 24px 24px,
+    linear-gradient(rgba(23,22,26,.035) 1px, transparent 1px) 0 0 / 24px 24px,
+    #fbfaf9;
+  padding: 8px; overflow: auto;
+}
+.onizleme-alan canvas, .onizleme-alan img {
+  display: block; width: 100%; height: auto; max-height: 440px; object-fit: contain;
+  image-rendering: auto;
+}
+.onizleme-alan [hidden] { display: none; }   /* display:block, hidden'i ezmesin */

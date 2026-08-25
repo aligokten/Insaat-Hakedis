@@ -18,7 +18,7 @@ git clone <repo> && cd Insaat-Hakedis
 | Modül | Ne yapar |
 |---|---|
 | **Genel Bakış** | Portföy özeti, hakediş hacmi yay grafiği, proje tamamlanma kartları, KPI'lar |
-| **Projeler & DWG** | Mimari/statik pafta yükleme (sürükle-bırak), kat planı · kesit · görünüş · detay · kalıp planı sınıflandırması, katman/ölçek/revizyon takibi, işleme hattı |
+| **Projeler & DWG** ✅ | Dosyayı gerçekten saklar (IndexedDB), indirir, siler; DXF'i ayrıştırıp katman/geometri/ölçüm çıkarır ve vektör önizleme çizer; DWG'nin gömülü küçük resmini ve sürümünü okur; katman ölçüsünü tek tıkla metraja aktarır |
 | **Metraj** ✅ | Poz ekleme/düzenleme/silme, proje filtresi, otomatik tutar hesabı, manuel doğrulama, CSV dışa aktarma |
 | **Taşeronlar** | Alt yüklenici kartları, sözleşme/SGK durumu ve modül bazlı yetki anahtarları (metraj görüntüleme, DWG indirme, hakediş hazırlama, kalite formu, stok talebi) |
 | **Kalite Kontrol** | İmalat bazlı kontrol kayıtları, sonuç (onay/şartlı/red), skor, tamamlanma yüzdesi ve taşeron kalite karnesi |
@@ -70,5 +70,21 @@ değiştirilecek şekilde tasarlandı; görünüm kodunda değişiklik gerekmez.
 
 ### Modül durumu
 
-- ✅ **Bağlandı:** Metraj, Hakediş, taşeron yetkileri, pafta kaydı (üstveri), veri yönetimi
-- ⏳ **Sırada:** Pafta dosya saklama (IndexedDB), Kalite Kontrol, Stok, Tedarik, Raporlama
+- ✅ **Bağlandı:** Projeler & DWG, Metraj, Hakediş, taşeron yetkileri, veri yönetimi
+- ⏳ **Sırada:** Kalite Kontrol, Stok, Tedarik, Raporlama
+
+## Pafta formatları
+
+| Format | Ne yapılır | Nasıl |
+|---|---|---|
+| **DXF** | Tam okuma | ASCII DXF ayrıştırılır: `HEADER` ($ACADVER, $INSUNITS, $EXTMIN/$EXTMAX), `TABLES`'tan katmanlar, `ENTITIES`'ten LINE / LWPOLYLINE / POLYLINE / CIRCLE / ARC / TEXT. Katman başına uzunluk ve kapalı polyline alanı (shoelace) hesaplanır, çizim birimi metreye çevrilir, geometri canvas'a çizilir. |
+| **DWG** | Sürüm + gömülü önizleme | DWG başlığındaki sürüm kodu (AC1015…AC1032) ve 0x0D adresindeki önizleme bölümü okunur; gömülü BMP/PNG küçük resmi çıkarılır (BMP için dosya başlığı yeniden kurulur). |
+| **PDF** | Arşiv | Saklanır ve indirilir. |
+
+**DWG geometrisi tarayıcıda okunamaz.** DWG kapalı bir ikili formattır; açık bir JavaScript
+ayrıştırıcısı yoktur. Metraj çıkarımı için CAD programından aynı çizimi **DXF** olarak dışa
+aktarın (AutoCAD: `SAVEAS` → DXF; ArchiCAD/Revit: DXF dışa aktarım). Sunucu tarafında ODA File
+Converter gibi bir dönüştürücü eklenirse DWG→DXF dönüşümü otomatikleştirilebilir.
+
+Dosya içerikleri IndexedDB'de (`insaat-hakedis-dosya`) saklanır, sunucuya gönderilmez.
+Aynı ada sahip dosya yeniden yüklendiğinde revizyon harfi ilerler (A → B → C).
