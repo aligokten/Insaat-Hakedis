@@ -3,7 +3,9 @@
 Referans dashboard tasarımının (yumuşak gri-beyaz zemin, kapsül navigasyon, turuncu
 vurgu, yay grafik ve donut ilerleme kartları) inşaat proje yönetimi için klonlanmış hâli.
 
-Bağımlılığı yok — `index.html` dosyasını tarayıcıda açmanız yeterli.
+**Canlı:** https://aligokten.github.io/Insaat-Hakedis/
+
+Bağımlılığı yok — `index.html` dosyasını tarayıcıda açmanız da yeterli.
 
 ```
 git clone <repo> && cd Insaat-Hakedis
@@ -46,3 +48,10 @@ assets/js/app.js         hash tabanlı yönlendirici, dokuz görünüm ve etkile
   dosyalar sunucuya gönderilmez. Gerçek DWG ayrıştırma için sunucu tarafında bir
   CAD kütüphanesi (ör. ODA File Converter, Teigha) gerekir.
 - Grafikler harici kütüphane olmadan, elle üretilen SVG ile çizilir.
+
+## Yayın
+
+Site GitHub Pages üzerinden `gh-pages` dalından yayınlanır.
+`main` dalına yapılan her push'ta `.github/workflows/pages.yml` iş akışı
+`gh-pages` dalını günceller ve GitHub Pages siteyi yeniden yayınlar
+(genellikle 1-2 dakika içinde).
