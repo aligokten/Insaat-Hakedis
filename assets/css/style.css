@@ -1193,6 +1193,11 @@ tfoot td { padding: 12px; border-top: 2px solid var(--line); font-weight: 600; f
 .arsiv-serit .spacer { flex: 1; }
 
 
+/* Puantaj hucresi: durum rozeti + duzelt/sil dugmeleri */
+.puantaj-hucre { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.puantaj-hucre .ikon-btn { opacity: .55; }
+tr:hover .puantaj-hucre .ikon-btn, .puantaj-hucre .ikon-btn:focus-visible { opacity: 1; }
+
 /* ==========================================================================
    Sayfa altligi (her ekranda gorunur)
    ========================================================================== */

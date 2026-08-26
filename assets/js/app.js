@@ -1300,8 +1300,14 @@
         <td class="num">${money(k.yevmiye)}</td>
         <td class="num">${isSayisi}</td>
         <td>${uyari.length ? uyari.map((u) => badge(u.metin, u.kind)).join(' ') : badge('Evraklar tamam', 'ok')}</td>
-        <td>${kayit ? badge(kayit.durum, (DB.PUANTAJ_DURUM[kayit.durum] || {}).kind)
-                    : `<button class="btn ghost sm" data-puantaj-gir="${k._id}">Puantaj gir</button>`}</td>
+        <td>${kayit ? `<div class="puantaj-hucre">
+                ${badge(kayit.durum, (DB.PUANTAJ_DURUM[kayit.durum] || {}).kind)}
+                <button class="ikon-btn" title="Puantajı düzelt"
+                        data-puantaj-duzenle="${kayit._id}">${icon('kalem')}</button>
+                <button class="ikon-btn tehlike" title="Puantajı sil"
+                        data-puantaj-sil="${kayit._id}">${icon('cop')}</button>
+              </div>`
+            : `<button class="btn ghost sm" data-puantaj-gir="${k._id}">Puantaj gir</button>`}</td>
         <td>${badge(k.durum, k.durum === 'Aktif' ? 'ok' : k.durum === 'İzinli' ? 'warn' : '')}</td>
         <td>
           <div class="satir-islem">
@@ -1468,15 +1474,25 @@
             <div><span>Toplam hak ediş</span><b>${money(ozet.yevmiyeGunu * k.yevmiye)}</b></div>
           </div>
           ${kayitlar.length ? `<div class="table-wrap" style="margin-top:10px"><table>
-            <thead><tr><th>Tarih</th><th>Durum</th><th>İş</th><th>Açıklama</th><th class="num">Tutar</th></tr></thead>
+            <thead><tr><th>Tarih</th><th>Durum</th><th>İş</th><th>Açıklama</th>
+              <th class="num">Tutar</th><th></th></tr></thead>
             <tbody>${kayitlar.slice(0, 12).map((p) => {
               const d = DB.PUANTAJ_DURUM[p.durum] || { katsayi: 0 };
               return `<tr><td class="nowrap">${p.tarih}</td>
                 <td>${badge(p.durum, d.kind)}</td>
                 <td>${p.is ? isAd(p.is) : '—'}</td>
                 <td class="muted">${p.aciklama || '—'}</td>
-                <td class="num">${money(d.katsayi * k.yevmiye)}</td></tr>`;
-            }).join('')}</tbody></table></div>` : '<div class="empty">Puantaj kaydı yok.</div>'}
+                <td class="num">${money(d.katsayi * k.yevmiye)}</td>
+                <td><div class="satir-islem">
+                  <button class="ikon-btn" title="Düzelt"
+                          data-puantaj-duzenle="${p._id}">${icon('kalem')}</button>
+                  <button class="ikon-btn tehlike" title="Sil"
+                          data-puantaj-sil="${p._id}">${icon('cop')}</button>
+                </div></td></tr>`;
+            }).join('')}</tbody></table>
+            ${kayitlar.length > 12 ? `<p class="modal-metin" style="margin-top:6px">
+              Son 12 kayıt gösteriliyor (toplam ${kayitlar.length}).</p>` : ''}
+            </div>` : '<div class="empty">Puantaj kaydı yok.</div>'}
         </div>`,
       hazir: (kutu) => kutu.querySelector('.modal').classList.add('genis'),
       dugmeler: [
@@ -1489,30 +1505,66 @@
     else if (secim === 'puantaj') puantajFormu(id);
   }
 
-  async function puantajFormu(id) {
-    const k = S.bul('personel', id);
+  /* id: personel _id (yeni kayit) — puantajId verilirse o kayit duzeltilir */
+  async function puantajFormu(id, puantajId) {
+    const mevcut = puantajId ? S.bul('puantaj', puantajId) : null;
+    const k = mevcut ? S.aktif('personel').find((x) => x.id === mevcut.personel)
+                     : S.bul('personel', id);
     if (!k) return;
     const isleri = S.aktif('isler').filter((i) => (i.personelIds || []).includes(k.id));
+    /* Duzeltilen kayittaki is listeden dusmusse secenek olarak korunur */
+    const isSecenek = [{ deger: '', ad: 'Belirtilmedi' }]
+      .concat(isleri.map((i) => ({ deger: i.id, ad: i.ad })));
+    if (mevcut && mevcut.is && !isSecenek.some((o) => o.deger === mevcut.is)) {
+      isSecenek.push({ deger: mevcut.is, ad: isAd(mevcut.is) });
+    }
+
     const sonuc = await UI.form({
-      baslik: 'Puantaj · ' + k.ad,
+      baslik: (mevcut ? 'Puantajı düzelt · ' : 'Puantaj · ') + k.ad,
       aciklama: `Günlük yevmiye ${money(k.yevmiye)}. Tutar, duruma göre katsayıyla hesaplanır.`,
-      kaydetEtiketi: 'Puantajı kaydet',
+      kaydetEtiketi: mevcut ? 'Güncelle' : 'Puantajı kaydet',
       alanlar: [
-        { ad: 'tarih', etiket: 'Tarih', tur: 'date', deger: state.puantajTarihi },
-        { ad: 'durum', etiket: 'Devam durumu', tur: 'secim', deger: 'Tam gün',
+        { ad: 'tarih', etiket: 'Tarih', tur: 'date',
+          deger: mevcut ? mevcut.tarih : state.puantajTarihi },
+        { ad: 'durum', etiket: 'Devam durumu', tur: 'secim',
+          deger: mevcut ? mevcut.durum : 'Tam gün',
           secenekler: Object.keys(DB.PUANTAJ_DURUM) },
         { ad: 'is', etiket: 'Çalıştığı iş', tur: 'secim',
-          secenekler: [{ deger: '', ad: 'Belirtilmedi' }]
-            .concat(isleri.map((i) => ({ deger: i.id, ad: i.ad }))) },
-        { ad: 'aciklama', etiket: 'Açıklama', genis: true }
-      ]
+          deger: mevcut ? mevcut.is : '', secenekler: isSecenek },
+        { ad: 'aciklama', etiket: 'Açıklama', genis: true,
+          deger: mevcut ? mevcut.aciklama : '' }
+      ],
+      dogrula: (c) => {
+        /* Ayni personelin ayni gunu icin ikinci kayit acilmasin */
+        const cakisan = S.aktif('puantaj').find((p) => p.personel === k.id &&
+          p.tarih === c.tarih && (!mevcut || p._id !== mevcut._id));
+        if (cakisan && !mevcut) return '';        /* yeni girişte üzerine yazılır */
+        if (cakisan) return `${k.ad} için ${c.tarih} tarihinde zaten bir puantaj var.`;
+        return '';
+      }
     });
     if (!sonuc) return;
-    const eski = S.aktif('puantaj').find((p) => p.personel === k.id && p.tarih === sonuc.tarih);
-    if (eski) S.guncelle('puantaj', eski._id, { ...sonuc, personel: k.id });
-    else S.ekle('puantaj', { ...sonuc, personel: k.id });
+
+    if (mevcut) {
+      S.guncelle('puantaj', mevcut._id, { ...sonuc, personel: k.id });
+    } else {
+      const eski = S.aktif('puantaj').find((p) => p.personel === k.id && p.tarih === sonuc.tarih);
+      if (eski) S.guncelle('puantaj', eski._id, { ...sonuc, personel: k.id });
+      else S.ekle('puantaj', { ...sonuc, personel: k.id });
+    }
     const kat = (DB.PUANTAJ_DURUM[sonuc.durum] || {}).katsayi || 0;
-    toast(`${k.ad} · ${sonuc.durum} (${money(kat * k.yevmiye)}) kaydedildi.`);
+    toast(`${k.ad} · ${sonuc.tarih} · ${sonuc.durum} (${money(kat * k.yevmiye)}) ` +
+          (mevcut ? 'güncellendi.' : 'kaydedildi.'));
+  }
+
+  async function puantajSil(puantajId) {
+    const p = S.bul('puantaj', puantajId);
+    if (!p) return;
+    const k = S.aktif('personel').find((x) => x.id === p.personel);
+    if (!await UI.onay('Puantaj kaydını sil',
+      `${k ? k.ad : p.personel} · ${p.tarih} · ${p.durum} kaydı silinecek.`, 'Sil')) return;
+    S.sil('puantaj', p._id);
+    toast(`${p.tarih} tarihli puantaj silindi.`);
   }
 
   /* Listedeki herkese secili tarih icin tam gun puantaj yazar */
@@ -3976,6 +4028,8 @@
     tikla('[data-personel-kart]', (b) => personelKarti(b.dataset.personelKart));
     tikla('[data-personel-duzenle]', (b) => personelFormu(b.dataset.personelDuzenle));
     tikla('[data-puantaj-gir]', (b) => puantajFormu(b.dataset.puantajGir));
+    tikla('[data-puantaj-duzenle]', (b) => puantajFormu(null, b.dataset.puantajDuzenle));
+    tikla('[data-puantaj-sil]', (b) => puantajSil(b.dataset.puantajSil));
     tikla('[data-personel-sil]', async (b) => {
       const k = S.bul('personel', b.dataset.personelSil);
       if (!k) return;
@@ -3990,6 +4044,12 @@
       S.sil('personel', k._id);
       toast(k.ad + ' silindi.');
     });
+    /* Genel Bakış proje seçimi: başlık, aşama şeridi ve animasyon birlikte değişir */
+    const ozetProje = document.getElementById('ozetProje');
+    if (ozetProje) ozetProje.addEventListener('change', () => {
+      state.ozetProje = ozetProje.value; render();
+    });
+
     const puantajTarihi = document.getElementById('puantajTarihi');
     if (puantajTarihi) puantajTarihi.addEventListener('change', () => {
       state.puantajTarihi = puantajTarihi.value; render();
@@ -4237,6 +4297,7 @@
         '[data-pafta-sil], [data-is-duzenle], [data-is-sil],' +
         '[data-taseron-duzenle], [data-taseron-sil], [data-proje-duzenle], [data-proje-sil],' +
         '[data-personel-duzenle], [data-personel-sil], [data-puantaj-gir],' +
+        '[data-puantaj-duzenle], [data-puantaj-sil],' +
         '[data-kalite-tekrar], [data-kalite-sil], [data-kalite-duzenle],' +
         '[data-hakedis-sil], [data-hakedis-duzenle], [data-pafta-duzenle],' +
         '[data-arsivle], [data-arsiv-geri],' +
