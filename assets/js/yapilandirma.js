@@ -9,7 +9,7 @@
    tarafindaki satir bazli guvenlik (RLS) kurallariyla saglanir.
    Kurulum adimlari: supabase/KURULUM.md */
 window.YAPILANDIRMA = {
-  supabaseUrl: '',            // orn. https://abcdefgh.supabase.co
+  supabaseUrl: 'https://hwtmgjixaciekallrbmo.supabase.co',
   supabaseAnonAnahtar: '',    // Supabase > Project Settings > API > anon public
 
   /* Kullanici kodlari e-postaya bu alan adiyla cevrilir (kod@alanAdi).
