@@ -283,8 +283,16 @@ window.PaftaAnaliz = (function () {
                  new TextDecoder('utf-8', { fatal: false }).decode(bayt.subarray(0, 64)))) {
       sonuc = dxfCozumle(new TextDecoder('utf-8', { fatal: false }).decode(bayt));
     } else if (uzanti === 'pdf' || bas.startsWith('%PDF')) {
-      sonuc = { format: 'PDF', cozulebilir: false, onizleme: null,
-                not: 'PDF dosyası saklandı. Metraj çıkarımı için DXF yükleyin.' };
+      /* PDF tarayicinin kendi goruntuleyicisiyle onizlenir; metin cikarimi yapilmaz */
+      sonuc = { format: 'PDF', cozulebilir: false,
+                onizleme: { tur: 'pdf', blob: new Blob([bayt], { type: 'application/pdf' }) },
+                not: 'PDF önizlemesi tarayıcı görüntüleyicisiyle açılır. ' +
+                     'Metraj çıkarımı için DXF yükleyin.' };
+    } else if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'].indexOf(uzanti) > -1) {
+      const mime = { jpg: 'image/jpeg', jpeg: 'image/jpeg' }[uzanti] || 'image/' + uzanti;
+      sonuc = { format: 'Görsel', cozulebilir: false,
+                onizleme: { tur: 'gorsel', blob: new Blob([bayt], { type: mime }) },
+                not: 'Görsel dosya (render, saha fotoğrafı, taranmış pafta) olarak saklandı.' };
     } else {
       sonuc = { format: uzanti.toUpperCase() || 'Bilinmiyor', cozulebilir: false, onizleme: null,
                 not: 'Dosya türü tanınamadı; içerik olduğu gibi saklandı.' };

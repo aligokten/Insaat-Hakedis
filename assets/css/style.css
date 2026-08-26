@@ -747,7 +747,79 @@ tfoot td { padding: 12px; border-top: 2px solid var(--line); font-weight: 600; f
   display: block; width: 100%; height: auto; max-height: 440px; object-fit: contain;
   image-rendering: auto;
 }
+.onizleme-alan iframe {
+  display: block; width: 100%; height: 440px; border: 0; border-radius: var(--r-sm);
+  background: #fff;
+}
 .onizleme-alan [hidden] { display: none; }   /* display:block, hidden'i ezmesin */
+
+/* ------------------------------------------- projeler & dwg sayfasi */
+.proje-izgara {
+  display: grid; gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+}
+.proje-kart {
+  display: grid; gap: 8px; text-align: left; cursor: pointer;
+  padding: 14px; border-radius: var(--r-md);
+  border: 1px solid var(--glass-border);
+  background: var(--glass); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
+  box-shadow: var(--shadow-glass);
+  transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;
+}
+.proje-kart:hover { transform: translateY(-2px); border-color: var(--line); }
+.proje-kart:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.proje-kart.secili {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent) inset, var(--shadow-glass);
+}
+.proje-bas { display: block; min-width: 0; }
+.proje-bas b {
+  display: block; font-size: 13.5px; font-weight: 600; color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.proje-bas em {
+  display: block; font-style: normal; font-size: 11px; color: var(--ink-3); margin-top: 2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.proje-rozet { display: flex; gap: 6px; }
+.proje-ilerleme { display: block; }
+.proje-ilerleme .bar-row { gap: 8px; }
+.proje-ilerleme .bar { flex: 1; }
+.proje-alt { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.proje-alt i {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-style: normal; font-size: 11px; color: var(--ink-3);
+}
+.proje-alt i svg { width: 13px; height: 13px; flex: none; }
+.proje-asama {
+  display: inline-block; font-size: 10.5px; color: var(--ink-3);
+  border-top: 1px solid var(--line-soft); padding-top: 7px;
+}
+.proje-ozet .ozluk-izgara { margin-top: 4px; }
+
+.yan-panel { align-content: start; }
+.yukleme-hedef { display: grid; gap: 5px; margin-top: 12px; }
+.yukleme-hedef span { font-size: 11px; color: var(--ink-3); }
+.yukleme-hedef select {
+  width: 100%; padding: 7px 10px; font-size: 12.5px;
+  border: 1px solid var(--line); border-radius: 9px; background: var(--surface-2); color: var(--ink);
+}
+.yukleme-hedef select:focus { border-color: var(--accent); outline: none; }
+
+.pafta-onizleme {
+  padding: 0; border: 0; background: none; cursor: pointer; line-height: 0;
+  border-radius: 8px;
+}
+.pafta-onizleme:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pafta-kucuk {
+  display: block; width: 62px; height: 42px; object-fit: cover;
+  border: 1px solid var(--line-soft); border-radius: 8px; background: var(--surface-2);
+}
+.pafta-kucuk.bos {
+  display: grid; place-items: center; color: var(--ink-3);
+}
+.pafta-kucuk.bos svg { width: 16px; height: 16px; }
+.pafta-onizleme:hover .pafta-kucuk { border-color: var(--accent); }
 
 /* ---------------------------------------------- kalite kontrol formu */
 .secim-hucre { display: grid; place-items: center; cursor: pointer; padding: 4px; }

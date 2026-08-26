@@ -18,6 +18,8 @@
     raporTaseron: '',
     acikTaseron: null,
     ozetProje: null,
+    seciliProje: null,
+    yuklemeProje: '',
     arsivGoster: false
   };
 
@@ -219,26 +221,134 @@
   }
 
   /* ---------------------------------------------------------- paftalar */
-  const FORMAT_RENK = { DXF: 'ok', DWG: 'info', PDF: '', Bilinmiyor: 'warn' };
+  const FORMAT_RENK = { DXF: 'ok', DWG: 'info', PDF: '', 'Görsel': 'accent', Bilinmiyor: 'warn' };
+
+  /* Bir projenin panel genelindeki özeti */
+  function projeOzeti(p) {
+    const paftalar = listele('paftalar').filter((d) => d.proje === p.id);
+    const metrajlar = S.aktif('metraj').filter((m) => m.proje === p.id);
+    const isler = S.aktif('isler').filter((i) => i.proje === p.id);
+    const hakedisler = S.aktif('hakedisler').filter((h) => h.proje === p.id);
+    const kalite = S.aktif('kaliteKontrol').filter((q) =>
+      isler.some((i) => i.taseron === q.taseron));
+    return {
+      paftalar, metrajlar, isler, hakedisler,
+      metrajTutari: metrajlar.reduce((t, m) => t + metrajTutar(m), 0),
+      onayliHakedis: hakedisler.filter((h) => h.durum === 'Onaylandı')
+        .reduce((t, h) => t + hakedisBrut(h), 0),
+      bekleyenHakedis: hakedisler.filter((h) => h.durum !== 'Onaylandı' && h.durum !== 'Reddedildi')
+        .reduce((t, h) => t + hakedisBrut(h), 0),
+      acikSapma: kalite.filter((q) => (q.sonuc === 'Red' || q.sonuc === 'Şartlı Onay') && !q.tekrarKayit).length,
+      devamEden: isler.filter((i) => i.durum === 'Devam').length
+    };
+  }
 
   function viewPaftalar() {
-    const liste = paftalarAll();
+    const projeler = listele('projeler');
+    const secili = projeler.find((p) => p._id === state.seciliProje) || null;
+    const liste = secili
+      ? listele('paftalar').filter((d) => d.proje === secili.id)
+      : listele('paftalar');
 
+    /* --- proje kartları --- */
+    const projeKartlari = projeler.map((p) => {
+      const o = projeOzeti(p);
+      const asama = Asama.asamaBul(p.ilerleme);
+      const acik = secili && secili._id === p._id;
+      return `
+        <button class="proje-kart ${acik ? 'secili' : ''}" data-proje-sec="${p._id}"
+                aria-pressed="${acik}">
+          <span class="proje-bas">
+            <b>${p.ad}</b>
+            ${[p.blok, p.isveren].filter(Boolean).length
+              ? `<em>${[p.blok, p.isveren].filter(Boolean).join(' · ')}</em>` : ''}
+          </span>
+          <span class="proje-rozet">${badge(p.durum, durumKind(p.durum))}</span>
+          <span class="proje-ilerleme">
+            ${bar(p.ilerleme, p.ilerleme >= 80 ? 'ok' : p.ilerleme >= 40 ? 'warn' : 'bad')}
+          </span>
+          <span class="proje-alt">
+            <i>${icon('layers')} ${o.paftalar.length} pafta</i>
+            <i>${icon('briefcase')} ${o.isler.length} iş</i>
+            <i>${icon('ruler')} ${moneyShort(o.metrajTutari)}</i>
+          </span>
+          <span class="proje-asama">${asama.ad}</span>
+        </button>`;
+    }).join('') || '<div class="empty">Kayıtlı proje yok. Sağ panelden proje ekleyin.</div>';
+
+    /* --- seçili proje özeti --- */
+    const ozetBolum = secili ? (() => {
+      const o = projeOzeti(secili);
+      const asama = Asama.asamaBul(secili.ilerleme);
+      return `
+      <div class="card proje-ozet">
+        <div class="card-head">
+          <div style="min-width:0">
+            <h3>${secili.ad}</h3>
+            <div class="muted" style="font-size:11px;color:var(--ink-3)">
+              ${[secili.blok, secili.isveren, secili.sehir, asama.ad].filter(Boolean).join(' · ')}</div>
+          </div>
+          <div class="spacer"></div>
+          <div class="satir-islem">
+            <button class="ikon-btn" title="Projeyi düzenle" data-proje-duzenle="${secili._id}">${icon('kalem')}</button>
+            ${arsivSatir('projeler', secili)}
+            <button class="ikon-btn tehlike" title="Projeyi sil" data-proje-sil="${secili._id}">${icon('cop')}</button>
+          </div>
+        </div>
+
+        <div class="ozluk-izgara">
+          <div><span>Sözleşme bedeli</span><b>${money(secili.sozlesme)}</b></div>
+          <div><span>Gerçekleşen imalat</span><b>${money(secili.gerceklesen || 0)}</b></div>
+          <div><span>İlerleme</span><b>${pct(secili.ilerleme)}</b></div>
+          <div><span>Metraj karşılığı</span><b>${money(o.metrajTutari)}</b></div>
+          <div><span>Onaylanan hakediş</span><b>${money(o.onayliHakedis)}</b></div>
+          <div><span>Süreçteki hakediş</span><b>${money(o.bekleyenHakedis)}</b></div>
+          <div><span>İş paketi</span><b>${o.devamEden} devam / ${o.isler.length}</b></div>
+          <div><span>Açık kalite sapması</span><b>${o.acikSapma}</b></div>
+        </div>
+
+        ${secili.etiketler && secili.etiketler.length ? `
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px">
+            ${secili.etiketler.map((e) => `<span class="badge">${e}</span>`).join('')}
+          </div>` : ''}
+
+        ${o.isler.length ? `
+          <div class="kalem-tablo">
+            <h4>İş paketleri <em>(${o.isler.length})</em></h4>
+            ${o.isler.slice(0, 4).map((i) => `
+              <div class="is-satir">
+                <div class="txt"><b>${i.ad}</b>
+                  <span>${taseronAd(i.taseron)}${i.mahal ? ' · ' + i.mahal : ''}</span></div>
+                <div class="is-satir-sag">
+                  ${badge(i.durum, durumKind(i.durum))}
+                  <div class="bar ${i.ilerleme >= 80 ? 'ok' : i.ilerleme >= 40 ? 'warn' : 'bad'}">
+                    <span style="width:${Math.max(0, Math.min(100, i.ilerleme))}%"></span></div>
+                  <b class="oran">${pct(i.ilerleme)}</b>
+                </div>
+              </div>`).join('')}
+            ${o.isler.length > 4 ? `<button class="btn ghost sm" style="margin-top:8px"
+              data-goto="isler">${icon('arrowUR')} Tümünü gör</button>` : ''}
+          </div>` : ''}
+      </div>`;
+    })() : '';
+
+    /* --- pafta listesi --- */
     const rows = liste.map((d) => `
       <tr>
         <td style="width:74px">
-          ${d.kucukResim
-            ? `<img class="pafta-kucuk" src="${d.kucukResim}" alt="${d.ad} önizleme">`
-            : `<div class="pafta-kucuk bos">${icon('file')}</div>`}
+          <button class="pafta-onizleme" data-pafta-ac="${d._id}" title="Önizlemeyi aç">
+            ${d.kucukResim
+              ? `<img class="pafta-kucuk" src="${d.kucukResim}" alt="${d.ad} önizleme">`
+              : `<span class="pafta-kucuk bos">${icon(d.format === 'PDF' ? 'report' : 'file')}</span>`}
+          </button>
         </td>
         <td><div class="strong">${d.ad}</div>
             <div class="muted">${d.id} · Rev ${d.rev} · ${d.boyut}${d.surum ? ' · ' + d.surum : ''}</div></td>
         <td>${badge(d.format || '—', FORMAT_RENK[d.format] !== undefined ? FORMAT_RENK[d.format] : '')}</td>
         <td>${badge(d.tur, 'info')}</td>
         <td>${d.disiplin}</td>
-        <td>${projeAd(d.proje)}</td>
+        ${secili ? '' : `<td>${projeAd(d.proje)}</td>`}
         <td class="num">${d.katman || '—'}</td>
-        <td class="num">${d.varlikSayisi ? num(d.varlikSayisi) : '—'}</td>
         <td class="num">${d.alanM2 ? num2(d.alanM2) + ' m²' : '—'}</td>
         <td>${badge(d.durum, durumKind(d.durum))}</td>
         <td>
@@ -251,111 +361,95 @@
           </div>
         </td>
       </tr>`).join('') ||
-      '<tr><td colspan="11"><div class="empty">Henüz pafta yüklenmedi.</div></td></tr>';
-
-    const turler = ['Kat Planı', 'Kesit', 'Görünüş', 'Detay', 'Kalıp Planı'];
-    const sayim = turler.map((t) => ({
-      label: t.split(' ')[0],
-      short: String(liste.filter((d) => d.tur === t).length),
-      value: liste.filter((d) => d.tur === t).length || 0.2
-    }));
-    const cozulen = liste.filter((d) => d.format === 'DXF').length;
+      `<tr><td colspan="${secili ? 9 : 10}"><div class="empty">
+         ${secili ? secili.ad + ' için pafta yüklenmedi.' : 'Henüz pafta yüklenmedi.'}
+         Sağ panelden dosya ekleyebilirsiniz.</div></td></tr>`;
 
     return `
-    ${pageHead('PROJELER & DWG', 'Mimari ve statik paftaları yükleyin. DXF dosyalarının katmanları ve geometrisi okunur, DWG dosyalarının gömülü önizlemesi çıkarılır.')}
+    ${pageHead('PROJELER & DWG', 'Projeleri kartlardan seçin, özetini ve paftalarını görün. Dosyaları sağ panelden yükleyin.',
+      arsivDugmesi('paftalar') +
+      `<button class="btn accent sm" data-act="proje-ekle">${icon('plus')} Proje ekle</button>`)}
+
     <div class="grid side" style="padding:0 10px">
       <div class="grid" style="gap:14px">
-        <div class="dropzone" id="dz">
-          <div class="dz-icon">${icon('upload')}</div>
-          <h3>Pafta dosyalarını buraya bırakın</h3>
-          <p>DXF · DWG · PDF &nbsp;—&nbsp; kat planı, kesit, görünüş, detay, kalıp planı</p>
-          <label class="btn accent">${icon('plus')} Dosya seç
-            <input type="file" id="fileInput" multiple hidden accept=".dwg,.dxf,.pdf">
-          </label>
-          <p style="margin-top:10px;font-size:11px">Dosyalar bu tarayıcıda saklanır, sunucuya gönderilmez.</p>
-        </div>
+        <div class="proje-izgara">${projeKartlari}</div>
+        ${ozetBolum}
+
         <div class="card">
-          <div class="card-head"><h3>Yüklenen paftalar</h3><div class="spacer"></div>
-            <span class="hint" id="depoBilgi">${liste.length} dosya</span></div>
+          <div class="card-head">
+            <h3>${secili ? secili.ad + ' paftaları' : 'Tüm paftalar'}</h3>
+            <div class="spacer"></div>
+            ${secili ? `<button class="btn ghost sm" data-proje-sec="">${icon('geri')} Tüm projeler</button>` : ''}
+            <span class="hint" id="depoBilgi" data-adet="${liste.length}">${liste.length} dosya</span>
+          </div>
           <div class="table-wrap"><table>
-            <thead><tr><th></th><th>Dosya</th><th>Format</th><th>Tür</th><th>Disiplin</th><th>Proje</th>
-              <th class="num">Katman</th><th class="num">Varlık</th><th class="num">Alan</th>
-              <th>Durum</th><th></th></tr></thead>
+            <thead><tr><th>Önizleme</th><th>Dosya</th><th>Format</th><th>Tür</th><th>Disiplin</th>
+              ${secili ? '' : '<th>Proje</th>'}
+              <th class="num">Katman</th><th class="num">Alan</th><th>Durum</th><th></th></tr></thead>
             <tbody>${rows}</tbody>
           </table></div>
         </div>
       </div>
 
-      <div class="grid" style="gap:14px">
+      <div class="grid yan-panel" style="gap:14px">
         <div class="card">
-          <div class="card-head"><h3>Belgeden veri aktar</h3></div>
-          <p class="modal-metin" style="margin-bottom:12px">
-            Keşif/metraj listesi, iş programı ya da malzeme listesi içeren
-            <b>CSV</b>, <b>TSV</b> veya <b>XLSX</b> dosyasını yükleyin; sütunları eşleştirip
-            projeye aktarın.</p>
-          <div style="display:flex;flex-wrap:wrap;gap:8px">
-            <button class="btn sm" data-act="ice-metraj">${icon('ruler')} Metraj listesi</button>
-            <button class="btn ghost sm" data-act="ice-isler">${icon('briefcase')} İş programı</button>
-            <button class="btn ghost sm" data-act="ice-stok">${icon('box')} Malzeme listesi</button>
+          <div class="card-head"><h3>Dosya ekle</h3></div>
+          <div class="dropzone" id="dz">
+            <div class="dz-icon">${icon('upload')}</div>
+            <h3>Dosyaları buraya bırakın</h3>
+            <p>DXF · DWG · PDF · PNG/JPG</p>
+            <label class="btn accent">${icon('plus')} Dosya seç
+              <input type="file" id="fileInput" multiple hidden
+                     accept=".dwg,.dxf,.pdf,.png,.jpg,.jpeg,.webp">
+            </label>
+          </div>
+          <div class="yukleme-hedef">
+            <span>Yüklenecek proje</span>
+            <select id="yuklemeProje" aria-label="Yüklenecek proje">
+              ${projeler.map((p) => `<option value="${p.id}" ${secili && secili.id === p.id ? 'selected' : ''}>${p.ad}</option>`).join('')
+                || '<option value="">Önce proje ekleyin</option>'}
+            </select>
           </div>
           <p class="modal-metin" style="margin-top:10px;font-size:11px">
-            DWG/DXF paftalarından metraj çıkarmak için pafta kartındaki
-            <b>Metraja aktar</b> düğmesini kullanın.</p>
+            Dosyalar bu tarayıcıda saklanır, sunucuya gönderilmez.</p>
         </div>
+
         <div class="card">
-          <div class="card-head"><h3>Projeler</h3><div class="spacer"></div>
-            <button class="btn accent sm" data-act="proje-ekle">${icon('plus')} Proje ekle</button></div>
-          ${listele('projeler').map((p) => `
-            <div class="list-item">
-              <div class="ico">${icon('building')}</div>
-              <div class="txt"><b>${p.ad}</b>
-                <span>${p.blok || '—'} · ${p.isveren || '—'} · ${moneyShort(p.sozlesme)}</span></div>
-              <div class="spacer"></div>
-              ${badge(p.durum, durumKind(p.durum))}
-              <div class="satir-islem">
-                <button class="ikon-btn" title="Düzenle" data-proje-duzenle="${p._id}">${icon('kalem')}</button>
-                ${arsivSatir('projeler', p)}
-                <button class="ikon-btn tehlike" title="Sil" data-proje-sil="${p._id}">${icon('cop')}</button>
-              </div>
-            </div>`).join('') || '<div class="empty">Kayıtlı proje yok.</div>'}
+          <div class="card-head"><h3>Belgeden veri aktar</h3></div>
+          <p class="modal-metin" style="margin-bottom:10px">
+            Keşif listesi, iş programı ya da malzeme listesi içeren CSV/XLSX dosyasını aktarın.</p>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            <button class="btn ghost sm" data-act="ice-metraj">${icon('ruler')} Metraj</button>
+            <button class="btn ghost sm" data-act="ice-isler">${icon('briefcase')} İş programı</button>
+            <button class="btn ghost sm" data-act="ice-stok">${icon('box')} Malzeme</button>
+          </div>
         </div>
-        <div class="card">
-          <div class="card-head"><h3>Pafta türü dağılımı</h3></div>
-          ${barChart(sayim, { height: 140 })}
-        </div>
+
         <div class="card">
           <div class="card-head"><h3>Format desteği</h3></div>
           <div class="list-item">
             <div class="ico">${icon('layers')}</div>
-            <div class="txt"><b>DXF — tam okuma</b><span>Katman, geometri, uzunluk ve alan ölçümü</span></div>
-            <div class="spacer"></div>${badge(cozulen + ' dosya', 'ok')}
+            <div class="txt"><b>DXF</b><span>Katman, geometri, ölçüm ve vektör önizleme</span></div>
           </div>
           <div class="list-item">
             <div class="ico">${icon('file')}</div>
-            <div class="txt"><b>DWG — gömülü önizleme</b><span>Sürüm bilgisi ve çizim küçük resmi</span></div>
-            <div class="spacer"></div>${badge(liste.filter((d) => d.format === 'DWG').length + ' dosya', 'info')}
+            <div class="txt"><b>DWG</b><span>Sürüm bilgisi ve gömülü küçük resim</span></div>
           </div>
           <div class="list-item">
             <div class="ico">${icon('report')}</div>
-            <div class="txt"><b>PDF — arşiv</b><span>Saklanır, indirilir; ölçüm yapılmaz</span></div>
-            <div class="spacer"></div>${badge(liste.filter((d) => d.format === 'PDF').length + ' dosya', '')}
+            <div class="txt"><b>PDF</b><span>Tarayıcı görüntüleyicisinde önizleme</span></div>
           </div>
-          <p class="modal-metin" style="margin-top:10px">
-            DWG kapalı bir ikili formattır; geometrisi tarayıcıda çözülemez.
-            Metraj çıkarımı için CAD programından <b>DXF</b> olarak dışa aktarın.</p>
-        </div>
-        <div class="card">
-          <div class="card-head"><h3>İşleme hattı</h3></div>
-          <div class="timeline">
-            <div class="tl"><b>Dosya alındı</b><span>İçerik IndexedDB'ye yazılır, revizyon kaydı açılır</span></div>
-            <div class="tl"><b>Başlık çözümleme</b><span>Format, sürüm, çizim birimi ve sınırlar okunur</span></div>
-            <div class="tl"><b>Katman ayrıştırma</b><span>Katman başına uzunluk, alan ve varlık sayısı</span></div>
-            <div class="tl"><b>Metraja aktarım</b><span>Seçilen katman ölçüsü poz olarak metraja yazılır</span></div>
+          <div class="list-item">
+            <div class="ico">${icon('goz')}</div>
+            <div class="txt"><b>PNG / JPG</b><span>Render, saha fotoğrafı, taranmış pafta</span></div>
           </div>
+          <p class="modal-metin" style="margin-top:8px;font-size:11px">
+            DWG geometrisi tarayıcıda çözülemez; metraj için DXF yükleyin.</p>
         </div>
       </div>
     </div>`;
   }
+
 
   /* -------------------------------------------------- yukleme ve cozumleme */
   function turTahmin(ad) {
@@ -399,8 +493,21 @@
     });
   }
 
+  /* Yuklemenin hangi projeye islenecegi: yan paneldeki secim > secili kart > ilk proje */
+  function yuklemeHedefi() {
+    const projeler = S.aktif('projeler');
+    const secim = document.getElementById('yuklemeProje');
+    const aday = (secim && secim.value) || state.yuklemeProje ||
+      (state.seciliProje && (S.bul('projeler', state.seciliProje) || {}).id) ||
+      (state.metrajProje !== 'hepsi' ? state.metrajProje : '');
+    if (aday && projeler.some((p) => p.id === aday)) return aday;
+    return projeler[0] ? projeler[0].id : '';
+  }
+
   async function addFiles(files) {
     if (!files || !files.length) return;
+    const hedef = yuklemeHedefi();
+    if (!hedef) { toast('Önce bir proje ekleyin.'); return; }
     let eklenen = 0, hata = 0;
 
     for (const f of Array.from(files)) {
@@ -426,8 +533,7 @@
           ad: f.name,
           tur: turTahmin(f.name),
           disiplin: /^s[-_]/i.test(f.name) ? 'Statik' : 'Mimari',
-          proje: state.metrajProje !== 'hepsi' ? state.metrajProje
-                 : (S.aktif('projeler')[0] ? S.aktif('projeler')[0].id : 'PRJ-01'),
+          proje: hedef,
           rev,
           olcek: '1/50',
           boyut: f.size >= 1048576 ? (f.size / 1048576).toFixed(1) + ' MB'
@@ -472,6 +578,7 @@
         <div class="onizleme-alan">
           <canvas id="paftaTuval" width="860" height="440"></canvas>
           <img id="paftaResim" alt="${d.ad} önizleme" hidden>
+          <iframe id="paftaPdf" title="${d.ad} önizleme" hidden></iframe>
           <div id="paftaYok" class="empty" hidden>Bu dosya için önizleme üretilemedi.</div>
         </div>
         ${d.not ? `<p class="modal-metin" style="margin-top:10px">${d.not}</p>` : ''}
@@ -495,7 +602,18 @@
         kutu.querySelector('.modal').classList.add('genis');
         const tuval = kutu.querySelector('#paftaTuval');
         const resim = kutu.querySelector('#paftaResim');
+        const cerceve = kutu.querySelector('#paftaPdf');
         const yok = kutu.querySelector('#paftaYok');
+        const urller = [];
+        const url = (blob) => { const u = URL.createObjectURL(blob); urller.push(u); return u; };
+        /* Modal kapaninca blob adresleri birakilir */
+        const gozlemci = new MutationObserver(() => {
+          if (!document.body.contains(kutu)) {
+            urller.forEach((u) => URL.revokeObjectURL(u));
+            gozlemci.disconnect();
+          }
+        });
+        gozlemci.observe(document.body, { childList: true });
 
         /* Vektor cizim localStorage'da tutulmaz; dosya IndexedDB'den yeniden cozulur */
         (async () => {
@@ -511,9 +629,12 @@
                 PaftaAnaliz.ciz(tuval, coz.onizleme.cizim, coz.onizleme.sinir, k.ad);
                 toast(k.ad + ' katmanı vurgulandı.');
               }));
+            } else if (coz.onizleme && coz.onizleme.tur === 'pdf' && coz.onizleme.blob) {
+              tuval.hidden = true; cerceve.hidden = false;
+              cerceve.src = url(coz.onizleme.blob) + '#toolbar=1&view=FitH';
             } else if (coz.onizleme && coz.onizleme.blob) {
               tuval.hidden = true; resim.hidden = false;
-              resim.src = URL.createObjectURL(coz.onizleme.blob);
+              resim.src = url(coz.onizleme.blob);
             } else if (d.kucukResim) {
               tuval.hidden = true; resim.hidden = false; resim.src = d.kucukResim;
             } else {
@@ -3932,6 +4053,20 @@
     });
 
     /* --- paftalar --- */
+    /* Proje karti: secer, ikinci tikta secimi birakir */
+    tikla('[data-proje-sec]', (b) => {
+      const id = b.dataset.projeSec;
+      state.seciliProje = !id || state.seciliProje === id ? null : id;
+      const p = state.seciliProje ? S.bul('projeler', state.seciliProje) : null;
+      state.yuklemeProje = p ? p.id : '';
+      render();
+    });
+    const yuklemeProje = document.getElementById('yuklemeProje');
+    if (yuklemeProje) {
+      if (state.yuklemeProje) yuklemeProje.value = state.yuklemeProje;
+      state.yuklemeProje = yuklemeProje.value;
+      yuklemeProje.addEventListener('change', () => { state.yuklemeProje = yuklemeProje.value; });
+    }
     tikla('[data-pafta-ac]', (b) => paftaAc(b.dataset.paftaAc));
     tikla('[data-pafta-sil]', (b) => paftaSil(b.dataset.paftaSil));
     tikla('[data-pafta-indir]', (b) => {
@@ -3966,7 +4101,7 @@
   async function depoBilgisiniYaz() {
     const el = document.getElementById('depoBilgi');
     if (!el) return;
-    const adet = S.get('paftalar').length;
+    const adet = Number(el.dataset.adet || S.get('paftalar').length);
     try {
       const k = await Dosya.kota();
       if (k && k.toplam) {

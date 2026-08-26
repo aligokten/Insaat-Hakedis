@@ -18,7 +18,7 @@ git clone <repo> && cd Insaat-Hakedis
 | Modül | Ne yapar |
 |---|---|
 | **Genel Bakış** ✅ | Projenin bulunduğu inşaat aşamasını anlatan 2B animasyonlu sahne, aşama şeridi, proje tamamlanma kartları, KPI'lar |
-| **Projeler & DWG** ✅ | Dosyayı gerçekten saklar (IndexedDB), indirir, siler; DXF'i ayrıştırıp katman/geometri/ölçüm çıkarır ve vektör önizleme çizer; DWG'nin gömülü küçük resmini ve sürümünü okur; katman ölçüsünü tek tıkla metraja aktarır |
+| **Projeler & DWG** ✅ | Projeleri kart ızgarasında listeler; karta tıklandığında o projenin özeti (sözleşme, ilerleme, metraj, hakediş, iş paketleri, kalite sapması) ve yalnızca o projenin paftaları görünür. Dosya ekleme sağ yan panelde; yüklenen her dosyanın küçük resmi ve önizlemesi (DXF vektör, DWG gömülü resim, PDF görüntüleyici, PNG/JPG) açılabilir. Dosyayı gerçekten saklar (IndexedDB), indirir, siler; DXF'i ayrıştırıp katman/geometri/ölçüm çıkarır ve vektör önizleme çizer; DWG'nin gömülü küçük resmini ve sürümünü okur; katman ölçüsünü tek tıkla metraja aktarır |
 | **İşler** ✅ | Proje altında iş paketi ekle/düzenle/sil; taşeron ataması, personel görevlendirmesi, malzeme tahsisi (stokta rezerve ayırır), metraj kalemi bağlama, ilerleme ve termin takibi, CSV |
 | **Personel** ✅ | Özlük kartı (SGK, İSG, sağlık raporu, kan grubu, acil durum), evrak geçerlilik uyarıları, görevli olduğu işler, günlük puantaj ve hak ediş hesabı, toplu puantaj, CSV |
 | **Metraj** ✅ | Poz ekleme/düzenleme/silme, proje filtresi, otomatik tutar hesabı, manuel doğrulama, CSV dışa aktarma |
@@ -91,7 +91,8 @@ olan satırlar atlanır.
 **XLSX harici kütüphane olmadan okunur:** dosya bir ZIP arşividir; merkezi dizini elle
 çözümlenir ve içerik tarayıcının `DecompressionStream('deflate-raw')` API'siyle açılır, ardından
 `sharedStrings.xml` ve ilk çalışma sayfası ayrıştırılır. Eski `.xls` biçimi desteklenmez —
-dosyayı XLSX veya CSV olarak kaydedin. PDF'ten metin çıkarma da yoktur; PDF paftalar arşivlenir.
+dosyayı XLSX veya CSV olarak kaydedin. PDF'ten metin çıkarma da yoktur; PDF paftalar saklanır ve tarayıcının PDF görüntüleyicisinde
+önizlenir.
 
 ## Liquid Glass teması
 
@@ -259,7 +260,8 @@ taşeronun açık sapmaları uyarı olarak gösterilir.
 |---|---|---|
 | **DXF** | Tam okuma | ASCII DXF ayrıştırılır: `HEADER` ($ACADVER, $INSUNITS, $EXTMIN/$EXTMAX), `TABLES`'tan katmanlar, `ENTITIES`'ten LINE / LWPOLYLINE / POLYLINE / CIRCLE / ARC / TEXT. Katman başına uzunluk ve kapalı polyline alanı (shoelace) hesaplanır, çizim birimi metreye çevrilir, geometri canvas'a çizilir. |
 | **DWG** | Sürüm + gömülü önizleme | DWG başlığındaki sürüm kodu (AC1015…AC1032) ve 0x0D adresindeki önizleme bölümü okunur; gömülü BMP/PNG küçük resmi çıkarılır (BMP için dosya başlığı yeniden kurulur). |
-| **PDF** | Arşiv | Saklanır ve indirilir. |
+| **PDF** | Önizleme + arşiv | Saklanır, indirilir ve pafta penceresinde tarayıcının kendi PDF görüntüleyicisiyle (sayfa gezinme, yakınlaştırma) açılır. Metin/geometri çıkarımı yapılmaz. |
+| **PNG / JPG / WEBP** | Önizleme + arşiv | Render, saha fotoğrafı ya da taranmış pafta olarak saklanır; küçük resmi üretilir ve pencerede tam boyutta gösterilir. |
 
 **DWG geometrisi tarayıcıda okunamaz.** DWG kapalı bir ikili formattır; açık bir JavaScript
 ayrıştırıcısı yoktur. Metraj çıkarımı için CAD programından aynı çizimi **DXF** olarak dışa
