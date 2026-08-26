@@ -7,7 +7,7 @@ window.Yetki = (function () {
 
   const MODULLER = [
     { id: 'ozet',      ad: 'Genel Bakış' },
-    { id: 'paftalar',  ad: 'Projeler & DWG' },
+    { id: 'paftalar',  ad: 'Projeler' },
     { id: 'metraj',    ad: 'Metraj' },
     { id: 'isler',     ad: 'İşler' },
     { id: 'taseron',   ad: 'Taşeronlar' },

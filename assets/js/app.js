@@ -35,7 +35,7 @@
 
   const MENU = [
     { id: 'ozet',     ad: 'Genel Bakış',  ikon: 'grid' },
-    { id: 'paftalar', ad: 'Projeler & DWG', ikon: 'layers' },
+    { id: 'paftalar', ad: 'Projeler', ikon: 'layers' },
     { id: 'metraj',   ad: 'Metraj',       ikon: 'ruler' },
     { id: 'isler',    ad: 'İşler',        ikon: 'briefcase' },
     { id: 'taseron',  ad: 'Taşeronlar',   ikon: 'users' },
@@ -115,6 +115,8 @@
   const sozlesmeToplam = () => S.aktif('projeler').reduce((s, p) => s + p.sozlesme, 0);
   const gerceklesenToplam = () => S.aktif('projeler').reduce((s, p) => s + p.gerceklesen, 0);
   const kritikStok = () => S.aktif('stok').filter((s) => s.mevcut - s.rezerve < s.kritik);
+  /* Eski kayitlarda alan adi sicil idi; TC Kimlik No’ya gecildi */
+  const tcNo = (k) => (k && (k.tcKimlik || k.sicil)) || '—';
   const taseronAd = (id) => (S.aktif('taseronlar').find((t) => t.id === id) || {}).ad || id;
   const projeAd = (id) => (S.aktif('projeler').find((p) => p.id === id) || {}).ad || id;
 
@@ -133,34 +135,27 @@
     const secili = projeler.find((p) => p.id === state.ozetProje) || projeler[0] || null;
     const asama = secili ? Asama.asamaBul(secili.ilerleme) : Asama.ASAMALAR[0];
 
-    const kartlar = projeler.slice(0, 4).map((p, i) => `
+    const kartlar = projeler.map((p, i) => `
       <article class="match-card ${i === 1 ? 'is-featured' : ''}" data-goto="isler">
         <button class="go" aria-label="Aç">${icon('arrowUR')}</button>
         <h3>${p.ad}</h3>
-        <div class="sub">${p.blok} · ${p.guncelleme}</div>
+        <div class="sub">${[p.blok, p.guncelleme].filter(Boolean).join(' · ') || p.isveren || '—'}</div>
         <div class="match-body">
           ${donut(p.ilerleme, { caption: Asama.asamaBul(p.ilerleme).ad, size: i === 1 ? 100 : 92 })}
           <div class="check-list">
-            ${p.etiketler.map((e) => `<div>${icon('check')}<span>${e}</span></div>`).join('')}
+            ${((p.etiketler && p.etiketler.length ? p.etiketler : [Asama.asamaBul(p.ilerleme).ad])
+              .slice(0, 4).map((e) => `<div>${icon('check')}<span>${e}</span></div>`).join(''))}
           </div>
         </div>
-      </article>`).join('');
+      </article>`).join('') || '<div class="empty">Henüz proje tanımlanmadı.</div>';
 
     return `
     <section class="hero">
       <div>
-        <div><span class="hero-chip"><i></i> DWG Destekli</span></div>
+        <div><span class="hero-chip"><i></i> SAGG+ App</span></div>
         <h1>PROJE<br><span class="thin">HAKEDİŞ</span> PANELİ</h1>
         <p>Yüklediğiniz mimari ve statik paftalardan metraj otomatik çıkarılır;
            taşeron yetkisi, kalite kontrolü ve hakediş onayı tek akışta ilerler.</p>
-        <div class="hero-actions">
-          <div class="circle-group">
-            <button class="circle-btn" title="Pafta yükle" data-goto="paftalar">${icon('upload')}</button>
-            <button class="circle-btn" title="Metraj" data-goto="metraj">${icon('ruler')}</button>
-            <button class="circle-btn" title="Hakediş" data-goto="hakedis">${icon('receipt')}</button>
-          </div>
-          <button class="circle-btn" title="Daha fazla">${icon('dots')}</button>
-        </div>
       </div>
 
       <div class="asama-alan">
@@ -190,22 +185,27 @@
     </section>
 
     <div class="strip-head">
-      <button class="chip">${icon('filter')} Filtre</button>
-      <button class="chip is-active"><span class="dot"></span>Devam Eden</button>
-      <button class="chip"><span class="dot"></span>İnce İşler</button>
-      <button class="chip"><span class="dot"></span>${moneyShort(1.6e8)}+</button>
+      <button class="chip" data-goto="isler"><span class="dot"></span>
+        ${num(projeler.filter((p) => p.durum === 'Devam').length)} devam eden proje</button>
+      <button class="chip" data-goto="personel"><span class="dot"></span>
+        ${num(S.aktif('personel').length)} personel</button>
+      <button class="chip" data-goto="metraj"><span class="dot"></span>
+        ${moneyShort(sozlesmeToplam())} toplam proje bedeli</button>
+      <button class="chip" data-goto="taseron"><span class="dot"></span>
+        ${num(S.aktif('taseronlar').length)} taşeron</button>
       <div class="spacer"></div>
-      <div class="pager">
-        <button data-strip="-1">${icon('left')}</button>
-        <b>0${Math.min(projeler.length, 4)}</b><span>/ ${projeler.length}</span>
-        <button data-strip="1">${icon('right')}</button>
+      <div class="pager" ${projeler.length > 1 ? '' : 'hidden'}>
+        <button data-strip="-1" aria-label="Önceki proje">${icon('left')}</button>
+        <b>01</b><span>/ ${projeler.length}</span>
+        <button data-strip="1" aria-label="Sonraki proje">${icon('right')}</button>
       </div>
     </div>
 
     <div class="card-strip" id="strip">${kartlar}</div>
 
     <div class="grid cols-4" style="padding:6px 10px 0">
-      ${kpi(moneyShort(sozlesmeToplam()), 'Toplam sözleşme bedeli', 'up', '%8,4 yıllık artış')}
+      ${kpi(moneyShort(sozlesmeToplam()), 'Toplam sözleşme bedeli', 'up',
+        num(projeler.length) + ' aktif proje')}
       ${kpi(moneyShort(gerceklesenToplam()), 'Gerçekleşen imalat', 'up', pct(gerceklesenToplam() / sozlesmeToplam() * 100) + ' tamamlanma')}
       ${kpi(String(S.aktif('hakedisler').filter((h) => h.durum !== 'Onaylandı').length), 'Onay bekleyen hakediş', 'down', 'aksiyon gerekli')}
       ${kpi(String(kritikStok().length), 'Kritik seviyedeki malzeme', 'down', 'sipariş önerilir')}
@@ -366,7 +366,7 @@
          Sağ panelden dosya ekleyebilirsiniz.</div></td></tr>`;
 
     return `
-    ${pageHead('PROJELER & DWG', 'Projeleri kartlardan seçin, özetini ve paftalarını görün. Dosyaları sağ panelden yükleyin.',
+    ${pageHead('PROJELER', 'Projeleri kartlardan seçin, özetini ve paftalarını görün. Dosyaları sağ panelden yükleyin.',
       arsivDugmesi('paftalar') +
       `<button class="btn accent sm" data-act="proje-ekle">${icon('plus')} Proje ekle</button>`)}
 
@@ -1295,7 +1295,7 @@
       const kayit = bugunPuantaj.find((p) => p.personel === k.id);
       const isSayisi = S.aktif('isler').filter((i) => (i.personelIds || []).includes(k.id)).length;
       return `<tr>
-        <td><span class="strong">${k.ad}</span><div class="muted">${k.sicil} · ${k.gorev}</div></td>
+        <td><span class="strong">${k.ad}</span><div class="muted">TC ${tcNo(k)} · ${k.gorev}</div></td>
         <td>${k.firma === 'Kendi bünyemiz' ? k.firma : taseronAd(k.firma)}</td>
         <td class="num">${money(k.yevmiye)}</td>
         <td class="num">${isSayisi}</td>
@@ -1383,8 +1383,8 @@
       kaydetEtiketi: k ? 'Güncelle' : 'Personeli ekle',
       alanlar: [
         { ad: 'ad', etiket: 'Ad soyad', zorunlu: true, genis: true, deger: k ? k.ad : '' },
-        { ad: 'sicil', etiket: 'Sicil no', zorunlu: true,
-          deger: k ? k.sicil : String(1100 + S.get('personel').length) },
+        { ad: 'tcKimlik', etiket: 'TC Kimlik No', zorunlu: true,
+          ipucu: '11 haneli', deger: k ? tcNo(k).replace('—', '') : '' },
         { ad: 'gorev', etiket: 'Görev', tur: 'secim', deger: k ? k.gorev : 'Usta',
           secenekler: DB.PERSONEL_GOREV },
         { ad: 'firma', etiket: 'Bağlı olduğu firma', tur: 'secim',
@@ -1405,7 +1405,14 @@
         { ad: 'acilKisi', etiket: 'Acil durumda aranacak', deger: k ? k.acilKisi : '' },
         { ad: 'acilTelefon', etiket: 'Acil telefon', deger: k ? k.acilTelefon : '' },
         { ad: 'notlar', etiket: 'Notlar / sertifikalar', tur: 'metin-uzun', genis: true, deger: k ? k.notlar : '' }
-      ]
+      ],
+      dogrula: (c) => {
+        const tc = String(c.tcKimlik || '').trim();
+        if (!/^[1-9][0-9]{10}$/.test(tc)) return 'TC Kimlik No 11 haneli olmalı ve 0 ile başlamamalı.';
+        const ayni = S.get('personel').find((x) => tcNo(x) === tc && x._id !== id);
+        if (ayni) return `Bu TC Kimlik No ${ayni.ad} kaydında kullanılıyor.`;
+        return '';
+      }
     });
     if (!sonuc) return;
     if (k) { S.guncelle('personel', id, sonuc); toast(sonuc.ad + ' güncellendi.'); }
@@ -1426,7 +1433,7 @@
 
     const secim = await UI.modal({
       baslik: k.ad,
-      aciklama: `${k.sicil} · ${k.gorev} · ${k.firma === 'Kendi bünyemiz' ? k.firma : taseronAd(k.firma)}`,
+      aciklama: `TC ${tcNo(k)} · ${k.gorev} · ${k.firma === 'Kendi bünyemiz' ? k.firma : taseronAd(k.firma)}`,
       icerik: `
         ${uyari.length ? `<div class="uyari-kutu">${icon('alert')}
           <div><b>Evrak uyarısı</b><span>${uyari.map((u) => u.metin).join(' · ')}</span></div></div>` : ''}
@@ -1521,12 +1528,12 @@
   }
 
   function personelCSV() {
-    const basliklar = ['Sicil', 'Ad', 'Görev', 'Firma', 'Telefon', 'İşe giriş', 'Yevmiye',
+    const basliklar = ['TC Kimlik No', 'Ad', 'Görev', 'Firma', 'Telefon', 'İşe giriş', 'Yevmiye',
                        'SGK', 'SGK bitiş', 'İSG geçerlilik', 'Sağlık raporu', 'Durum',
                        'Yevmiye günü', 'Hak ediş'];
     const satirlar = personelListesi().map((k) => {
       const o = puantajOzeti(personelPuantaji(k.id));
-      return [k.sicil, k.ad, k.gorev, k.firma === 'Kendi bünyemiz' ? k.firma : taseronAd(k.firma),
+      return [tcNo(k), k.ad, k.gorev, k.firma === 'Kendi bünyemiz' ? k.firma : taseronAd(k.firma),
         k.telefon, k.girisTarihi, k.yevmiye, k.sgkDurum, k.sgkBitis, k.isgGecerlilik,
         k.saglikRaporu, k.durum, o.yevmiyeGunu, o.yevmiyeGunu * k.yevmiye];
     });
@@ -2681,10 +2688,10 @@
         ],
         bloklar: [
           { ad: 'Personel dökümü',
-            basliklar: ['Sicil', 'Ad', 'Görev', 'Firma', 'Yevmiye', 'Yevmiye günü', 'Hak ediş', 'Durum'],
+            basliklar: ['TC Kimlik No', 'Ad', 'Görev', 'Firma', 'Yevmiye', 'Yevmiye günü', 'Hak ediş', 'Durum'],
             satirlar: liste.map((k) => {
               const o = puantajOzeti(personelPuantaji(k.id));
-              return [k.sicil, k.ad, k.gorev,
+              return [tcNo(k), k.ad, k.gorev,
                 k.firma === 'Kendi bünyemiz' ? k.firma : taseronAd(k.firma),
                 money(k.yevmiye), num2(o.yevmiyeGunu), money(o.yevmiyeGunu * k.yevmiye), k.durum];
             }) },
@@ -3835,11 +3842,33 @@
       toast(`${taseronAd(tid)} · "${ad}" yetkisi ${acik ? 'verildi' : 'kaldırıldı'}`);
     });
 
-    /* kart seridi kaydirma */
-    tikla('[data-strip]', (b) => {
-      const strip = document.getElementById('strip');
-      if (strip) strip.scrollBy({ left: Number(b.dataset.strip) * 302, behavior: 'smooth' });
-    });
+    /* kart seridi kaydirma: ok tuslari, sayfa gostergesi ve sinir kontrolu */
+    const strip = document.getElementById('strip');
+    if (strip) {
+      const sayac = document.querySelector('.pager b');
+      const sol = document.querySelector('[data-strip="-1"]');
+      const sag = document.querySelector('[data-strip="1"]');
+      const adim = () => {
+        const kart = strip.querySelector('.match-card');
+        return kart ? kart.getBoundingClientRect().width + 14 : 302;
+      };
+      const durum = () => {
+        const son = Math.max(0, strip.scrollWidth - strip.clientWidth);
+        const toplam = strip.querySelectorAll('.match-card').length;
+        if (sayac && toplam) {
+          const s = Math.min(toplam, Math.round(strip.scrollLeft / adim()) + 1);
+          sayac.textContent = (s < 10 ? '0' : '') + s;
+        }
+        if (sol) sol.disabled = strip.scrollLeft <= 1;
+        if (sag) sag.disabled = strip.scrollLeft >= son - 1;
+      };
+      strip.addEventListener('scroll', durum, { passive: true });
+      window.addEventListener('resize', durum);
+      durum();
+      tikla('[data-strip]', (b) => {
+        strip.scrollBy({ left: Number(b.dataset.strip) * adim(), behavior: 'smooth' });
+      });
+    }
 
     /* gorunum gecisleri */
     tikla('[data-goto]', (b) => { location.hash = '#' + b.dataset.goto; });

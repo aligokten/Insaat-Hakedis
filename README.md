@@ -13,14 +13,17 @@ git clone <repo> && cd Insaat-Hakedis
 # veya: python3 -m http.server 8000
 ```
 
+Panelin altında her ekranda görünen sabit bilgi alanı: program sahibi **SAGG+ App**,
+lisans sahibi **Ali Gökten**, iletişim bilgileri ve telif notu.
+
 ## Modüller
 
 | Modül | Ne yapar |
 |---|---|
-| **Genel Bakış** ✅ | Projenin bulunduğu inşaat aşamasını anlatan 2B animasyonlu sahne, aşama şeridi, proje tamamlanma kartları, KPI'lar |
-| **Projeler & DWG** ✅ | Projeleri kart ızgarasında listeler; karta tıklandığında o projenin özeti (sözleşme, ilerleme, metraj, hakediş, iş paketleri, kalite sapması) ve yalnızca o projenin paftaları görünür. Dosya ekleme sağ yan panelde; yüklenen her dosyanın küçük resmi ve önizlemesi (DXF vektör, DWG gömülü resim, PDF görüntüleyici, PNG/JPG) açılabilir. Dosyayı gerçekten saklar (IndexedDB), indirir, siler; DXF'i ayrıştırıp katman/geometri/ölçüm çıkarır ve vektör önizleme çizer; DWG'nin gömülü küçük resmini ve sürümünü okur; katman ölçüsünü tek tıkla metraja aktarır |
+| **Genel Bakış** ✅ | Projenin bulunduğu inşaat aşamasını anlatan 2B animasyonlu sahne, aşama şeridi, canlı sayaç şeridi (devam eden proje, personel, toplam proje bedeli, taşeron), oklarla kaydırılabilen proje tamamlanma kartları, KPI'lar |
+| **Projeler** ✅ | Projeleri kart ızgarasında listeler; karta tıklandığında o projenin özeti (sözleşme, ilerleme, metraj, hakediş, iş paketleri, kalite sapması) ve yalnızca o projenin paftaları görünür. Dosya ekleme sağ yan panelde; yüklenen her dosyanın küçük resmi ve önizlemesi (DXF vektör, DWG gömülü resim, PDF görüntüleyici, PNG/JPG) açılabilir. Dosyayı gerçekten saklar (IndexedDB), indirir, siler; DXF'i ayrıştırıp katman/geometri/ölçüm çıkarır ve vektör önizleme çizer; DWG'nin gömülü küçük resmini ve sürümünü okur; katman ölçüsünü tek tıkla metraja aktarır |
 | **İşler** ✅ | Proje altında iş paketi ekle/düzenle/sil; taşeron ataması, personel görevlendirmesi, malzeme tahsisi (stokta rezerve ayırır), metraj kalemi bağlama, ilerleme ve termin takibi, CSV |
-| **Personel** ✅ | Özlük kartı (SGK, İSG, sağlık raporu, kan grubu, acil durum), evrak geçerlilik uyarıları, görevli olduğu işler, günlük puantaj ve hak ediş hesabı, toplu puantaj, CSV |
+| **Personel** ✅ | Özlük kartı (TC Kimlik No, SGK, İSG, sağlık raporu, kan grubu, acil durum), evrak geçerlilik uyarıları, görevli olduğu işler, günlük puantaj ve hak ediş hesabı, toplu puantaj, CSV |
 | **Metraj** ✅ | Poz ekleme/düzenleme/silme, proje filtresi, otomatik tutar hesabı, manuel doğrulama, CSV dışa aktarma |
 | **Taşeronlar** ✅ | Taşeron ekle/düzenle/sil (bağlı kayıt uyarısıyla), sözleşme/SGK durumu, üstlendiği işlerin ilerleme listesi; kart başlığına tıklanınca açılan panel yetkileri |
 | **Kalite Kontrol** ✅ | İmalat türüne göre kontrol şablonları, madde bazlı Uygun / Uygun Değil / Kapsam Dışı işaretleme, ağırlıklı otomatik puanlama ve sonuç önerisi, saha fotoğrafı ekleme, sapma notları, yeniden kontrol zinciri, taşeron karnesi, CSV |
@@ -78,7 +81,7 @@ sağ üstteki seçim kutusundan proje değiştirilebilir.
 ## Belgeden veri içe aktarma
 
 Keşif/metraj listesi, iş programı veya malzeme listesi içeren **CSV, TSV ve XLSX** dosyaları
-panele aktarılabilir (Projeler & DWG ekranı ile Metraj, İşler ve Stok araç çubukları).
+panele aktarılabilir (Projeler ekranı ile Metraj, İşler ve Stok araç çubukları).
 
 Sihirbaz dosyayı okur, sütun başlıklarını hedef alanlarla **otomatik eşleştirir**
 (Türkçe karakter ve kısaltma toleranslı), eşleşmeyi düzeltebileceğiniz bir matris ve ilk beş
@@ -270,3 +273,12 @@ Converter gibi bir dönüştürücü eklenirse DWG→DXF dönüşümü otomatikl
 
 Dosya içerikleri IndexedDB'de (`insaat-hakedis-dosya`) saklanır, sunucuya gönderilmez.
 Aynı ada sahip dosya yeniden yüklendiğinde revizyon harfi ilerler (A → B → C).
+
+## Lisans ve haklar
+
+Programın sahibi: **SAGG+ App**
+Lisans sahibi: **Ali Gökten**
+İletişim: 0 541 348 8833 · ali@saggplus.com · https://www.saggplus.com
+
+Proje Hakediş Paneli'nin tüm hakları Ali Gökten'e aittir.
+Kopyalanamaz, taklit edilemez, satılamaz.
