@@ -154,10 +154,33 @@ Kullanıcılar ekranındaki "Son işlemler" kartında görünür.
 > Farklı kişilerin farklı cihazlardan aynı veriyi görmesi ve sunucu tarafında zorlanan güvenlik
 > için bir arka uç (ör. Supabase) gerekir — roller ve izin modeli o geçişte aynen kullanılabilir.
 
+## Birimler
+
+Birim listesi: **m³ · m² · m · mtül · ton · adet · kg · takım · sa**.
+Belgelerden ya da eski kayıtlardan gelen `m2`, `m3`, `mt`, `metretül` gibi yazımlar içe
+aktarma sırasında bu tek biçime çevrilir (`birimNormal`). DXF katmanından metraja aktarımda
+alan ölçüsü **m²**, uzunluk ölçüsü **mtül** olarak yazılır.
+
+## Silme, arşivleme ve düzeltme
+
+Her kayıt türü için üç işlem vardır:
+
+- **Düzelt** — proje, taşeron, personel, iş, metraj kalemi, stok kartı, sipariş, kullanıcı,
+  pafta üstverisi, kalite kaydı (madde işaretleri ve puan yeniden hesaplanır) ve taslak/reddedilmiş
+  hakediş (kalem miktarları ve tutarlar canlı yeniden hesaplanır).
+- **Arşivle** — kayıt silinmez; listelerden, toplamlardan ve raporlardan çıkar. Araç çubuğundaki
+  **Arşiv** düğmesi arşiv görünümünü açar, oradan tek tıkla geri alınır.
+- **Sil** — kalıcıdır ve onay ister; bağlı kayıt varsa (ör. projeye bağlı metraj/pafta/hakediş)
+  silme onayında sayısı gösterilir.
+
+Arşivleme ve arşivden çıkarma işlemleri de işlem günlüğüne yazılır.
+
 ## Veri katmanı
 
-Kayıtlar tarayıcının `localStorage` alanında (`insaat-hakedis:v1` anahtarı) saklanır;
-ilk açılışta `assets/js/data.js` içindeki örnek veri tohum olarak yazılır.
+Kayıtlar tarayıcının `localStorage` alanında (`insaat-hakedis:v2` anahtarı) saklanır.
+**Panel boş başlar** — `assets/js/data.js` yalnızca şemayı ve uygulama tanımlarını (yetki
+listesi, kalite kontrol şablonları, görev ve puantaj tanımları) içerir; örnek kayıt yoktur.
+Projeleri, taşeronları ve diğer kayıtları kendiniz eklersiniz ya da belgeden içe aktarırsınız.
 Sol raydaki veritabanı simgesi **Veri yönetimi** panelini açar: JSON yedek indirme,
 yedekten geri yükleme ve örnek veriye sıfırlama.
 

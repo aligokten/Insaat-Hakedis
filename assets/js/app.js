@@ -17,7 +17,8 @@
     puantajTarihi: new Date().toISOString().slice(0, 10),
     raporTaseron: '',
     acikTaseron: null,
-    ozetProje: null
+    ozetProje: null,
+    arsivGoster: false
   };
 
   /* Hakedis onay akisi ve rol yetkileri */
@@ -45,10 +46,42 @@
     { id: 'kullanici', ad: 'Kullanıcılar', ikon: 'users' }
   ];
 
+  /* ------------------------------------------------------------- arşiv */
+  /* Ekranin ana listesi: normalde aktif kayitlar, arsiv modunda arsivdekiler */
+  const listele = (koleksiyon) =>
+    state.arsivGoster ? S.arsivdekiler(koleksiyon) : S.aktif(koleksiyon);
+
+  /* Arşiv modunda ekranın üstünde görünen şerit */
+  const arsivSeridi = () => `
+    <div class="arsiv-serit">
+      ${icon('arsiv')}
+      <div><b>Arşiv görünümü</b>
+        <span>Bu ekrandaki sayılar arşivdeki kayıtları özetler.
+          Arşivlenen kayıtlar normal görünümdeki toplamlara ve raporlara girmez.</span></div>
+      <div class="spacer"></div>
+      <button class="btn sm" data-arsiv-mod>${icon('geri')} Normal görünüme dön</button>
+    </div>`;
+
+  /* Araç çubuğuna eklenen arşiv geçiş düğmesi */
+  function arsivDugmesi(koleksiyon) {
+    const n = S.arsivdekiler(koleksiyon).length;
+    return `<button class="btn ${state.arsivGoster ? 'accent' : 'ghost'} sm" data-arsiv-mod
+              title="Arşivlenen kayıtları göster/gizle">
+      ${icon('arsiv')} ${state.arsivGoster ? 'Arşivden çık' : 'Arşiv'}${n ? ' (' + n + ')' : ''}
+    </button>`;
+  }
+
+  /* Satır işlemlerine eklenen arşivle / geri al düğmesi */
+  const arsivSatir = (koleksiyon, kayit) => kayit.arsivli
+    ? `<button class="ikon-btn" title="Arşivden çıkar"
+         data-arsiv-geri="${koleksiyon}|${kayit._id}">${icon('geri')}</button>`
+    : `<button class="ikon-btn" title="Arşivle"
+         data-arsivle="${koleksiyon}|${kayit._id}">${icon('arsiv')}</button>`;
+
   /* ------------------------------------------------------- hesaplamalar */
-  const paftalarAll = () => S.get('paftalar');
+  const paftalarAll = () => listele('paftalar');
   const metrajTutar = (m) => m.miktar * m.birimFiyat;
-  const toplamMetraj = () => S.get('metraj').reduce((s, m) => s + metrajTutar(m), 0);
+  const toplamMetraj = () => S.aktif('metraj').reduce((s, m) => s + metrajTutar(m), 0);
   const hakedisNet = (h) => h.imalat - h.kesinti - h.avansMahsup;
   const hakedisBrut = (h) => hakedisNet(h) + h.kdv;
 
@@ -61,12 +94,27 @@
     return { imalat, kesinti, avansMahsup: avans, kdv };
   }
 
-  const BIRIMLER = ['m3', 'm2', 'm', 'ton', 'adet', 'kg', 'takım'];
-  const sozlesmeToplam = () => S.get('projeler').reduce((s, p) => s + p.sozlesme, 0);
-  const gerceklesenToplam = () => S.get('projeler').reduce((s, p) => s + p.gerceklesen, 0);
-  const kritikStok = () => S.get('stok').filter((s) => s.mevcut - s.rezerve < s.kritik);
-  const taseronAd = (id) => (S.get('taseronlar').find((t) => t.id === id) || {}).ad || id;
-  const projeAd = (id) => (S.get('projeler').find((p) => p.id === id) || {}).ad || id;
+  const BIRIMLER = ['m³', 'm²', 'm', 'mtül', 'ton', 'adet', 'kg', 'takım', 'sa'];
+
+  /* Belgelerden ya da eski kayitlardan gelen birim yazimlarini tek bicime cevirir */
+  const BIRIM_ESLEME = {
+    m2: 'm²', 'm^2': 'm²', mt2: 'm²', metrekare: 'm²',
+    m3: 'm³', 'm^3': 'm³', metrekup: 'm³', 'metreküp': 'm³',
+    mt: 'mtül', mtul: 'mtül', 'metretül': 'mtül', metretul: 'mtül',
+    metre: 'm', ad: 'adet', tk: 'takım', saat: 'sa'
+  };
+  const birimNormal = (b) => {
+    const ham = String(b || '').trim();
+    if (!ham) return 'adet';
+    const anahtar = ham.toLocaleLowerCase('tr').replace(/[\s.]/g, '')
+      .replace(/ü/g, 'u').replace(/ı/g, 'i');
+    return BIRIM_ESLEME[anahtar] || ham;
+  };
+  const sozlesmeToplam = () => S.aktif('projeler').reduce((s, p) => s + p.sozlesme, 0);
+  const gerceklesenToplam = () => S.aktif('projeler').reduce((s, p) => s + p.gerceklesen, 0);
+  const kritikStok = () => S.aktif('stok').filter((s) => s.mevcut - s.rezerve < s.kritik);
+  const taseronAd = (id) => (S.aktif('taseronlar').find((t) => t.id === id) || {}).ad || id;
+  const projeAd = (id) => (S.aktif('projeler').find((p) => p.id === id) || {}).ad || id;
 
   const durumKind = (d) => ({
     'Onaylandı': 'ok', 'Teslim Edildi': 'ok', 'Aktif': 'ok', 'Geçerli': 'ok', 'İşlendi': 'ok', 'Devam': 'ok',
@@ -79,7 +127,7 @@
 
   /* ------------------------------------------------------- genel bakis */
   function viewOzet() {
-    const projeler = S.get('projeler');
+    const projeler = S.aktif('projeler');
     const secili = projeler.find((p) => p.id === state.ozetProje) || projeler[0] || null;
     const asama = secili ? Asama.asamaBul(secili.ilerleme) : Asama.ASAMALAR[0];
 
@@ -157,7 +205,7 @@
     <div class="grid cols-4" style="padding:6px 10px 0">
       ${kpi(moneyShort(sozlesmeToplam()), 'Toplam sözleşme bedeli', 'up', '%8,4 yıllık artış')}
       ${kpi(moneyShort(gerceklesenToplam()), 'Gerçekleşen imalat', 'up', pct(gerceklesenToplam() / sozlesmeToplam() * 100) + ' tamamlanma')}
-      ${kpi(String(S.get('hakedisler').filter((h) => h.durum !== 'Onaylandı').length), 'Onay bekleyen hakediş', 'down', 'aksiyon gerekli')}
+      ${kpi(String(S.aktif('hakedisler').filter((h) => h.durum !== 'Onaylandı').length), 'Onay bekleyen hakediş', 'down', 'aksiyon gerekli')}
       ${kpi(String(kritikStok().length), 'Kritik seviyedeki malzeme', 'down', 'sipariş önerilir')}
     </div>`;
   }
@@ -196,6 +244,8 @@
         <td>
           <div class="satir-islem">
             <button class="ikon-btn" title="Önizleme ve katmanlar" data-pafta-ac="${d._id}">${icon('goz')}</button>
+            <button class="ikon-btn" title="Düzenle" data-pafta-duzenle="${d._id}">${icon('kalem')}</button>
+            ${arsivSatir('paftalar', d)}
             ${d.dosyaId ? `<button class="ikon-btn" title="İndir" data-pafta-indir="${d._id}">${icon('download')}</button>` : ''}
             <button class="ikon-btn tehlike" title="Sil" data-pafta-sil="${d._id}">${icon('cop')}</button>
           </div>
@@ -255,7 +305,7 @@
         <div class="card">
           <div class="card-head"><h3>Projeler</h3><div class="spacer"></div>
             <button class="btn accent sm" data-act="proje-ekle">${icon('plus')} Proje ekle</button></div>
-          ${S.get('projeler').map((p) => `
+          ${listele('projeler').map((p) => `
             <div class="list-item">
               <div class="ico">${icon('building')}</div>
               <div class="txt"><b>${p.ad}</b>
@@ -264,6 +314,7 @@
               ${badge(p.durum, durumKind(p.durum))}
               <div class="satir-islem">
                 <button class="ikon-btn" title="Düzenle" data-proje-duzenle="${p._id}">${icon('kalem')}</button>
+                ${arsivSatir('projeler', p)}
                 <button class="ikon-btn tehlike" title="Sil" data-proje-sil="${p._id}">${icon('cop')}</button>
               </div>
             </div>`).join('') || '<div class="empty">Kayıtlı proje yok.</div>'}
@@ -358,7 +409,7 @@
         const kucukResim = await kucukResimUret(coz);
 
         /* ayni ada sahip onceki surum -> revizyon */
-        const oncekiler = S.get('paftalar').filter((p) => p.ad === f.name);
+        const oncekiler = S.aktif('paftalar').filter((p) => p.ad === f.name);
         const rev = oncekiler.length
           ? String.fromCharCode(65 + Math.min(25, oncekiler.length)) : 'A';
 
@@ -376,7 +427,7 @@
           tur: turTahmin(f.name),
           disiplin: /^s[-_]/i.test(f.name) ? 'Statik' : 'Mimari',
           proje: state.metrajProje !== 'hepsi' ? state.metrajProje
-                 : (S.get('projeler')[0] ? S.get('projeler')[0].id : 'PRJ-01'),
+                 : (S.aktif('projeler')[0] ? S.aktif('projeler')[0].id : 'PRJ-01'),
           rev,
           olcek: '1/50',
           boyut: f.size >= 1048576 ? (f.size / 1048576).toFixed(1) + ' MB'
@@ -529,20 +580,20 @@
     S.ekle('metraj', {
       poz: sonuc.poz, tanim: sonuc.tanim, proje: d.proje,
       miktar: Math.round(miktar * 100) / 100,
-      birim: sonuc.olcu === 'alan' ? 'm2' : sonuc.olcu === 'uzunluk' ? 'm' : 'adet',
+      birim: sonuc.olcu === 'alan' ? 'm²' : sonuc.olcu === 'uzunluk' ? 'mtül' : 'adet',
       birimFiyat: sonuc.birimFiyat,
       pafta: d.ad.split('_')[0],
       kaynak: 'Otomatik',
       guven: d.format === 'DXF' ? 0.95 : 0.7,
       kaynakDetay: d.ad + ' · ' + k.ad + ' katmanı'
     });
-    toast(`${k.ad} katmanından ${num2(miktar)} ${sonuc.olcu === 'alan' ? 'm²' : sonuc.olcu === 'uzunluk' ? 'm' : 'adet'} metraja eklendi.`);
+    toast(`${k.ad} katmanından ${num2(miktar)} ${sonuc.olcu === 'alan' ? 'm²' : sonuc.olcu === 'uzunluk' ? 'mtül' : 'adet'} metraja eklendi.`);
   }
 
 
   /* ------------------------------------------------------------ metraj */
   function metrajListesi() {
-    const hepsi = S.get('metraj');
+    const hepsi = listele('metraj');
     return state.metrajProje === 'hepsi' ? hepsi : hepsi.filter((m) => m.proje === state.metrajProje);
   }
 
@@ -562,6 +613,7 @@
         <td>
           <div class="satir-islem">
             <button class="ikon-btn" title="Düzenle" data-metraj-duzenle="${m._id}">${icon('kalem')}</button>
+            ${arsivSatir('metraj', m)}
             <button class="ikon-btn tehlike" title="Sil" data-metraj-sil="${m._id}">${icon('cop')}</button>
           </div>
         </td>
@@ -597,10 +649,11 @@
           <div class="arac-cubugu">
             <select id="metrajProje" aria-label="Proje filtresi">
               <option value="hepsi">Tüm projeler</option>
-              ${S.get('projeler').map((p) => `<option value="${p.id}" ${state.metrajProje === p.id ? 'selected' : ''}>${p.ad}</option>`).join('')}
+              ${S.aktif('projeler').map((p) => `<option value="${p.id}" ${state.metrajProje === p.id ? 'selected' : ''}>${p.ad}</option>`).join('')}
             </select>
             <button class="btn ghost sm" data-act="metraj-csv">${icon('download')} CSV</button>
             <button class="btn ghost sm" data-act="ice-metraj">${icon('upload')} İçe aktar</button>
+            ${arsivDugmesi('metraj')}
             <button class="btn accent sm" data-act="metraj-ekle">${icon('plus')} Poz ekle</button>
           </div></div>
         <div class="table-wrap"><table>
@@ -641,10 +694,10 @@
       alanlar: [
         { ad: 'poz', etiket: 'Poz No', deger: m ? m.poz : '', zorunlu: true, ipucu: 'örn. 16.058/1A' },
         { ad: 'proje', etiket: 'Proje', tur: 'secim', deger: m ? m.proje : (state.metrajProje !== 'hepsi' ? state.metrajProje : ''),
-          secenekler: S.get('projeler').map((p) => ({ deger: p.id, ad: p.ad })) },
+          secenekler: S.aktif('projeler').map((p) => ({ deger: p.id, ad: p.ad })) },
         { ad: 'tanim', etiket: 'İmalat tanımı', deger: m ? m.tanim : '', zorunlu: true, genis: true },
         { ad: 'miktar', etiket: 'Miktar', tur: 'number', adim: '0.01', min: 0, deger: m ? m.miktar : '', zorunlu: true },
-        { ad: 'birim', etiket: 'Birim', tur: 'secim', deger: m ? m.birim : 'm2', secenekler: BIRIMLER },
+        { ad: 'birim', etiket: 'Birim', tur: 'secim', deger: m ? m.birim : 'm²', secenekler: BIRIMLER },
         { ad: 'birimFiyat', etiket: 'Birim fiyat (₺)', tur: 'number', adim: '0.01', min: 0, deger: m ? m.birimFiyat : '', zorunlu: true },
         { ad: 'pafta', etiket: 'Kaynak pafta', tur: 'secim', deger: m ? m.pafta : '',
           secenekler: [{ deger: '—', ad: 'Pafta seçilmedi' }].concat(paftaSecenek) }
@@ -676,8 +729,8 @@
 
   /* ---------------------------------------------------------- taşeron */
   function viewTaseron() {
-    const kartlar = S.get('taseronlar').map((t) => {
-      const isleri = S.get('isler').filter((i) => i.taseron === t.id);
+    const kartlar = S.aktif('taseronlar').map((t) => {
+      const isleri = S.aktif('isler').filter((i) => i.taseron === t.id);
       const devamEden = isleri.filter((i) => i.durum === 'Devam').length;
       const acik = state.acikTaseron === t._id;
       const izin = S.yetkiler(t.id);
@@ -700,6 +753,7 @@
       <div class="card taseron-karti ${acik ? 'izin-acik' : ''}">
         <div class="satir-islem taseron-islem">
           <button class="ikon-btn" title="Düzenle" data-taseron-duzenle="${t._id}">${icon('kalem')}</button>
+          ${arsivSatir('taseronlar', t)}
           <button class="ikon-btn tehlike" title="Sil" data-taseron-sil="${t._id}">${icon('cop')}</button>
         </div>
         <button class="taseron-bas" data-taseron-ac="${t._id}"
@@ -741,6 +795,7 @@
 
     return `
     ${pageHead('TAŞERONLAR', 'Alt yüklenici tanımları, üstlendikleri işler ve panel yetkileri. Kart başlığına tıklayarak yetkileri açıp kapatabilirsiniz.',
+               arsivDugmesi('taseronlar') +
                `<button class="btn accent sm" data-act="taseron-ekle">${icon('plus')} Taşeron ekle</button>`)}
     <div class="grid cols-2" style="padding:0 10px">
       ${kartlar || '<div class="empty">Kayıtlı taşeron yok.</div>'}
@@ -751,11 +806,11 @@
   /* --------------------------------------------------------------- işler */
   const IS_DURUM = ['Planlandı', 'Devam', 'Durduruldu', 'Tamamlandı'];
 
-  const isAd = (id) => (S.get('isler').find((i) => i.id === id) || {}).ad || '—';
-  const personelAd = (id) => (S.get('personel').find((p) => p.id === id) || {}).ad || id;
+  const isAd = (id) => (S.aktif('isler').find((i) => i.id === id) || {}).ad || '—';
+  const personelAd = (id) => (S.aktif('personel').find((p) => p.id === id) || {}).ad || id;
 
   function isListesi() {
-    const hepsi = S.get('isler');
+    const hepsi = listele('isler');
     return state.isProje === 'hepsi' ? hepsi : hepsi.filter((i) => i.proje === state.isProje);
   }
 
@@ -766,14 +821,14 @@
 
   /* Ise tahsis edilen malzemenin toplam degeri */
   const isMalzemeTutari = (is) => (is.malzemeler || []).reduce((t, k) => {
-    const m = S.get('stok').find((s) => s.kod === k.kod);
+    const m = S.aktif('stok').find((s) => s.kod === k.kod);
     return t + (m ? m.birimFiyat * k.miktar : 0);
   }, 0);
 
   /* Puantajdan gunluk isgucu maliyeti */
   function isIsgucuMaliyeti(isId) {
-    return S.get('puantaj').filter((p) => p.is === isId).reduce((t, p) => {
-      const kisi = S.get('personel').find((x) => x.id === p.personel);
+    return S.aktif('puantaj').filter((p) => p.is === isId).reduce((t, p) => {
+      const kisi = S.aktif('personel').find((x) => x.id === p.personel);
       const k = (DB.PUANTAJ_DURUM[p.durum] || {}).katsayi || 0;
       return t + (kisi ? kisi.yevmiye * k : 0);
     }, 0);
@@ -799,6 +854,7 @@
           <div class="satir-islem">
             <button class="ikon-btn" title="Detay ve atamalar" data-is-detay="${is._id}">${icon('goz')}</button>
             <button class="ikon-btn" title="Düzenle" data-is-duzenle="${is._id}">${icon('kalem')}</button>
+            ${arsivSatir('isler', is)}
             <button class="ikon-btn tehlike" title="Sil" data-is-sil="${is._id}">${icon('cop')}</button>
           </div>
         </div>
@@ -824,10 +880,11 @@
       `<div class="arac-cubugu">
          <select id="isProje" aria-label="Proje filtresi">
            <option value="hepsi">Tüm projeler</option>
-           ${S.get('projeler').map((p) => `<option value="${p.id}" ${state.isProje === p.id ? 'selected' : ''}>${p.ad}</option>`).join('')}
+           ${S.aktif('projeler').map((p) => `<option value="${p.id}" ${state.isProje === p.id ? 'selected' : ''}>${p.ad}</option>`).join('')}
          </select>
          <button class="btn ghost sm" data-act="is-csv">${icon('download')} CSV</button>
          <button class="btn ghost sm" data-act="ice-isler">${icon('upload')} İçe aktar</button>
+         ${arsivDugmesi('isler')}
          <button class="btn accent sm" data-act="is-ekle">${icon('plus')} İş ekle</button>
        </div>`)}
     <div class="grid cols-4" style="padding:0 10px 14px">
@@ -849,10 +906,10 @@
         { ad: 'ad', etiket: 'İş tanımı', zorunlu: true, genis: true, deger: is ? is.ad : '',
           ipucu: 'örn. 3-6. kat duvar örgüsü' },
         { ad: 'proje', etiket: 'Proje', tur: 'secim', deger: is ? is.proje : (state.isProje !== 'hepsi' ? state.isProje : ''),
-          secenekler: S.get('projeler').map((p) => ({ deger: p.id, ad: p.ad })) },
+          secenekler: S.aktif('projeler').map((p) => ({ deger: p.id, ad: p.ad })) },
         { ad: 'taseron', etiket: 'Taşeron', tur: 'secim', deger: is ? is.taseron : '',
           secenekler: [{ deger: '', ad: 'Atanmadı' }]
-            .concat(S.get('taseronlar').map((t) => ({ deger: t.id, ad: t.ad }))) },
+            .concat(S.aktif('taseronlar').map((t) => ({ deger: t.id, ad: t.ad }))) },
         { ad: 'mahal', etiket: 'Mahal / blok', deger: is ? is.mahal : '' },
         { ad: 'sorumlu', etiket: 'Saha sorumlusu', deger: is ? is.sorumlu : '' },
         { ad: 'baslangic', etiket: 'Başlangıç', tur: 'date', deger: is ? is.baslangic : bugun() },
@@ -897,7 +954,7 @@
           ${(is.personelIds || []).length ? `<div class="table-wrap"><table>
             <thead><tr><th>Ad</th><th>Görev</th><th>Firma</th><th class="num">Yevmiye</th><th></th></tr></thead>
             <tbody>${(is.personelIds || []).map((pid) => {
-              const k = S.get('personel').find((x) => x.id === pid);
+              const k = S.aktif('personel').find((x) => x.id === pid);
               if (!k) return '';
               return `<tr><td class="strong">${k.ad}</td><td>${k.gorev}</td>
                 <td>${k.firma === 'Kendi bünyemiz' ? k.firma : taseronAd(k.firma)}</td>
@@ -915,7 +972,7 @@
             <thead><tr><th>Malzeme</th><th class="num">Tahsis</th><th class="num">Stokta</th>
               <th class="num">Tutar</th><th></th></tr></thead>
             <tbody>${(is.malzemeler || []).map((k, i) => {
-              const m = S.get('stok').find((s) => s.kod === k.kod);
+              const m = S.aktif('stok').find((s) => s.kod === k.kod);
               return `<tr>
                 <td class="strong">${m ? m.ad : k.kod}<div class="muted">${k.kod}</div></td>
                 <td class="num">${num2(k.miktar)} ${m ? m.birim : ''}</td>
@@ -970,7 +1027,7 @@
       const [cikan] = kalan.splice(i, 1);
       S.guncelle('isler', id, { malzemeler: kalan });
       /* tahsis kaldirilinca rezerve serbest birakilir */
-      const m = S.get('stok').find((s) => s.kod === cikan.kod);
+      const m = S.aktif('stok').find((s) => s.kod === cikan.kod);
       if (m) {
         S.guncelle('stok', m._id, { rezerve: Math.max(0, m.rezerve - cikan.miktar) });
         S.ekle('hareketler', { malzeme: m.kod, tur: 'Rezerve İptal', miktar: cikan.miktar,
@@ -983,7 +1040,7 @@
 
   async function isPersonelAta(id) {
     const is = S.bul('isler', id);
-    const aday = S.get('personel').filter((p) => !(is.personelIds || []).includes(p.id) && p.durum !== 'Ayrıldı');
+    const aday = S.aktif('personel').filter((p) => !(is.personelIds || []).includes(p.id) && p.durum !== 'Ayrıldı');
     if (!aday.length) { toast('Atanabilecek personel kalmadı.'); return; }
     const sonuc = await UI.form({
       baslik: 'Personel ata · ' + is.ad,
@@ -1000,7 +1057,7 @@
 
   async function isMalzemeTahsis(id) {
     const is = S.bul('isler', id);
-    const stoklar = S.get('stok');
+    const stoklar = S.aktif('stok');
     if (!stoklar.length) { toast('Önce stok kartı tanımlayın.'); return; }
     const sonuc = await UI.form({
       baslik: 'Malzeme tahsis et · ' + is.ad,
@@ -1040,7 +1097,7 @@
 
   async function isMetrajBagla(id) {
     const is = S.bul('isler', id);
-    const aday = S.get('metraj').filter((m) => m.proje === is.proje && !(is.metrajIds || []).includes(m._id));
+    const aday = S.aktif('metraj').filter((m) => m.proje === is.proje && !(is.metrajIds || []).includes(m._id));
     if (!aday.length) { toast('Bu projede bağlanabilecek metraj kalemi yok.'); return; }
     const sonuc = await UI.form({
       baslik: 'Metraj kalemi bağla · ' + is.ad,
@@ -1086,7 +1143,7 @@
     return u;
   }
 
-  const personelPuantaji = (pid) => S.get('puantaj').filter((p) => p.personel === pid);
+  const personelPuantaji = (pid) => S.aktif('puantaj').filter((p) => p.personel === pid);
 
   function puantajOzeti(kayitlar) {
     const o = { gun: 0, yevmiyeGunu: 0, devamsiz: 0, izinli: 0 };
@@ -1101,21 +1158,21 @@
   }
 
   function personelListesi() {
-    const hepsi = S.get('personel');
+    const hepsi = listele('personel');
     if (state.personelFirma === 'hepsi') return hepsi;
     return hepsi.filter((p) => p.firma === state.personelFirma);
   }
 
   function viewPersonel() {
     const liste = personelListesi();
-    const hepsi = S.get('personel');
+    const hepsi = S.aktif('personel');
     const firmalar = [...new Set(hepsi.map((p) => p.firma))];
-    const bugunPuantaj = S.get('puantaj').filter((p) => p.tarih === state.puantajTarihi);
+    const bugunPuantaj = S.aktif('puantaj').filter((p) => p.tarih === state.puantajTarihi);
 
     const rows = liste.map((k) => {
       const uyari = personelUyarilari(k);
       const kayit = bugunPuantaj.find((p) => p.personel === k.id);
-      const isSayisi = S.get('isler').filter((i) => (i.personelIds || []).includes(k.id)).length;
+      const isSayisi = S.aktif('isler').filter((i) => (i.personelIds || []).includes(k.id)).length;
       return `<tr>
         <td><span class="strong">${k.ad}</span><div class="muted">${k.sicil} · ${k.gorev}</div></td>
         <td>${k.firma === 'Kendi bünyemiz' ? k.firma : taseronAd(k.firma)}</td>
@@ -1129,6 +1186,7 @@
           <div class="satir-islem">
             <button class="ikon-btn" title="Personel kartı" data-personel-kart="${k._id}">${icon('goz')}</button>
             <button class="ikon-btn" title="Düzenle" data-personel-duzenle="${k._id}">${icon('kalem')}</button>
+            ${arsivSatir('personel', k)}
             <button class="ikon-btn tehlike" title="Sil" data-personel-sil="${k._id}">${icon('cop')}</button>
           </div>
         </td>
@@ -1149,6 +1207,7 @@
            ${firmalar.map((f) => `<option value="${f}" ${state.personelFirma === f ? 'selected' : ''}>${f === 'Kendi bünyemiz' ? f : taseronAd(f)}</option>`).join('')}
          </select>
          <button class="btn ghost sm" data-act="personel-csv">${icon('download')} CSV</button>
+         ${arsivDugmesi('personel')}
          <button class="btn accent sm" data-act="personel-ekle">${icon('plus')} Personel ekle</button>
        </div>`)}
     <div class="grid cols-4" style="padding:0 10px 14px">
@@ -1197,7 +1256,7 @@
   async function personelFormu(id) {
     const k = id ? S.bul('personel', id) : null;
     const firmalar = [{ deger: 'Kendi bünyemiz', ad: 'Kendi bünyemiz' }]
-      .concat(S.get('taseronlar').map((t) => ({ deger: t.id, ad: t.ad })));
+      .concat(S.aktif('taseronlar').map((t) => ({ deger: t.id, ad: t.ad })));
     const sonuc = await UI.form({
       baslik: k ? 'Personel kartını düzenle' : 'Yeni personel',
       kaydetEtiketi: k ? 'Güncelle' : 'Personeli ekle',
@@ -1242,7 +1301,7 @@
     const uyari = personelUyarilari(k);
     const kayitlar = personelPuantaji(k.id).sort((a, b) => b.tarih.localeCompare(a.tarih));
     const ozet = puantajOzeti(kayitlar);
-    const isleri = S.get('isler').filter((i) => (i.personelIds || []).includes(k.id));
+    const isleri = S.aktif('isler').filter((i) => (i.personelIds || []).includes(k.id));
 
     const secim = await UI.modal({
       baslik: k.ad,
@@ -1305,7 +1364,7 @@
   async function puantajFormu(id) {
     const k = S.bul('personel', id);
     if (!k) return;
-    const isleri = S.get('isler').filter((i) => (i.personelIds || []).includes(k.id));
+    const isleri = S.aktif('isler').filter((i) => (i.personelIds || []).includes(k.id));
     const sonuc = await UI.form({
       baslik: 'Puantaj · ' + k.ad,
       aciklama: `Günlük yevmiye ${money(k.yevmiye)}. Tutar, duruma göre katsayıyla hesaplanır.`,
@@ -1321,7 +1380,7 @@
       ]
     });
     if (!sonuc) return;
-    const eski = S.get('puantaj').find((p) => p.personel === k.id && p.tarih === sonuc.tarih);
+    const eski = S.aktif('puantaj').find((p) => p.personel === k.id && p.tarih === sonuc.tarih);
     if (eski) S.guncelle('puantaj', eski._id, { ...sonuc, personel: k.id });
     else S.ekle('puantaj', { ...sonuc, personel: k.id });
     const kat = (DB.PUANTAJ_DURUM[sonuc.durum] || {}).katsayi || 0;
@@ -1333,7 +1392,7 @@
     const tarih = state.puantajTarihi;
     let yeni = 0;
     personelListesi().filter((k) => k.durum === 'Aktif').forEach((k) => {
-      if (S.get('puantaj').some((p) => p.personel === k.id && p.tarih === tarih)) return;
+      if (S.aktif('puantaj').some((p) => p.personel === k.id && p.tarih === tarih)) return;
       S.ekle('puantaj', { personel: k.id, tarih, durum: 'Tam gün', is: '', aciklama: 'Toplu giriş' });
       yeni++;
     });
@@ -1360,7 +1419,7 @@
   const KALITE_DURUM = ['Uygun', 'Uygun Değil', 'Kapsam Dışı'];
 
   function kaliteListesi() {
-    const hepsi = S.get('kaliteKontrol');
+    const hepsi = listele('kaliteKontrol');
     return state.kaliteSonuc === 'hepsi' ? hepsi : hepsi.filter((q) => q.sonuc === state.kaliteSonuc);
   }
 
@@ -1380,7 +1439,7 @@
 
   function viewKalite() {
     const liste = kaliteListesi();
-    const hepsi = S.get('kaliteKontrol');
+    const hepsi = S.aktif('kaliteKontrol');
 
     const rows = liste.map((q) => `
       <tr>
@@ -1396,6 +1455,8 @@
             <button class="ikon-btn" title="Detay" data-kalite-detay="${q._id}">${icon('goz')}</button>
             ${q.sonuc === 'Red' || q.sonuc === 'Şartlı Onay'
               ? `<button class="ikon-btn" title="Yeniden kontrol" data-kalite-tekrar="${q._id}">${icon('kalem')}</button>` : ''}
+            <button class="ikon-btn" title="Düzenle" data-kalite-duzenle="${q._id}">${icon('settings')}</button>
+            ${arsivSatir('kaliteKontrol', q)}
             <button class="ikon-btn tehlike" title="Sil" data-kalite-sil="${q._id}">${icon('cop')}</button>
           </div>
         </td>
@@ -1426,6 +1487,7 @@
                 `<option value="${d}" ${state.kaliteSonuc === d ? 'selected' : ''}>${d}</option>`).join('')}
             </select>
             <button class="btn ghost sm" data-act="kalite-csv">${icon('download')} CSV</button>
+            ${arsivDugmesi('kaliteKontrol')}
             <button class="btn accent sm" data-act="kalite-ekle">${icon('plus')} Yeni kontrol</button>
           </div></div>
         <div class="table-wrap"><table>
@@ -1437,7 +1499,7 @@
       <div class="grid" style="gap:14px">
         <div class="card">
           <div class="card-head"><h3>Taşeron kalite karnesi</h3></div>
-          ${S.get('taseronlar').map((t) => {
+          ${S.aktif('taseronlar').map((t) => {
             const kayit = hepsi.filter((q) => q.taseron === t.id && q.skor);
             if (!kayit.length) return '';
             const sk = kayit.reduce((s, q) => s + q.skor, 0) / kayit.length;
@@ -1497,7 +1559,7 @@
           deger: onceki ? onceki.imalat : '', ipucu: 'örn. Perde beton dökümü - 4. Kat' },
         { ad: 'sablon', etiket: 'Kontrol şablonu', tur: 'secim', deger: varsayilanSablon, secenekler: sablonAdlari },
         { ad: 'taseron', etiket: 'Taşeron', tur: 'secim', deger: onceki ? onceki.taseron : '',
-          secenekler: S.get('taseronlar').map((t) => ({ deger: t.id, ad: t.ad })) },
+          secenekler: S.aktif('taseronlar').map((t) => ({ deger: t.id, ad: t.ad })) },
         { ad: 'kontrolor', etiket: 'Kontrolör', zorunlu: true, deger: onceki ? onceki.kontrolor : '' },
         { ad: 'tarih', etiket: 'Kontrol tarihi', tur: 'date', deger: new Date().toISOString().slice(0, 10) },
         { ad: 'tamamlanma', etiket: 'İmalat tamamlanma (%)', tur: 'number', min: 0,
@@ -1677,7 +1739,7 @@
 
   /* ---------------------------------------------------------- hakediş */
   function hakedisListesi() {
-    const hepsi = S.get('hakedisler');
+    const hepsi = listele('hakedisler');
     return state.hakedisDurum === 'hepsi' ? hepsi : hepsi.filter((h) => h.durum === state.hakedisDurum);
   }
 
@@ -1707,6 +1769,9 @@
           <div class="satir-islem">
             <button class="ikon-btn" title="Detay" data-hakedis-detay="${h._id}">${icon('goz')}</button>
             ${h.durum === 'Taslak' || h.durum === 'Reddedildi'
+              ? `<button class="ikon-btn" title="Düzenle" data-hakedis-duzenle="${h._id}">${icon('kalem')}</button>` : ''}
+            ${arsivSatir('hakedisler', h)}
+            ${h.durum === 'Taslak' || h.durum === 'Reddedildi'
               ? `<button class="ikon-btn tehlike" title="Sil" data-hakedis-sil="${h._id}">${icon('cop')}</button>` : ''}
           </div>
         </td>
@@ -1714,7 +1779,7 @@
       </tr>`).join('') ||
       '<tr><td colspan="10"><div class="empty">Bu filtrede hakediş yok.</div></td></tr>';
 
-    const tumu = S.get('hakedisler');
+    const tumu = S.aktif('hakedisler');
     const toplamNet = tumu.reduce((t, h) => t + hakedisBrut(h), 0);
     const bekleyen = tumu.filter((h) => h.durum !== 'Onaylandı' && h.durum !== 'Reddedildi');
     const onayli = tumu.filter((h) => h.durum === 'Onaylandı');
@@ -1741,6 +1806,7 @@
               ${['Taslak', 'Kontrolde', 'Onay Bekliyor', 'Onaylandı', 'Reddedildi'].map((d) =>
                 `<option value="${d}" ${state.hakedisDurum === d ? 'selected' : ''}>${d}</option>`).join('')}
             </select>
+            ${arsivDugmesi('hakedisler')}
             <button class="btn accent sm" data-act="hakedis-ekle">${icon('plus')} Hakediş oluştur</button>
           </div></div>
         <div class="table-wrap"><table>
@@ -1776,8 +1842,8 @@
 
   /* ------------------------------- hakedis olusturma (kalem secimli) --- */
   async function hakedisFormu() {
-    const projeler = S.get('projeler');
-    const taseronlar = S.get('taseronlar');
+    const projeler = S.aktif('projeler');
+    const taseronlar = S.aktif('taseronlar');
     if (!projeler.length || !taseronlar.length) { toast('Önce proje ve taşeron tanımlayın.'); return; }
 
     const ay = new Date();
@@ -1829,7 +1895,7 @@
 
         /* Secilen taseronun acik kalite sapmalari hakedis oncesi uyari verir */
         const kaliteUyar = () => {
-          const acik = S.get('kaliteKontrol').filter((q) => q.taseron === taseronSec.value &&
+          const acik = S.aktif('kaliteKontrol').filter((q) => q.taseron === taseronSec.value &&
             (q.sonuc === 'Red' || q.sonuc === 'Şartlı Onay') && !q.tekrarKayit);
           const kutucuk = kutu.querySelector('#kaliteUyari');
           kutucuk.innerHTML = acik.length ? `
@@ -1843,7 +1909,7 @@
         kaliteUyar();
 
         const kalemleriYaz = () => {
-          const kalemler = S.get('metraj').filter((m) => m.proje === projeSec.value);
+          const kalemler = S.aktif('metraj').filter((m) => m.proje === projeSec.value);
           govde.innerHTML = kalemler.map(kalemSatiri).join('') ||
             '<tr><td colspan="6"><div class="empty">Bu projede metraj kalemi yok.</div></td></tr>';
           ozetle();
@@ -1987,13 +2053,13 @@
   const stokKritikMi = (s) => kullanilabilir(s) < s.kritik;
 
   function stokListesi() {
-    const hepsi = S.get('stok');
+    const hepsi = listele('stok');
     return state.stokDepo === 'hepsi' ? hepsi : hepsi.filter((s) => s.depo === state.stokDepo);
   }
 
   function viewStok() {
     const liste = stokListesi();
-    const hepsi = S.get('stok');
+    const hepsi = S.aktif('stok');
     const depolar = [...new Set(hepsi.map((s) => s.depo))];
 
     const rows = liste.map((s) => {
@@ -2014,6 +2080,7 @@
           <div class="satir-islem">
             <button class="ikon-btn" title="Stok hareketi" data-stok-hareket="${s._id}">${icon('trend')}</button>
             <button class="ikon-btn" title="Düzenle" data-stok-duzenle="${s._id}">${icon('kalem')}</button>
+            ${arsivSatir('stok', s)}
             <button class="ikon-btn tehlike" title="Sil" data-stok-sil="${s._id}">${icon('cop')}</button>
           </div>
         </td>
@@ -2022,7 +2089,7 @@
 
     const stokDeger = hepsi.reduce((t, x) => t + x.mevcut * x.birimFiyat, 0);
     const kritikler = hepsi.filter(stokKritikMi);
-    const sonHareketler = S.get('hareketler').slice(0, 6);
+    const sonHareketler = S.aktif('hareketler').slice(0, 6);
 
     return `
     ${pageHead('MALZEME STOK', 'Depo bazlı mevcut, rezerve ve kullanılabilir miktarlar; giriş/çıkış hareketleri ve kritik seviye uyarıları.')}
@@ -2042,6 +2109,7 @@
             </select>
             <button class="btn ghost sm" data-act="stok-csv">${icon('download')} CSV</button>
             <button class="btn ghost sm" data-act="ice-stok">${icon('upload')} İçe aktar</button>
+            ${arsivDugmesi('stok')}
             <button class="btn accent sm" data-act="stok-ekle">${icon('plus')} Malzeme ekle</button>
           </div></div>
         <div class="table-wrap"><table>
@@ -2067,7 +2135,7 @@
           <div class="card-head"><h3>Son hareketler</h3><div class="spacer"></div>
             <span class="hint">${S.get('hareketler').length} kayıt</span></div>
           ${sonHareketler.map((h) => {
-            const m = S.get('stok').find((s) => s.kod === h.malzeme);
+            const m = S.aktif('stok').find((s) => s.kod === h.malzeme);
             const artan = h.tur === 'Giriş' || h.tur === 'Rezerve İptal';
             return `<div class="list-item">
               <div class="ico">${icon(artan ? 'trend' : 'trendDown')}</div>
@@ -2082,7 +2150,7 @@
 
   async function stokFormu(id) {
     const s = id ? S.bul('stok', id) : null;
-    const depolar = [...new Set(S.get('stok').map((x) => x.depo))];
+    const depolar = [...new Set(S.aktif('stok').map((x) => x.depo))];
     const sonuc = await UI.form({
       baslik: s ? 'Malzemeyi düzenle' : 'Yeni malzeme',
       kaydetEtiketi: s ? 'Güncelle' : 'Ekle',
@@ -2179,14 +2247,14 @@
   }
 
   function siparisListesi() {
-    const hepsi = S.get('siparisler');
+    const hepsi = listele('siparisler');
     return state.siparisDurum === 'hepsi'
       ? hepsi : hepsi.filter((o) => etkinDurum(o) === state.siparisDurum);
   }
 
   function viewTedarik() {
     const liste = siparisListesi();
-    const hepsi = S.get('siparisler');
+    const hepsi = S.aktif('siparisler');
 
     const rows = liste.map((o) => {
       const durum = etkinDurum(o);
@@ -2204,6 +2272,7 @@
           <div class="satir-islem">
             ${ilerletilebilir ? `<button class="btn sm" data-siparis-ilerlet="${o._id}">${adim.eylem}</button>` : ''}
             <button class="ikon-btn" title="Düzenle" data-siparis-duzenle="${o._id}">${icon('kalem')}</button>
+            ${arsivSatir('siparisler', o)}
             <button class="ikon-btn tehlike" title="Sil" data-siparis-sil="${o._id}">${icon('cop')}</button>
           </div>
         </td>
@@ -2231,6 +2300,7 @@
                 `<option value="${d}" ${state.siparisDurum === d ? 'selected' : ''}>${d}</option>`).join('')}
             </select>
             <button class="btn ghost sm" data-act="siparis-csv">${icon('download')} CSV</button>
+            ${arsivDugmesi('siparisler')}
             <button class="btn accent sm" data-act="siparis-ekle">${icon('plus')} Sipariş oluştur</button>
           </div></div>
         <div class="table-wrap"><table>
@@ -2270,7 +2340,7 @@
 
   async function siparisFormu(id, onDeger) {
     const o = id ? S.bul('siparisler', id) : null;
-    const stoklar = S.get('stok');
+    const stoklar = S.aktif('stok');
     const varsayilanTeslim = new Date(Date.now() + 12096e5).toISOString().slice(0, 10);  // +14 gün
 
     const sonuc = await UI.form({
@@ -2332,7 +2402,7 @@
 
     /* Teslim alma: irsaliye miktari girilir ve stok girisine donusur */
     if (adim.sonraki === 'Teslim Edildi') {
-      const stokKarti = o.malzemeKod ? S.get('stok').find((s) => s.kod === o.malzemeKod) : null;
+      const stokKarti = o.malzemeKod ? S.aktif('stok').find((s) => s.kod === o.malzemeKod) : null;
       const sonuc = await UI.form({
         baslik: 'Teslim alma · ' + o.no,
         aciklama: stokKarti
@@ -2390,15 +2460,15 @@
     const t = new Date().toLocaleString('tr-TR');
 
     if (tur === 'yonetim') {
-      const projeler = S.get('projeler');
-      const hakedisler = S.get('hakedisler');
-      const isler = S.get('isler');
+      const projeler = S.aktif('projeler');
+      const hakedisler = S.aktif('hakedisler');
+      const isler = S.aktif('isler');
       const onayli = hakedisler.filter((h) => h.durum === 'Onaylandı');
       const bekleyen = hakedisler.filter((h) => h.durum !== 'Onaylandı' && h.durum !== 'Reddedildi');
-      const acikSapma = S.get('kaliteKontrol').filter((q) =>
+      const acikSapma = S.aktif('kaliteKontrol').filter((q) =>
         (q.sonuc === 'Red' || q.sonuc === 'Şartlı Onay') && !q.tekrarKayit);
-      const geciken = S.get('siparisler').filter((o) => etkinDurum(o) === 'Gecikmeli');
-      const kritik = S.get('stok').filter(stokKritikMi);
+      const geciken = S.aktif('siparisler').filter((o) => etkinDurum(o) === 'Gecikmeli');
+      const kritik = S.aktif('stok').filter(stokKritikMi);
 
       return {
         baslik: 'Üst Yönetim Özeti', altbaslik: 'Tüm projeler · ' + t,
@@ -2435,12 +2505,12 @@
     }
 
     if (tur === 'taseron') {
-      const t2 = S.get('taseronlar').find((x) => x.id === kapsam) || S.get('taseronlar')[0];
+      const t2 = S.aktif('taseronlar').find((x) => x.id === kapsam) || S.aktif('taseronlar')[0];
       if (!t2) return null;
-      const isleri = S.get('isler').filter((i) => i.taseron === t2.id);
-      const hakedisleri = S.get('hakedisler').filter((h) => h.taseron === t2.id);
-      const kalite = S.get('kaliteKontrol').filter((q) => q.taseron === t2.id);
-      const kisiler = S.get('personel').filter((p) => p.firma === t2.id);
+      const isleri = S.aktif('isler').filter((i) => i.taseron === t2.id);
+      const hakedisleri = S.aktif('hakedisler').filter((h) => h.taseron === t2.id);
+      const kalite = S.aktif('kaliteKontrol').filter((q) => q.taseron === t2.id);
+      const kisiler = S.aktif('personel').filter((p) => p.firma === t2.id);
       const puanli = kalite.filter((q) => q.skor);
 
       return {
@@ -2476,7 +2546,7 @@
     }
 
     if (tur === 'personel') {
-      const liste = S.get('personel');
+      const liste = S.aktif('personel');
       const toplamHak = liste.reduce((a, k) =>
         a + puantajOzeti(personelPuantaji(k.id)).yevmiyeGunu * k.yevmiye, 0);
       return {
@@ -2508,8 +2578,8 @@
     }
 
     /* stok ve tedarik bulteni */
-    const stoklar = S.get('stok');
-    const siparisler = S.get('siparisler');
+    const stoklar = S.aktif('stok');
+    const siparisler = S.aktif('siparisler');
     return {
       baslik: 'Malzeme ve Tedarik Bülteni', altbaslik: 'Tüm depolar · ' + t,
       ozet: [
@@ -2530,7 +2600,7 @@
             o.teslim, etkinDurum(o)]) },
         { ad: 'Son stok hareketleri',
           basliklar: ['Malzeme', 'Hareket', 'Miktar', 'Tarih', 'Kaynak', 'Açıklama'],
-          satirlar: S.get('hareketler').slice(0, 20).map((h) => {
+          satirlar: S.aktif('hareketler').slice(0, 20).map((h) => {
             const m = stoklar.find((s) => s.kod === h.malzeme);
             return [m ? m.ad : h.malzeme, h.tur, num2(h.miktar), h.tarih, h.kaynak || '—', h.aciklama || '—'];
           }) }
@@ -2612,7 +2682,7 @@
           <label class="alan" style="margin-bottom:12px">
             <span>Taşeron</span>
             <select id="raporTaseron">
-              ${S.get('taseronlar').map((t) => `<option value="${t.id}" ${state.raporTaseron === t.id ? 'selected' : ''}>${t.ad}</option>`).join('')}
+              ${S.aktif('taseronlar').map((t) => `<option value="${t.id}" ${state.raporTaseron === t.id ? 'selected' : ''}>${t.ad}</option>`).join('')}
             </select></label>` : ''}
         <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
           ${r.icerik.map((i) => `<span class="badge">${i}</span>`).join('')}
@@ -2624,8 +2694,8 @@
       </div>`;
     };
 
-    const projeler = S.get('projeler');
-    const hakedisler = S.get('hakedisler');
+    const projeler = S.aktif('projeler');
+    const hakedisler = S.aktif('hakedisler');
     const donemler = {};
     hakedisler.forEach((h) => { donemler[h.donem] = (donemler[h.donem] || 0) + hakedisBrut(h) / 1e6; });
 
@@ -2668,19 +2738,19 @@
   /* Panel genelindeki riskleri tek listede toplar */
   function riskGundemi() {
     const liste = [];
-    S.get('kaliteKontrol').filter((q) => (q.sonuc === 'Red' || q.sonuc === 'Şartlı Onay') && !q.tekrarKayit)
+    S.aktif('kaliteKontrol').filter((q) => (q.sonuc === 'Red' || q.sonuc === 'Şartlı Onay') && !q.tekrarKayit)
       .forEach((q) => liste.push({ baslik: q.imalat, ayrinti: taseronAd(q.taseron) + ' · kalite ' + q.sonuc,
                                    seviye: q.sonuc === 'Red' ? 'Yüksek' : 'Orta' }));
-    S.get('siparisler').filter((o) => etkinDurum(o) === 'Gecikmeli')
+    S.aktif('siparisler').filter((o) => etkinDurum(o) === 'Gecikmeli')
       .forEach((o) => liste.push({ baslik: o.malzeme + ' teslimi gecikti',
                                    ayrinti: o.tedarikci + ' · planlanan ' + o.teslim, seviye: 'Yüksek' }));
-    S.get('stok').filter(stokKritikMi)
+    S.aktif('stok').filter(stokKritikMi)
       .forEach((s) => liste.push({ baslik: s.ad + ' kritik seviyede',
                                    ayrinti: 'Kullanılabilir ' + num2(kullanilabilir(s)) + ' ' + s.birim,
                                    seviye: 'Orta' }));
-    S.get('personel').forEach((k) => personelUyarilari(k).filter((u) => u.kind === 'bad')
+    S.aktif('personel').forEach((k) => personelUyarilari(k).filter((u) => u.kind === 'bad')
       .forEach((u) => liste.push({ baslik: k.ad, ayrinti: u.metin, seviye: 'Yüksek' })));
-    S.get('isler').filter((i) => i.bitis && i.bitis < bugun() && i.durum !== 'Tamamlandı')
+    S.aktif('isler').filter((i) => i.bitis && i.bitis < bugun() && i.durum !== 'Tamamlandı')
       .forEach((i) => liste.push({ baslik: i.ad + ' süresi aştı',
                                    ayrinti: projeAd(i.proje) + ' · termin ' + i.bitis, seviye: 'Orta' }));
     return liste;
@@ -2708,14 +2778,14 @@
   function bagliKayitlar(tur, id) {
     if (tur === 'proje') {
       return [
-        { ad: 'metraj kalemi', n: S.get('metraj').filter((m) => m.proje === id).length },
-        { ad: 'pafta', n: S.get('paftalar').filter((p) => p.proje === id).length },
-        { ad: 'hakediş', n: S.get('hakedisler').filter((h) => h.proje === id).length }
+        { ad: 'metraj kalemi', n: S.aktif('metraj').filter((m) => m.proje === id).length },
+        { ad: 'pafta', n: S.aktif('paftalar').filter((p) => p.proje === id).length },
+        { ad: 'hakediş', n: S.aktif('hakedisler').filter((h) => h.proje === id).length }
       ].filter((x) => x.n);
     }
     return [
-      { ad: 'hakediş', n: S.get('hakedisler').filter((h) => h.taseron === id).length },
-      { ad: 'kalite kaydı', n: S.get('kaliteKontrol').filter((q) => q.taseron === id).length }
+      { ad: 'hakediş', n: S.aktif('hakedisler').filter((h) => h.taseron === id).length },
+      { ad: 'kalite kaydı', n: S.aktif('kaliteKontrol').filter((q) => q.taseron === id).length }
     ].filter((x) => x.n);
   }
 
@@ -2816,11 +2886,11 @@
   /* ======================================================= kullanıcılar */
   const yetkiVar = (modul, gereken) => Yetki.var(modul, gereken);
 
-  function kullaniciListesi() { return S.get('kullanicilar'); }
+  function kullaniciListesi() { return listele('kullanicilar'); }
 
   function viewKullanici() {
     const liste = kullaniciListesi();
-    const gunluk = S.get('gunluk').slice(0, 12);
+    const gunluk = S.aktif('gunluk').slice(0, 12);
     const ben = Yetki.kullanici();
     const duzenleyebilir = yetkiVar('kullanici', 'duzenle');
 
@@ -3116,7 +3186,7 @@
       dugme.disabled = true; dugme.textContent = 'Kontrol ediliyor…';
 
       const ad = String(f.get('kullaniciAdi')).trim().toLowerCase();
-      const k = S.get('kullanicilar').find((x) => x.kullaniciAdi.toLowerCase() === ad);
+      const k = S.aktif('kullanicilar').find((x) => x.kullaniciAdi.toLowerCase() === ad);
       const gecerli = k && k.durum === 'Aktif' && await Yetki.dogrula(String(f.get('sifre')), k);
 
       dugme.disabled = false; dugme.textContent = 'Giriş yap';
@@ -3218,7 +3288,7 @@
 
   /* Sihirbaz: dosya oku -> sutun eslestir -> onizle -> aktar */
   async function belgedenAktar(varsayilanTur) {
-    const projeler = S.get('projeler');
+    const projeler = S.aktif('projeler');
     if (!projeler.length) { toast('Önce bir proje tanımlayın.'); return; }
 
     const dosya = await dosyaSec('.csv,.tsv,.txt,.xlsx,.xlsm');
@@ -3339,7 +3409,7 @@
       if (secim.tur === 'metraj') {
         Object.assign(kayit, {
           proje: secim.proje, kaynak: 'Belge', guven: 1,
-          birim: kayit.birim || 'adet', birimFiyat: kayit.birimFiyat || 0,
+          birim: birimNormal(kayit.birim), birimFiyat: kayit.birimFiyat || 0,
           pafta: kayit.pafta || dosya.name, kaynakDetay: dosya.name
         });
       } else if (secim.tur === 'isler') {
@@ -3354,7 +3424,7 @@
       } else {
         Object.assign(kayit, {
           kod: kayit.kod || 'MLZ-' + String(S.get('stok').length + 1 + i).padStart(3, '0'),
-          birim: kayit.birim || 'adet', rezerve: 0,
+          birim: birimNormal(kayit.birim), rezerve: 0,
           mevcut: kayit.mevcut || 0, kritik: kayit.kritik || 0,
           birimFiyat: kayit.birimFiyat || 0,
           depo: kayit.depo || 'Merkez Depo', sonHareket: bugun()
@@ -3396,6 +3466,208 @@
     });
   }
 
+  /* ------------------------------------------- eksik düzeltme formları */
+
+  /* Taslak / reddedilmiş hakedişin künyesi ve kalem miktarları düzeltilir */
+  async function hakedisDuzenle(id) {
+    const h = S.bul('hakedisler', id);
+    if (!h) return;
+    if (h.durum !== 'Taslak' && h.durum !== 'Reddedildi') {
+      toast('Yalnızca taslak ve reddedilmiş hakedişler düzenlenebilir.');
+      return;
+    }
+    const kalemler = (h.kalemler || []).slice();
+
+    const sonuc = await UI.form({
+      baslik: h.no + ' · düzenle',
+      aciklama: 'Künye bilgilerini ve bu dönem miktarlarını güncelleyin; tutarlar yeniden hesaplanır.',
+      kaydetEtiketi: 'Değişiklikleri kaydet',
+      alanlar: [
+        { ad: 'donem', etiket: 'Dönem', zorunlu: true, deger: h.donem },
+        { ad: 'proje', etiket: 'Proje', tur: 'secim', deger: h.proje,
+          secenekler: S.aktif('projeler').map((p) => ({ deger: p.id, ad: p.ad })) },
+        { ad: 'taseron', etiket: 'Taşeron', tur: 'secim', deger: h.taseron,
+          secenekler: S.aktif('taseronlar').map((t) => ({ deger: t.id, ad: t.ad })) },
+        { ad: 'avansMahsup', etiket: 'Avans mahsubu (₺)', tur: 'number', min: 0, adim: '0.01',
+          deger: h.avansMahsup || 0 }
+      ],
+      ek: kalemler.length ? `<div class="kalem-tablo">
+             <h4>Kalem miktarları</h4>
+             <div class="table-wrap"><table>
+               <thead><tr><th>Poz</th><th>Tanım</th><th class="num">Birim fiyat</th>
+                 <th class="num">Miktar</th><th class="num">Tutar</th></tr></thead>
+               <tbody>${kalemler.map((k, i) => `<tr data-kalem-i="${i}">
+                 <td class="strong">${k.poz}</td><td>${k.tanim}</td>
+                 <td class="num">${money(k.birimFiyat)}</td>
+                 <td class="num"><input type="number" data-miktar min="0" step="0.01"
+                   value="${k.miktar}" aria-label="${k.poz} miktarı"></td>
+                 <td class="num" data-tutar>${money(k.miktar * k.birimFiyat)}</td></tr>`).join('')}</tbody>
+             </table></div>
+             <div class="ozet-blok">
+               <div class="ozet-satir"><span>İmalat bedeli</span><b id="dImalat">—</b></div>
+               <div class="ozet-satir"><span>Kesinti (${pct(KESINTI_ORANI * 100)})</span><b id="dKesinti">—</b></div>
+               <div class="ozet-satir"><span>KDV (${pct(KDV_ORANI * 100)})</span><b id="dKdv">—</b></div>
+               <div class="ozet-satir vurgu"><span>Ödenecek tutar</span><b id="dNet">—</b></div>
+             </div>
+           </div>`
+        : `<p class="modal-metin" style="margin-top:12px">Bu hakediş kalem ayrıntısı olmadan
+             oluşturulmuş; yalnızca künye bilgileri güncellenir.</p>`,
+      hazir: (kutu) => {
+        kutu.querySelector('.modal').classList.add('genis');
+        const govde = kutu.querySelector('.kalem-tablo');
+        if (!govde) return;
+        const avans = kutu.querySelector('#f_avansMahsup');
+        const ozetle = () => {
+          let imalat = 0;
+          kutu.querySelectorAll('[data-kalem-i]').forEach((tr) => {
+            const k = kalemler[Number(tr.dataset.kalemI)];
+            const m = Number(tr.querySelector('[data-miktar]').value || 0);
+            const tutar = m * k.birimFiyat;
+            tr.querySelector('[data-tutar]').textContent = money(tutar);
+            imalat += tutar;
+          });
+          const t = hakedisHesapla([{ miktar: imalat, birimFiyat: 1 }], Number(avans.value || 0));
+          kutu.querySelector('#dImalat').textContent = money(t.imalat);
+          kutu.querySelector('#dKesinti').textContent = '-' + money(t.kesinti);
+          kutu.querySelector('#dKdv').textContent = money(t.kdv);
+          kutu.querySelector('#dNet').textContent =
+            money(t.imalat - t.kesinti - t.avansMahsup + t.kdv);
+        };
+        govde.addEventListener('input', ozetle);
+        avans.addEventListener('input', ozetle);
+        ozetle();
+      },
+      topla: (kutu) => {
+        const yeni = kalemler.map((k, i) => {
+          const tr = kutu.querySelector(`[data-kalem-i="${i}"]`);
+          return { ...k, miktar: tr ? Number(tr.querySelector('[data-miktar]').value || 0) : k.miktar };
+        }).filter((k) => k.miktar > 0);
+        return { kalemler: yeni };
+      },
+      dogrula: (c) => (kalemler.length && !c.kalemler.length)
+        ? 'En az bir kalemin miktarı sıfırdan büyük olmalı.' : null
+    });
+    if (!sonuc) return;
+
+    const tutarlar = sonuc.kalemler.length
+      ? hakedisHesapla(sonuc.kalemler, sonuc.avansMahsup)
+      : hakedisHesapla([{ miktar: h.imalat, birimFiyat: 1 }], sonuc.avansMahsup);
+
+    S.guncelle('hakedisler', id, {
+      donem: sonuc.donem, proje: sonuc.proje, taseron: sonuc.taseron,
+      kalemler: sonuc.kalemler.length ? sonuc.kalemler : h.kalemler,
+      ...tutarlar
+    });
+    toast(h.no + ' güncellendi · ' + money(hakedisBrut(S.bul('hakedisler', id))));
+  }
+
+  /* Kalite kaydının künyesi ve madde işaretleri düzeltilir */
+  async function kaliteDuzenle(id) {
+    const q = S.bul('kaliteKontrol', id);
+    if (!q) return;
+    const maddeler = (q.maddeler || []).slice();
+
+    const sonuc = await UI.form({
+      baslik: q.id + ' · düzenle',
+      aciklama: 'Kayıt bilgilerini ve madde işaretlerini düzeltin; puan yeniden hesaplanır.',
+      kaydetEtiketi: 'Kaydı güncelle',
+      alanlar: [
+        { ad: 'imalat', etiket: 'İmalat / mahal', zorunlu: true, genis: true, deger: q.imalat },
+        { ad: 'taseron', etiket: 'Taşeron', tur: 'secim', deger: q.taseron,
+          secenekler: S.aktif('taseronlar').map((t) => ({ deger: t.id, ad: t.ad })) },
+        { ad: 'kontrolor', etiket: 'Kontrolör', zorunlu: true, deger: q.kontrolor },
+        { ad: 'tarih', etiket: 'Kontrol tarihi', tur: 'date', deger: q.tarih },
+        { ad: 'tamamlanma', etiket: 'İmalat tamamlanma (%)', tur: 'number', min: 0, deger: q.tamamlanma }
+      ],
+      ek: maddeler.length ? `<div class="kalem-tablo">
+             <h4>Kontrol maddeleri</h4>
+             <div class="table-wrap"><table>
+               <thead><tr><th>Madde</th>${KALITE_DURUM.map((d) => `<th class="num">${d}</th>`).join('')}<th>Not</th></tr></thead>
+               <tbody>${maddeler.map((m, i) => `<tr data-madde="${i}">
+                 <td><b>${m.ad}</b><div class="muted">ağırlık ${m.agirlik}</div></td>
+                 ${KALITE_DURUM.map((d) => `<td class="num"><label class="secim-hucre">
+                   <input type="radio" name="dm_${i}" value="${d}" ${m.durum === d ? 'checked' : ''}>
+                 </label></td>`).join('')}
+                 <td><input type="text" data-not class="madde-not" value="${m.not || ''}"></td>
+               </tr>`).join('')}</tbody>
+             </table></div>
+             <div class="ozet-blok">
+               <div class="ozet-satir vurgu"><span>Kalite puanı</span><b id="dSkor">—</b></div>
+               <div class="ozet-satir"><span>Sonuç</span><b id="dSonuc">—</b></div>
+             </div>
+           </div>`
+        : `<p class="modal-metin" style="margin-top:12px">Bu kayıt şablon öncesi girildiği için
+             madde dökümü yok; yalnızca künye bilgileri güncellenir.</p>`,
+      hazir: (kutu) => {
+        if (!maddeler.length) return;
+        kutu.querySelector('.modal').classList.add('genis');
+        const ozetle = () => {
+          const guncel = maddeler.map((m, i) => {
+            const sec = kutu.querySelector(`input[name="dm_${i}"]:checked`);
+            return { ...m, durum: sec ? sec.value : m.durum };
+          });
+          const skor = kaliteSkor(guncel);
+          kutu.querySelector('#dSkor').textContent = skor === null ? '—' : '%' + skor;
+          const s2 = skor === null ? '—' : skorSonuc(skor);
+          const el = kutu.querySelector('#dSonuc');
+          el.textContent = s2;
+          el.style.color = s2 === 'Onaylandı' ? 'var(--ok)' : s2 === 'Red' ? 'var(--bad)' : 'var(--warn)';
+        };
+        kutu.querySelector('.kalem-tablo').addEventListener('change', ozetle);
+        ozetle();
+      },
+      topla: (kutu) => ({
+        maddeler: maddeler.map((m, i) => {
+          const tr = kutu.querySelector(`[data-madde="${i}"]`);
+          if (!tr) return m;
+          const sec = tr.querySelector(`input[name="dm_${i}"]:checked`);
+          const not = tr.querySelector('[data-not]');
+          return { ...m, durum: sec ? sec.value : m.durum, not: not ? not.value.trim() : m.not };
+        })
+      })
+    });
+    if (!sonuc) return;
+
+    const skor = kaliteSkor(sonuc.maddeler);
+    S.guncelle('kaliteKontrol', id, {
+      imalat: sonuc.imalat, taseron: sonuc.taseron, kontrolor: sonuc.kontrolor,
+      tarih: sonuc.tarih, tamamlanma: Math.max(0, Math.min(100, sonuc.tamamlanma)),
+      maddeler: sonuc.maddeler,
+      skor: skor === null ? q.skor : skor,
+      sonuc: skor === null ? q.sonuc : skorSonuc(skor),
+      notlar: sonuc.maddeler.filter((m) => m.durum === 'Uygun Değil')
+                .map((m) => m.ad + (m.not ? ' (' + m.not + ')' : '')).join('; ') || 'Sapma kaydedilmedi.'
+    });
+    toast(q.id + ' güncellendi.');
+  }
+
+  /* Pafta üstverisi düzeltilir (dosya içeriği değişmez) */
+  async function paftaDuzenle(id) {
+    const d = S.bul('paftalar', id);
+    if (!d) return;
+    const sonuc = await UI.form({
+      baslik: d.ad + ' · düzenle',
+      aciklama: 'Dosya içeriği korunur; yalnızca sınıflandırma bilgileri güncellenir.',
+      kaydetEtiketi: 'Güncelle',
+      alanlar: [
+        { ad: 'ad', etiket: 'Dosya adı', zorunlu: true, genis: true, deger: d.ad },
+        { ad: 'tur', etiket: 'Pafta türü', tur: 'secim', deger: d.tur,
+          secenekler: ['Kat Planı', 'Kesit', 'Görünüş', 'Detay', 'Kalıp Planı', 'Şema'] },
+        { ad: 'disiplin', etiket: 'Disiplin', tur: 'secim', deger: d.disiplin,
+          secenekler: ['Mimari', 'Statik', 'Mekanik', 'Elektrik', 'Altyapı', 'Peyzaj'] },
+        { ad: 'proje', etiket: 'Proje', tur: 'secim', deger: d.proje,
+          secenekler: S.aktif('projeler').map((p) => ({ deger: p.id, ad: p.ad })) },
+        { ad: 'rev', etiket: 'Revizyon', deger: d.rev },
+        { ad: 'olcek', etiket: 'Ölçek', deger: d.olcek },
+        { ad: 'durum', etiket: 'Durum', tur: 'secim', deger: d.durum,
+          secenekler: ['İşlendi', 'Kuyrukta', 'Önizleme', 'Arşiv', 'Hata'] }
+      ]
+    });
+    if (!sonuc) return;
+    S.guncelle('paftalar', id, sonuc);
+    toast(sonuc.ad + ' güncellendi.');
+  }
+
   /* ------------------------------------------------------- yonlendirme */
   function currentRoute() {
     const id = (location.hash || '#ozet').slice(1);
@@ -3414,7 +3686,8 @@
     menuyuYaz();
     const route = currentRoute();
     if (location.hash.slice(1) !== route) { location.hash = '#' + route; return; }
-    document.getElementById('view').innerHTML = VIEWS[route]();
+    document.getElementById('view').innerHTML =
+      (state.arsivGoster ? arsivSeridi() : '') + VIEWS[route]();
     izinleriUygula(route);
     document.querySelectorAll('.nav a').forEach((a) =>
       a.classList.toggle('is-active', a.getAttribute('href') === '#' + route));
@@ -3489,6 +3762,30 @@
       state.hakedisDurum = hakedisDurum.value; render();
     });
 
+    /* --- düzeltme formları --- */
+    tikla('[data-hakedis-duzenle]', (b) => hakedisDuzenle(b.dataset.hakedisDuzenle));
+    tikla('[data-kalite-duzenle]', (b) => kaliteDuzenle(b.dataset.kaliteDuzenle));
+    tikla('[data-pafta-duzenle]', (b) => paftaDuzenle(b.dataset.paftaDuzenle));
+
+    /* --- arşiv --- */
+    tikla('[data-arsiv-mod]', () => { state.arsivGoster = !state.arsivGoster; render(); });
+    tikla('[data-arsivle]', async (b) => {
+      const [kol, id] = b.dataset.arsivle.split('|');
+      const kayit = S.bul(kol, id);
+      if (!kayit) return;
+      const ad = kayit.ad || kayit.no || kayit.poz || kayit.id || 'Kayıt';
+      if (await UI.onay('Arşivle', `${ad} arşive taşınacak. Listelerden ve hesaplamalardan çıkar, ` +
+                        'istediğinizde arşivden geri alabilirsiniz.', 'Arşivle')) {
+        S.arsivle(kol, id, true);
+        toast(ad + ' arşive taşındı.');
+      }
+    });
+    tikla('[data-arsiv-geri]', (b) => {
+      const [kol, id] = b.dataset.arsivGeri.split('|');
+      const kayit = S.arsivle(kol, id, false);
+      if (kayit) toast((kayit.ad || kayit.no || kayit.poz || kayit.id) + ' arşivden çıkarıldı.');
+    });
+
     /* --- belgeden içe aktarma --- */
     tikla('[data-act="ice-metraj"]', () => belgedenAktar('metraj'));
     tikla('[data-act="ice-isler"]', () => belgedenAktar('isler'));
@@ -3513,7 +3810,7 @@
       if (!await UI.onay('İşi sil',
         `${is.ad} silinecek.` + (tahsis ? ` ${tahsis} malzeme tahsisi rezerveden düşülecek.` : ''), 'Sil')) return;
       (is.malzemeler || []).forEach((k) => {
-        const m = S.get('stok').find((x) => x.kod === k.kod);
+        const m = S.aktif('stok').find((x) => x.kod === k.kod);
         if (m) S.guncelle('stok', m._id, { rezerve: Math.max(0, m.rezerve - k.miktar) });
       });
       S.sil('isler', is._id);
@@ -3532,10 +3829,10 @@
     tikla('[data-personel-sil]', async (b) => {
       const k = S.bul('personel', b.dataset.personelSil);
       if (!k) return;
-      const gorevli = S.get('isler').filter((i) => (i.personelIds || []).includes(k.id)).length;
+      const gorevli = S.aktif('isler').filter((i) => (i.personelIds || []).includes(k.id)).length;
       if (!await UI.onay('Personeli sil',
         `${k.ad} silinecek.` + (gorevli ? ` ${gorevli} işteki görevlendirmesi kaldırılacak.` : ''), 'Sil')) return;
-      S.get('isler').forEach((i) => {
+      S.aktif('isler').forEach((i) => {
         if ((i.personelIds || []).includes(k.id)) {
           S.guncelle('isler', i._id, { personelIds: i.personelIds.filter((x) => x !== k.id) });
         }
@@ -3742,7 +4039,7 @@
       b.addEventListener('click', () => { location.hash = '#' + b.dataset.route; }));
     document.querySelector('[data-rail="veri"]').addEventListener('click', veriYonetimi);
     document.querySelector('[data-rail="bildirim"]').addEventListener('click', () => {
-      const bekleyen = S.get('hakedisler').filter((h) => h.durum === 'Onay Bekliyor').length;
+      const bekleyen = S.aktif('hakedisler').filter((h) => h.durum === 'Onay Bekliyor').length;
       const kritik = kritikStok().length;
       toast(`${bekleyen} hakediş onay bekliyor · ${kritik} malzeme kritik seviyede`);
     });
@@ -3776,7 +4073,9 @@
         '[data-pafta-sil], [data-is-duzenle], [data-is-sil],' +
         '[data-taseron-duzenle], [data-taseron-sil], [data-proje-duzenle], [data-proje-sil],' +
         '[data-personel-duzenle], [data-personel-sil], [data-puantaj-gir],' +
-        '[data-kalite-tekrar], [data-kalite-sil], [data-hakedis-sil],' +
+        '[data-kalite-tekrar], [data-kalite-sil], [data-kalite-duzenle],' +
+        '[data-hakedis-sil], [data-hakedis-duzenle], [data-pafta-duzenle],' +
+        '[data-arsivle], [data-arsiv-geri],' +
         '[data-stok-duzenle], [data-stok-sil], [data-stok-hareket], [data-stok-talep],' +
         '[data-siparis-duzenle], [data-siparis-sil],' +
         '[data-kullanici-duzenle], [data-kullanici-sil], [data-kullanici-sifre],' +
@@ -3805,7 +4104,7 @@
     S.abone(() => { if (Yetki.kullanici()) render(); });
 
     if (!S.get('kullanicilar').length) { kurulumEkrani(); return; }
-    if (!Yetki.oturumYukle(S.get('kullanicilar'))) { girisEkrani(''); return; }
+    if (!Yetki.oturumYukle(S.aktif('kullanicilar'))) { girisEkrani(''); return; }
     kabukGoster(true);
     mountPanel();
   }

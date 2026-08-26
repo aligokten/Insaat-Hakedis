@@ -2,7 +2,7 @@
    Tum kayitlar tarayicinin localStorage'inda saklanir; ilk acilista
    data.js icindeki ornek veri tohum olarak yazilir. */
 window.Store = (function () {
-  const KEY = 'insaat-hakedis:v1';
+  const KEY = 'insaat-hakedis:v2';
   const KOLEKSIYONLAR = ['projeler', 'paftalar', 'metraj', 'taseronlar', 'isler',
                          'personel', 'puantaj', 'kaliteKontrol', 'hakedisler',
                          'stok', 'hareketler', 'siparisler', 'raporlar',
@@ -17,7 +17,7 @@ window.Store = (function () {
   }
 
   function tohum() {
-    const veri = { _v: 1, yetkiler: {} };
+    const veri = { _v: 2, yetkiler: {} };
     KOLEKSIYONLAR.forEach((k) => {
       veri[k] = JSON.parse(JSON.stringify(window.DB[k] || [])).map((x) => ({ ...x, _id: uid(k.slice(0, 3).toUpperCase()) }));
     });
@@ -30,7 +30,7 @@ window.Store = (function () {
       const ham = localStorage.getItem(KEY);
       if (ham) {
         const c = JSON.parse(ham);
-        if (c && c._v === 1) return c;
+        if (c && c._v === 2) return c;
       }
     } catch (e) { /* bozuk kayit: tohumla devam */ }
     return tohum();
@@ -108,6 +108,21 @@ window.Store = (function () {
     return true;
   }
 
+  /* Arsivleme: kayit silinmez, listelerden gizlenir ve geri alinabilir */
+  function arsivle(koleksiyon, id, arsivli) {
+    const kayit = bul(koleksiyon, id);
+    if (!kayit) return null;
+    kayit.arsivli = arsivli !== false;
+    kayit.arsivTarih = kayit.arsivli ? new Date().toISOString() : '';
+    gunlukYaz(kayit.arsivli ? 'arşivledi' : 'arşivden çıkardı', koleksiyon, kayit);
+    kaydet(); bildir({ tur: 'arsiv', koleksiyon, kayit });
+    return kayit;
+  }
+
+  /* Yalnizca arsivlenmemis kayitlar */
+  const aktif = (koleksiyon) => get(koleksiyon).filter((x) => !x.arsivli);
+  const arsivdekiler = (koleksiyon) => get(koleksiyon).filter((x) => x.arsivli);
+
   /* taseron yetkileri ayri tutulur (taseron kaydindan bagimsiz duzenlenir) */
   function yetkiler(taseronId) {
     if (!db) db = yukle();
@@ -139,12 +154,13 @@ window.Store = (function () {
     if (!gelen || typeof gelen !== 'object' || !Array.isArray(gelen.projeler)) {
       throw new Error('Dosya bu panele ait bir yedek gibi gorunmuyor.');
     }
-    gelen._v = 1;
+    gelen._v = 2;
     gelen.yetkiler = gelen.yetkiler || {};
     KOLEKSIYONLAR.forEach((k) => { if (!Array.isArray(gelen[k])) gelen[k] = []; });
     db = gelen; kaydet(); bildir({ tur: 'iceAktar' });
   }
 
-  return { get, bul, ekle, guncelle, sil, yetkiler, yetkiDegistir, gunlukYaz,
+  return { get, aktif, arsivdekiler, arsivle, bul, ekle, guncelle, sil,
+           yetkiler, yetkiDegistir, gunlukYaz,
            abone, sifirla, disaAktar, iceAktar, uid, KOLEKSIYONLAR };
 })();
