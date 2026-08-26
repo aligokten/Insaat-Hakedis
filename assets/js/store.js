@@ -1,6 +1,10 @@
 /* Kalici veri katmani.
-   Tum kayitlar tarayicinin localStorage'inda saklanir; ilk acilista
-   data.js icindeki ornek veri tohum olarak yazilir. */
+   Iki modda calisir:
+     yerel  - kayitlar yalnizca bu tarayicinin localStorage'inda durur
+     bulut  - kayitlar Supabase'de tutulur, tum kullanicilar ayni veriyi gorur
+   Her iki modda da okuma es zamanlidir: bellekte tutulan onbellek okunur.
+   Bulut modunda yazma once onbellege islenir, ardindan sunucuya gonderilir;
+   sunucu reddederse degisiklik geri alinir. */
 window.Store = (function () {
   const KEY = 'insaat-hakedis:v2';
   const KOLEKSIYONLAR = ['projeler', 'paftalar', 'metraj', 'taseronlar', 'isler',
@@ -9,7 +13,9 @@ window.Store = (function () {
                          'kullanicilar', 'gunluk'];
 
   let db = null;
+  let mod = 'yerel';                 // yerel | bulut
   const aboneler = [];
+  const AYAR_ID = 'yetkiler';        // taseron yetki haritasinin bulut kaydi
 
   function uid(onek) {
     return (onek || 'K') + '-' + Date.now().toString(36).slice(-5).toUpperCase() +
@@ -38,13 +44,33 @@ window.Store = (function () {
 
   function kaydet() {
     try {
-      localStorage.setItem(KEY, JSON.stringify(db));
+      localStorage.setItem(mod === 'bulut' ? KEY + ':bulut' : KEY, JSON.stringify(db));
     } catch (e) {
       console.warn('Kayit basarisiz:', e);
       if (window.UI) window.UI.toast('Tarayici depolama alani dolu, kayit yapilamadi.');
       return false;
     }
     return true;
+  }
+
+  /* Bulut yazmasi: basarisiz olursa kullaniciyi uyarir ve onbellegi tazeler */
+  function buluta(islem, koleksiyon, kayit) {
+    if (mod !== 'bulut' || !window.Bulut) return;
+    const is = islem === 'sil' ? window.Bulut.sil(koleksiyon, kayit._id)
+                               : window.Bulut.yaz(koleksiyon, kayit);
+    is.catch((e) => {
+      console.error('Bulut yazma hatası:', e);
+      if (window.UI) {
+        window.UI.toast('Kayıt sunucuya yazılamadı: ' + (e.message || e) +
+                        ' — sayfayı yenileyin.');
+      }
+    });
+  }
+
+  /* Taseron yetki haritasi tek kayit olarak saklanir */
+  function yetkileriYaz() {
+    if (mod !== 'bulut') return;
+    buluta('yaz', 'ayarlar', { _id: AYAR_ID, ...db.yetkiler });
   }
 
   function bildir(olay) {
@@ -65,7 +91,8 @@ window.Store = (function () {
       kayit: kayit ? (kayit.ad || kayit.no || kayit.id || kayit.poz || kayit._id) : '',
       tarih: new Date().toISOString()
     });
-    if (db.gunluk.length > 500) db.gunluk.length = 500;   // gunluk sinirsiz buyumesin
+    if (mod === 'bulut') buluta('yaz', 'gunluk', db.gunluk[0]);
+    if (db.gunluk.length > 500) db.gunluk.length = 500;   // onbellek sinirsiz buyumesin
   }
 
   /* ------------------------------------------------------------------ API */
@@ -85,7 +112,8 @@ window.Store = (function () {
     const yeni = { ...kayit, _id: kayit._id || uid(koleksiyon.slice(0, 3).toUpperCase()) };
     get(koleksiyon).unshift(yeni);
     gunlukYaz('ekledi', koleksiyon, yeni);
-    kaydet(); bildir({ tur: 'ekle', koleksiyon, kayit: yeni });
+    kaydet(); buluta('yaz', koleksiyon, yeni);
+    bildir({ tur: 'ekle', koleksiyon, kayit: yeni });
     return yeni;
   }
 
@@ -94,7 +122,8 @@ window.Store = (function () {
     if (!kayit) return null;
     Object.assign(kayit, yama);
     gunlukYaz('güncelledi', koleksiyon, kayit);
-    kaydet(); bildir({ tur: 'guncelle', koleksiyon, kayit });
+    kaydet(); buluta('yaz', koleksiyon, kayit);
+    bildir({ tur: 'guncelle', koleksiyon, kayit });
     return kayit;
   }
 
@@ -104,7 +133,8 @@ window.Store = (function () {
     if (i < 0) return false;
     const [kayit] = liste.splice(i, 1);
     gunlukYaz('sildi', koleksiyon, kayit);
-    kaydet(); bildir({ tur: 'sil', koleksiyon, kayit });
+    kaydet(); buluta('sil', koleksiyon, kayit);
+    bildir({ tur: 'sil', koleksiyon, kayit });
     return true;
   }
 
@@ -115,7 +145,8 @@ window.Store = (function () {
     kayit.arsivli = arsivli !== false;
     kayit.arsivTarih = kayit.arsivli ? new Date().toISOString() : '';
     gunlukYaz(kayit.arsivli ? 'arşivledi' : 'arşivden çıkardı', koleksiyon, kayit);
-    kaydet(); bildir({ tur: 'arsiv', koleksiyon, kayit });
+    kaydet(); buluta('yaz', koleksiyon, kayit);
+    bildir({ tur: 'arsiv', koleksiyon, kayit });
     return kayit;
   }
 
@@ -134,7 +165,8 @@ window.Store = (function () {
     const liste = yetkiler(taseronId);
     const i = liste.indexOf(anahtar);
     if (i > -1) liste.splice(i, 1); else liste.push(anahtar);
-    kaydet(); bildir({ tur: 'yetki', taseronId, anahtar, acik: i === -1 });
+    kaydet(); yetkileriYaz();
+    bildir({ tur: 'yetki', taseronId, anahtar, acik: i === -1 });
     return i === -1;
   }
 
@@ -160,7 +192,50 @@ window.Store = (function () {
     db = gelen; kaydet(); bildir({ tur: 'iceAktar' });
   }
 
+  /* ------------------------------------------------------------- bulut */
+
+  /* Sunucudan gelen anlik goruntuyu onbellege alir ve bulut moduna gecer */
+  function bulutaGec(anlik) {
+    const veri = { _v: 2, yetkiler: {} };
+    KOLEKSIYONLAR.forEach((k) => { veri[k] = Array.isArray(anlik[k]) ? anlik[k] : []; });
+    const ayar = (anlik.ayarlar || []).find((x) => x._id === AYAR_ID);
+    if (ayar) {
+      Object.keys(ayar).forEach((k) => { if (k !== '_id') veri.yetkiler[k] = ayar[k]; });
+    }
+    db = veri; mod = 'bulut';
+    kaydet(); bildir({ tur: 'bulutYuklendi' });
+  }
+
+  /* Baska bir kullanicinin degisikligini onbellege isler (sunucuya geri yazmaz) */
+  function uzaktanUygula(olay) {
+    if (mod !== 'bulut' || !olay || !olay.koleksiyon) return;
+    if (olay.koleksiyon === 'ayarlar') {
+      if (olay.kayit && olay.kayit._id === AYAR_ID) {
+        db.yetkiler = {};
+        Object.keys(olay.kayit).forEach((k) => { if (k !== '_id') db.yetkiler[k] = olay.kayit[k]; });
+        kaydet(); bildir({ tur: 'uzak', koleksiyon: 'ayarlar' });
+      }
+      return;
+    }
+    if (KOLEKSIYONLAR.indexOf(olay.koleksiyon) < 0) return;
+    const liste = get(olay.koleksiyon);
+    const i = liste.findIndex((x) => x._id === olay.kayit._id);
+    if (olay.tur === 'sil') {
+      if (i < 0) return;
+      liste.splice(i, 1);
+    } else if (i > -1) {
+      liste[i] = olay.kayit;
+    } else {
+      liste.unshift(olay.kayit);
+    }
+    kaydet();
+    bildir({ tur: 'uzak', koleksiyon: olay.koleksiyon, kayit: olay.kayit, eylem: olay.tur });
+  }
+
+  const kaynak = () => mod;
+
   return { get, aktif, arsivdekiler, arsivle, bul, ekle, guncelle, sil,
            yetkiler, yetkiDegistir, gunlukYaz,
-           abone, sifirla, disaAktar, iceAktar, uid, KOLEKSIYONLAR };
+           abone, sifirla, disaAktar, iceAktar, uid, KOLEKSIYONLAR,
+           bulutaGec, uzaktanUygula, kaynak };
 })();

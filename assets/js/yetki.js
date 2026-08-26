@@ -104,6 +104,9 @@ window.Yetki = (function () {
 
   const kullanici = () => aktif;
 
+  /* Bulut modunda oturumu Supabase tutar; panel yalnizca aktif kullaniciyi bilir */
+  function ata(k) { aktif = k || null; return aktif; }
+
   /* ------------------------------------------------------------- izinler */
   function izinler(k) {
     const taban = ROLLER[(k || aktif || {}).rol] || {};
@@ -122,6 +125,6 @@ window.Yetki = (function () {
 
   return { MODULLER, SEVIYE, SEVIYE_ADI, ROLLER,
            saltUret, hashla, dogrula, sifreAta,
-           oturumAc, oturumKapat, oturumYukle, oturumOku, kullanici,
+           oturumAc, oturumKapat, oturumYukle, oturumOku, kullanici, ata,
            izinler, seviye, var: var_, gorunurModuller };
 })();

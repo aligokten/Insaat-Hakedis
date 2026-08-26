@@ -5,6 +5,13 @@ ilerleme kartları) inşaat proje yönetimi için klonlanmış hâli; **Liquid G
 
 **Canlı:** https://aligokten.github.io/Insaat-Hakedis/
 
+Panel iki modda çalışır:
+
+- **Yerel mod (varsayılan):** veriler yalnızca o tarayıcıda saklanır, tek kişiliktir.
+- **Ortak mod:** bir Supabase projesi tanımlandığında tüm kullanıcılar aynı veriyi
+  görür, kayıtlar diğer ekranlara anlık yansır, yetkiler sunucuda da denetlenir.
+  Kurulum: [`supabase/KURULUM.md`](supabase/KURULUM.md)
+
 Bağımlılığı yok — `index.html` dosyasını tarayıcıda açmanız da yeterli.
 
 ```
@@ -30,7 +37,7 @@ lisans sahibi **Ali Gökten**, iletişim bilgileri ve telif notu.
 | **Hakediş** ✅ | Metraj kalemlerinden hakediş oluşturma (canlı tutar özeti), kesinti/avans/KDV hesabı, Taslak → Kontrolde → Onay Bekliyor → Onaylandı akışı, red gerekçesi, kalem detayı ve CSV |
 | **Stok** ✅ | Malzeme kartı ekle/düzenle/sil, depo filtresi, giriş · çıkış · rezerve · sayım hareketleri (sınır kontrollü), hareket geçmişi, kritik seviye uyarısı, CSV |
 | **Tedarik** ✅ | Sipariş oluştur/düzenle/sil, Onay Bekliyor → Onaylandı → Yolda → Teslim Edildi akışı, teslim alındığında otomatik stok girişi, tarihe göre otomatik gecikme, teslim takvimi, CSV |
-| **Kullanıcılar** ✅ | Kullanıcı ekle/düzenle/sil, rol atama, modül bazlı izin matrisi, şifre sıfırlama, işlem günlüğü (kim neyi ne zaman değiştirdi) |
+| **Kullanıcılar** ✅ | Kullanıcı ekle/düzenle/sil, rol atama, modül bazlı izin matrisi, şifre yönetimi, işlem günlüğü (kim neyi ne zaman değiştirdi), bulut bağlantısı kartı |
 | **Raporlar** ✅ | Dört rapor türü panel verisinden anlık üretilir (Üst Yönetim Özeti, Taşeron Bilgi Raporu, Personel ve Puantaj Raporu, Malzeme ve Tedarik Bülteni); A4 düzeninde yazdırılabilir çıktı (Yazdır → PDF) veya CSV, imza blokları dâhil |
 
 Sağ üstteki **Yönetici / Taşeron** anahtarı rolü değiştirir; taşeron rolünde hakediş
@@ -41,6 +48,10 @@ onay butonları gizlenir.
 ```
 index.html               iskelet (topbar, ikon rayı, görünüm konteyneri)
 assets/css/style.css     tasarım sistemi: renk/tipografi token'ları, kart, tablo, rozet, grafik stilleri
+assets/js/yapilandirma.js Supabase adresi ve anon anahtarı (boşsa yerel mod)
+assets/js/bulut.js       ortak mod: oturum, veri okuma/yazma, anlık yayın
+supabase/sema.sql        veritabanı şeması, yetki fonksiyonları ve RLS kuralları
+supabase/KURULUM.md      çok kullanıcılı kuruluma dair adım adım rehber
 assets/js/data.js        demo veri katmanı (projeler, paftalar, metraj, taşeron, kalite, hakediş, stok, sipariş, rapor)
 assets/js/ui.js          ikon seti, TR sayı/para biçimlendirme, donut · yay · çizgi · sütun grafik üreticileri
 assets/js/app.js         hash tabanlı yönlendirici, dokuz görünüm ve etkileşimler
@@ -273,6 +284,23 @@ Converter gibi bir dönüştürücü eklenirse DWG→DXF dönüşümü otomatikl
 
 Dosya içerikleri IndexedDB'de (`insaat-hakedis-dosya`) saklanır, sunucuya gönderilmez.
 Aynı ada sahip dosya yeniden yüklendiğinde revizyon harfi ilerler (A → B → C).
+
+## Çok kullanıcılı çalışma
+
+`assets/js/yapilandirma.js` doldurulduğunda panel ortak moda geçer:
+
+| Konu | Davranış |
+|---|---|
+| Giriş | Kullanıcı kodu + şifre (Supabase Auth). Kod `kod@alanadi` biçiminde teknik bir e-postaya çevrilir. |
+| Veri | Tüm kayıtlar `public.kayitlar` tablosunda; panel açılışta hepsini çekip bellekte tutar, ekranlar bu önbellekten çizilir. |
+| Yazma | Önce ekranda uygulanır, hemen sunucuya gönderilir. Sunucu reddederse uyarı çıkar. |
+| Anlık yayın | Supabase Realtime aboneliği; kanal kurulamazsa 12 saniyelik yoklamaya düşülür. |
+| Silme | Yumuşak silme: satır `silindi=true` işaretlenir, böylece silme de diğer kullanıcılara ulaşır. |
+| Yetki | Menü ve düğmeler panelde gizlenir **ve** her yazma isteği sunucuda RLS ile ayrıca denetlenir. |
+| Çakışma | Aynı kaydı aynı anda iki kişi düzenlerse son yazan kazanır; işlem günlüğünde ikisi de görünür. |
+| Dosyalar | Pafta/fotoğraf içerikleri buluta gönderilmez, yükleyenin tarayıcısında kalır. Diğerleri künyeyi ve küçük resmi görür. |
+
+Ayrıntı ve sınırlar: [`supabase/KURULUM.md`](supabase/KURULUM.md)
 
 ## Lisans ve haklar
 

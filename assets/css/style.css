@@ -1193,6 +1193,29 @@ tfoot td { padding: 12px; border-top: 2px solid var(--line); font-weight: 600; f
 .arsiv-serit .spacer { flex: 1; }
 
 
+/* Baglanti rozeti (ust cubuk) */
+.bag-durum {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px; border-radius: 999px;
+  font-size: 11px; font-weight: 600; white-space: nowrap;
+  background: var(--surface-2); color: var(--ink-2);
+  border: 1px solid var(--line-soft);
+}
+.bag-durum i { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-3); flex: none; }
+.bag-durum.ok i { background: var(--ok); }
+.bag-durum.bekle i { background: var(--warn); animation: nabiz 1.2s ease-in-out infinite; }
+.bag-durum.hata i { background: var(--bad); }
+.bag-durum.hata { color: var(--bad); }
+@keyframes nabiz { 50% { opacity: .25; } }
+@media (max-width: 1180px) { .bag-durum { display: none; } }
+
+/* Giris ekranindaki ikincil baglanti */
+.giris-alt { margin: 14px 0 0; font-size: 12px; color: var(--ink-3); text-align: center; }
+.bag-dugme {
+  border: 0; background: none; padding: 0; cursor: pointer;
+  color: var(--accent); font: inherit; text-decoration: underline;
+}
+
 /* Puantaj hucresi: durum rozeti + duzelt/sil dugmeleri */
 .puantaj-hucre { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .puantaj-hucre .ikon-btn { opacity: .55; }

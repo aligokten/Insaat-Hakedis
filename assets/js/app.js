@@ -551,6 +551,8 @@
           alanM2: toplamAlan,
           kucukResim,
           dosyaId,
+          yukleyen: (Yetki.kullanici() || {}).ad || '',
+          yukleyenKod: (Yetki.kullanici() || {}).kullaniciAdi || '',
           not: coz.not || ''
         });
         eklenen++;
@@ -561,6 +563,13 @@
     toast(hata ? `${eklenen} pafta yüklendi, ${hata} dosya okunamadı.`
                : `${eklenen} pafta yüklendi ve çözümlendi.`);
   }
+
+  /* Dosya icerikleri buluta gonderilmez; baska tarayicida acilamaz */
+  const dosyaYokMesaji = (d) => bulutMod() && d && d.yukleyen &&
+      d.yukleyenKod !== (Yetki.kullanici() || {}).kullaniciAdi
+    ? `Dosya içeriği ${d.yukleyen} adlı kullanıcının tarayıcısında saklı; ` +
+      'bu bilgisayardan açılamaz. Dosyayı sizinle paylaşmasını isteyin.'
+    : 'Dosya içeriği bu tarayıcıda bulunamadı.';
 
   /* ------------------------------------------------ pafta detay penceresi */
   async function paftaAc(id) {
@@ -573,13 +582,14 @@
     const secim = await UI.modal({
       baslik: d.ad,
       aciklama: `${d.format} · ${d.surum || 'sürüm bilinmiyor'} · ${d.boyut}` +
-                (d.birimAdi ? ` · çizim birimi ${d.birimAdi}` : ''),
+                (d.birimAdi ? ` · çizim birimi ${d.birimAdi}` : '') +
+                (d.yukleyen ? ` · yükleyen ${d.yukleyen}` : ''),
       icerik: `
         <div class="onizleme-alan">
           <canvas id="paftaTuval" width="860" height="440"></canvas>
           <img id="paftaResim" alt="${d.ad} önizleme" hidden>
           <iframe id="paftaPdf" title="${d.ad} önizleme" hidden></iframe>
-          <div id="paftaYok" class="empty" hidden>Bu dosya için önizleme üretilemedi.</div>
+          <div id="paftaYok" class="empty" hidden>${dosyaYokMesaji(d)}</div>
         </div>
         ${d.not ? `<p class="modal-metin" style="margin-top:10px">${d.not}</p>` : ''}
         ${varlikListe ? `<p class="modal-metin" style="margin-top:8px"><b>Varlıklar:</b> ${varlikListe}</p>` : ''}
@@ -655,7 +665,7 @@
       ]
     });
 
-    if (secim === 'indir') Dosya.indir(d.dosyaId, d.ad).catch(() => toast('Dosya bulunamadı.'));
+    if (secim === 'indir') Dosya.indir(d.dosyaId, d.ad).catch(() => toast(dosyaYokMesaji(d)));
     else if (secim === 'sil') paftaSil(id);
     else if (secim === 'metraj') metrajaAktar(id);
   }
@@ -3068,6 +3078,9 @@
 
   function kullaniciListesi() { return listele('kullanicilar'); }
 
+  /* Panel bulut modunda mi calisiyor */
+  const bulutMod = () => S.kaynak() === 'bulut';
+
   function viewKullanici() {
     const liste = kullaniciListesi();
     const gunluk = S.aktif('gunluk').slice(0, 12);
@@ -3127,6 +3140,7 @@
           <div class="card-head"><h3>Rol dağılımı</h3></div>
           ${rolSayim.length ? barChart(rolSayim, { height: 120 }) : '<div class="empty">Veri yok.</div>'}
         </div>
+        ${bulutKarti(duzenleyebilir)}
         <div class="card">
           <div class="card-head"><h3>Son işlemler</h3><div class="spacer"></div>
             <span class="hint">kim, neyi, ne zaman</span></div>
@@ -3138,6 +3152,112 @@
         </div>
       </div>
     </div>`;
+  }
+
+  /* Baglanti kartI: durum, ayarlar ve yerel veriyi buluta tasima */
+  function bulutKarti(duzenleyebilir) {
+    const d = window.Bulut ? Bulut.durumBilgi() : { durum: 'kapali', ayar: {} };
+    const a = d.ayar || {};
+    const bulut = bulutMod();
+    const rozet = { bagli: ['Bağlı', 'ok'], baglaniyor: ['Bağlanıyor', 'warn'],
+                    hata: ['Bağlantı hatası', 'bad'], kapali: ['Kapalı', ''] }[d.durum] || ['Kapalı', ''];
+    return `
+      <div class="card">
+        <div class="card-head"><h3>Bulut bağlantısı</h3><div class="spacer"></div>
+          ${badge(rozet[0], rozet[1])}</div>
+        ${bulut ? `
+          <p class="modal-metin">Panel ortak veritabanına bağlı. Tüm kullanıcılar aynı
+             kayıtları görür, yapılan değişiklikler diğer ekranlara anlık yansır.</p>
+          <div class="ozluk-izgara" style="margin-top:10px">
+            <div><span>Sunucu</span><b style="font-size:11.5px;word-break:break-all">${a.url || '—'}</b></div>
+            <div><span>Ayar kaynağı</span><b>${a.kaynak || '—'}</b></div>
+            <div><span>Giriş alan adı</span><b>${a.alanAdi || '—'}</b></div>
+            <div><span>Kayıt sayısı</span><b>${num(S.KOLEKSIYONLAR.reduce((t, k) => t + S.get(k).length, 0))}</b></div>
+          </div>
+          <p class="modal-metin" style="margin-top:10px;font-size:11px">
+            Pafta ve fotoğraf dosyalarının içeriği buluta gönderilmez; yükleyen kişinin
+            tarayıcısında kalır. Diğer kullanıcılar dosya bilgisini ve küçük resmini görür.</p>
+          ${duzenleyebilir ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px">
+            <button class="btn ghost sm" data-act="bulut-ayar">${icon('settings')} Bağlantı ayarları</button>
+            <button class="btn ghost sm" data-act="bulut-tasi">${icon('upload')} Yerel veriyi buluta taşı</button>
+          </div>` : ''}`
+        : `
+          <p class="modal-metin">Panel şu anda <b>yerel modda</b>: kayıtlar yalnızca bu
+             tarayıcıda saklanır, başka bir kullanıcı göremez.
+             ${d.durum === 'hata' ? '<br><b>Hata:</b> ' + (d.hata || '') : ''}</p>
+          <p class="modal-metin" style="margin-top:8px;font-size:11px">
+            Çok kullanıcılı çalışmak için bir Supabase projesi oluşturup adres ve anon
+            anahtarını girin. Adımlar: <code>supabase/KURULUM.md</code></p>
+          ${duzenleyebilir ? `<div style="margin-top:12px">
+            <button class="btn accent sm" data-act="bulut-ayar">${icon('settings')} Bağlantıyı yapılandır</button>
+          </div>` : ''}`}
+      </div>`;
+  }
+
+  async function bulutAyarFormu() {
+    const a = Bulut.ayar();
+    const sonuc = await UI.form({
+      baslik: 'Bulut bağlantısı',
+      aciklama: 'Supabase proje adresi ve anon anahtarı. Buradan girilen değerler yalnızca ' +
+                'bu tarayıcı için geçerlidir; tüm ekip için kalıcı olması gerekiyorsa ' +
+                'assets/js/yapilandirma.js dosyasına yazın.',
+      kaydetEtiketi: 'Kaydet ve bağlan',
+      alanlar: [
+        { ad: 'url', etiket: 'Proje adresi', genis: true, deger: a.url,
+          ipucu: 'https://xxxx.supabase.co' },
+        { ad: 'anahtar', etiket: 'Anon anahtar', genis: true, tur: 'metin-uzun', deger: a.anahtar,
+          not: 'Supabase → Project Settings → API → anon public' },
+        { ad: 'alanAdi', etiket: 'Giriş alan adı', deger: a.alanAdi,
+          not: 'Kullanıcı kodları bu alan adıyla e-postaya çevrilir.' }
+      ],
+      dogrula: (c) => {
+        const u = (c.url || '').trim();
+        if (u && !/^https:\/\/[\w.-]+/.test(u)) return 'Adres https:// ile başlamalı.';
+        if (u && !(c.anahtar || '').trim()) return 'Anon anahtar da gerekli.';
+        return null;
+      }
+    });
+    if (!sonuc) return;
+    const bosalt = !(sonuc.url || '').trim();
+    Bulut.ayarYaz(bosalt ? null : {
+      url: sonuc.url.trim(), anahtar: (sonuc.anahtar || '').trim(),
+      alanAdi: (sonuc.alanAdi || '').trim() || 'panel.local'
+    });
+    if (!await UI.onay('Panel yeniden yüklensin mi',
+      bosalt ? 'Bağlantı ayarı kaldırıldı. Panel yerel modda yeniden açılacak.'
+             : 'Ayarlar kaydedildi. Bağlantının kurulması için panel yeniden yüklenecek.',
+      'Yeniden yükle')) return;
+    location.reload();
+  }
+
+  /* Bu tarayicidaki yerel kayitlari sunucuya kopyalar (ilk gecis icin) */
+  async function bulutaTasi() {
+    let yerel = null;
+    try {
+      const ham = localStorage.getItem('insaat-hakedis:v2');
+      yerel = ham ? JSON.parse(ham) : null;
+    } catch (e) { /* okunamadi */ }
+    if (!yerel || !Array.isArray(yerel.projeler)) {
+      toast('Bu tarayıcıda taşınacak yerel veri bulunamadı.');
+      return;
+    }
+    const adet = S.KOLEKSIYONLAR.reduce((t, k) => t + (yerel[k] || []).length, 0);
+    if (!await UI.onay('Yerel veriyi buluta taşı',
+      `Bu tarayıcıdaki ${adet} kayıt sunucuya yazılacak. Aynı kimliğe sahip kayıtlar ` +
+      'güncellenir, sunucudaki diğer kayıtlar silinmez. Kullanıcı hesapları taşınmaz.',
+      'Taşı')) return;
+    try {
+      const kopya = { ...yerel };
+      delete kopya.kullanicilar;          // hesaplar sunucuda ayrica acilmali
+      const n = await Bulut.topluYaz(kopya);
+      const anlik = await Bulut.anlikGoruntu();
+      S.bulutaGec(anlik);
+      Yetki.ata(S.get('kullanicilar').find((x) => x._id === (Yetki.kullanici() || {})._id) ||
+                Yetki.kullanici());
+      toast(n + ' kayıt buluta taşındı.');
+    } catch (e) {
+      toast('Taşıma başarısız: ' + (e.message || e));
+    }
   }
 
   async function kullaniciFormu(id) {
@@ -3154,7 +3274,10 @@
     ];
     if (!k) alanlar.push(
       { ad: 'sifre', etiket: 'Şifre', tur: 'password', zorunlu: true, genis: true,
-        not: 'En az 6 karakter. Şifre PBKDF2 ile özetlenerek saklanır.' });
+        not: bulutMod()
+          ? 'En az 6 karakter. Kullanıcı bu kod ve şifreyle panele giriş yapar.'
+          : 'En az 6 karakter. Şifre PBKDF2 ile özetlenerek saklanır.' });
+    alanlar[1].etiket = bulutMod() ? 'Kullanıcı kodu' : 'Kullanıcı adı';
 
     const sonuc = await UI.form({
       baslik: k ? 'Kullanıcıyı düzenle' : 'Yeni kullanıcı',
@@ -3183,6 +3306,23 @@
                                        eposta: sonuc.eposta, rol: sonuc.rol, durum: sonuc.durum });
       toast(sonuc.ad + ' güncellendi.');
       if (Yetki.kullanici() && Yetki.kullanici()._id === id) Yetki.oturumYukle(kullaniciListesi());
+    } else if (bulutMod()) {
+      /* Bulut modu: once sunucuda hesap acilir, sonra panel kaydi yazilir */
+      let hesap;
+      try {
+        hesap = await Bulut.hesapAc(sonuc.kullaniciAdi.trim(), sonuc.sifre);
+      } catch (e) {
+        toast('Hesap açılamadı: ' + (e.message || e));
+        return;
+      }
+      S.ekle('kullanicilar', {
+        ad: sonuc.ad, kullaniciAdi: sonuc.kullaniciAdi.trim().toLowerCase(), eposta: sonuc.eposta,
+        rol: sonuc.rol, durum: sonuc.durum, izinler: {}, authId: hesap.authId,
+        olusturma: new Date().toISOString(), sonGiris: ''
+      });
+      toast(hesap.onayGerekli
+        ? sonuc.ad + ' eklendi. Supabase e-posta onayı açık olduğu için hesabın onaylanması gerekiyor.'
+        : sonuc.ad + ' eklendi. Kullanıcı kodu ve şifresini kendisine iletin.');
     } else {
       const { salt, sifreHash } = await Yetki.sifreAta(sonuc.sifre);
       S.ekle('kullanicilar', {
@@ -3256,6 +3396,38 @@
   async function kullaniciSifre(id) {
     const k = S.bul('kullanicilar', id);
     if (!k) return;
+    const ben = Yetki.kullanici();
+
+    /* Bulut modunda sifreler Supabase'de tutulur: kullanici yalnizca kendi
+       sifresini degistirebilir, baskasininki panelden sifirlanamaz. */
+    if (bulutMod()) {
+      if (!ben || ben._id !== id) {
+        await UI.modal({
+          baslik: k.ad + ' · şifre',
+          aciklama: 'Bulut modunda şifreler sunucuda tutulur.',
+          icerik: `<p class="modal-metin">Başka bir kullanıcının şifresi panelden sıfırlanamaz.
+            ${k.ad} kendi şifresini panele girdikten sonra <b>Şifremi değiştir</b> ile
+            yenileyebilir. Şifresini unuttuysa Supabase panelinden
+            (Authentication → Users → ${Bulut.kodEposta(k.kullaniciAdi)}) sıfırlayabilirsiniz.</p>`,
+          dugmeler: [{ ad: 'Anladım', tur: 'accent', deger: null }]
+        });
+        return;
+      }
+      const yeni = await UI.form({
+        baslik: 'Şifremi değiştir',
+        aciklama: 'Yeni şifre hemen geçerli olur; diğer cihazlardaki oturumlarınız etkilenmez.',
+        kaydetEtiketi: 'Şifreyi güncelle',
+        alanlar: [{ ad: 'sifre', etiket: 'Yeni şifre', tur: 'password', zorunlu: true, genis: true }],
+        dogrula: (c) => (c.sifre || '').length < 6 ? 'Şifre en az 6 karakter olmalı.' : null
+      });
+      if (!yeni) return;
+      try {
+        await Bulut.sifreDegistir(yeni.sifre);
+        toast('Şifreniz güncellendi.');
+      } catch (e) { toast('Şifre güncellenemedi: ' + (e.message || e)); }
+      return;
+    }
+
     const sonuc = await UI.form({
       baslik: k.ad + ' · şifre sıfırla',
       aciklama: 'Yeni şifreyi kullanıcıya siz iletmelisiniz; şifre geri okunamaz.',
@@ -3279,7 +3451,10 @@
     if (k.rol === 'Sistem Yöneticisi' && yoneticiSayisi === 1) {
       toast('Tek sistem yöneticisi silinemez.'); return;
     }
-    if (!await UI.onay('Kullanıcıyı sil', `${k.ad} (${k.kullaniciAdi}) silinecek.`, 'Sil')) return;
+    if (!await UI.onay('Kullanıcıyı sil',
+      `${k.ad} (${k.kullaniciAdi}) silinecek.` + (bulutMod()
+        ? ' Panel erişimi hemen kapanır; sunucudaki oturum hesabı Supabase panelinden silinebilir.'
+        : ''), 'Sil')) return;
     S.sil('kullanicilar', id);
     toast(k.ad + ' silindi.');
   }
@@ -3306,6 +3481,155 @@
       </div>`;
     document.body.appendChild(el);
     return el;
+  }
+
+  /* ---------------------------------------------------- bulut oturumu */
+
+  function bilgiEkrani(baslik, metin, dugmeler) {
+    const el = girisKabugu(`
+      <h2>${baslik}</h2>
+      <p class="giris-not">${metin}</p>
+      <div class="giris-form" id="bilgiDugmeler">${dugmeler || ''}</div>`);
+    return el;
+  }
+
+  /* Bulut modunda ilk kurulum: yonetici hem sunucuda hem panelde acilir */
+  function bulutKurulumEkrani() {
+    const el = girisKabugu(`
+      <h2>Kurulum</h2>
+      <p class="giris-not">Panel sunucuya bağlı ve henüz kullanıcı tanımlı değil.
+         Yönetici hesabını oluşturun; ekibi sonra bu hesapla ekleyebilirsiniz.</p>
+      <form id="kurulumForm" class="giris-form">
+        <label class="alan"><span>Ad soyad *</span><input name="ad" required></label>
+        <label class="alan"><span>Kullanıcı kodu *</span><input name="kullaniciAdi" required
+          autocomplete="username"><em>Giriş bu kodla yapılır (harf, rakam, nokta)</em></label>
+        <label class="alan"><span>Şifre *</span><input name="sifre" type="password" required
+          autocomplete="new-password"><em>En az 6 karakter</em></label>
+        <label class="alan"><span>Şifre tekrar *</span><input name="sifre2" type="password" required
+          autocomplete="new-password"></label>
+        <button class="btn accent" type="submit">Hesabı oluştur ve başla</button>
+        <div class="giris-hata" hidden></div>
+      </form>`);
+
+    el.querySelector('#kurulumForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      const hata = el.querySelector('.giris-hata');
+      const dugme = e.target.querySelector('button');
+      const goster = (m) => { hata.textContent = m; hata.hidden = false;
+                              dugme.disabled = false; dugme.textContent = 'Hesabı oluştur ve başla'; };
+      const kod = String(f.get('kullaniciAdi')).trim().toLowerCase();
+      if (String(f.get('sifre')).length < 6) return goster('Şifre en az 6 karakter olmalı.');
+      if (f.get('sifre') !== f.get('sifre2')) return goster('Şifreler eşleşmiyor.');
+      dugme.disabled = true; dugme.textContent = 'Oluşturuluyor…';
+
+      try {
+        await Bulut.hesapAc(kod, String(f.get('sifre')));
+        await Bulut.girisYap(kod, String(f.get('sifre')));
+        await bulutVeriYukle();
+        if (S.get('kullanicilar').length) {
+          return goster('Panelde kullanıcılar zaten tanımlı. Giriş ekranından devam edin.');
+        }
+        const k = S.ekle('kullanicilar', {
+          ad: String(f.get('ad')).trim(), kullaniciAdi: kod, eposta: '',
+          rol: 'Sistem Yöneticisi', durum: 'Aktif', izinler: {},
+          authId: (await Bulut.oturum()).user.id,
+          olusturma: new Date().toISOString(), sonGiris: new Date().toISOString()
+        });
+        Yetki.ata(k);
+        S.gunlukYaz('kurulum yaptı', 'kullanicilar', k);
+        kabukGoster(true); mountPanel();
+        toast('Hoş geldiniz ' + k.ad + '. Kullanıcılar ekranından ekibinizi ekleyebilirsiniz.');
+      } catch (err) {
+        goster(err.message || String(err));
+      }
+    });
+  }
+
+  function bulutGirisEkrani(mesaj) {
+    const el = girisKabugu(`
+      <h2>Giriş</h2>
+      <p class="giris-not">Panele erişmek için kullanıcı kodunuzu ve şifrenizi girin.</p>
+      <form id="girisForm" class="giris-form">
+        <label class="alan"><span>Kullanıcı kodu</span><input name="kullaniciAdi" required autocomplete="username"></label>
+        <label class="alan"><span>Şifre</span><input name="sifre" type="password" required autocomplete="current-password"></label>
+        <button class="btn accent" type="submit">Giriş yap</button>
+        <div class="giris-hata" ${mesaj ? '' : 'hidden'}>${mesaj || ''}</div>
+      </form>
+      <p class="giris-alt">Panel ilk kez kuruluyorsa
+        <button class="bag-dugme" id="kurulumaGec">yönetici hesabı oluşturun</button>.</p>`);
+
+    el.querySelector('#kurulumaGec').addEventListener('click', bulutKurulumEkrani);
+    el.querySelector('#girisForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      const hata = el.querySelector('.giris-hata');
+      const dugme = e.target.querySelector('button');
+      dugme.disabled = true; dugme.textContent = 'Kontrol ediliyor…';
+      const goster = (m) => { hata.textContent = m; hata.hidden = false;
+                              dugme.disabled = false; dugme.textContent = 'Giriş yap'; };
+      try {
+        await Bulut.girisYap(String(f.get('kullaniciAdi')), String(f.get('sifre')));
+        await bulutOturumSonrasi();
+      } catch (err) { goster(err.message || String(err)); }
+    });
+  }
+
+  /* Sunucudaki veriyi cekip onbellege alir ve anlik yayina abone olur */
+  async function bulutVeriYukle() {
+    const anlik = await Bulut.anlikGoruntu();
+    S.bulutaGec(anlik);
+    await Bulut.dinle((olay) => S.uzaktanUygula(olay));
+  }
+
+  /* Giris sonrasi: panel kaydini bul, oturumu ac */
+  async function bulutOturumSonrasi() {
+    const o = await Bulut.oturum();
+    if (!o) { bulutGirisEkrani('Oturum açılamadı, tekrar deneyin.'); return; }
+    try {
+      await bulutVeriYukle();
+    } catch (e) {
+      bulutGirisEkrani('Veriler alınamadı: ' + (e.message || e));
+      return;
+    }
+    const k = S.get('kullanicilar').find((x) => x.authId === o.user.id);
+    if (!k) {
+      await Bulut.cikisYap();
+      bulutGirisEkrani(S.get('kullanicilar').length
+        ? 'Bu hesap panelde tanımlı değil. Yöneticinizden sizi eklemesini isteyin.'
+        : 'Panelde kullanıcı tanımlı değil. Aşağıdan yönetici hesabı oluşturun.');
+      return;
+    }
+    if (k.durum !== 'Aktif') {
+      await Bulut.cikisYap();
+      bulutGirisEkrani('Bu hesap pasif durumda. Yöneticinizle görüşün.');
+      return;
+    }
+    Yetki.ata(k);
+    S.guncelle('kullanicilar', k._id, { sonGiris: new Date().toISOString() });
+    kabukGoster(true);
+    mountPanel();
+    toast('Hoş geldiniz, ' + k.ad + ' · ' + k.rol);
+  }
+
+  /* Uygulama acilisinda bulut modunu kurar */
+  async function bulutAcilis() {
+    bilgiEkrani('Bağlanıyor', 'Sunucuya bağlanılıyor…');
+    const tamam = await Bulut.baslat();
+    if (!tamam) {
+      const d = Bulut.durumBilgi();
+      const el = bilgiEkrani('Sunucuya bağlanılamadı',
+        (d.hata || 'Bilinmeyen hata') + ' Bağlantı ayarlarını kontrol edin ya da ' +
+        'yerel modda (veriler yalnızca bu tarayıcıda) devam edin.',
+        `<button class="btn accent" id="yeniden">Yeniden dene</button>
+         <button class="btn ghost" id="yerelDevam">Yerel modda devam et</button>`);
+      el.querySelector('#yeniden').addEventListener('click', () => { Bulut.sifirla(); bulutAcilis(); });
+      el.querySelector('#yerelDevam').addEventListener('click', yerelAcilis);
+      return;
+    }
+    const o = await Bulut.oturum();
+    if (!o) { bulutGirisEkrani(''); return; }
+    await bulutOturumSonrasi();
   }
 
   /* Ilk acilis: sistem yoneticisi hesabi olusturulur */
@@ -3385,11 +3709,17 @@
     });
   }
 
-  function cikisYap() {
+  async function cikisYap() {
     const k = Yetki.kullanici();
     if (k) S.gunlukYaz('çıkış yaptı', 'oturum', k);   // once gunluge yaz, sonra oturumu kapat
-    Yetki.oturumKapat();
     document.querySelector('.view').innerHTML = '';
+    if (bulutMod()) {
+      Yetki.ata(null);
+      await Bulut.cikisYap();
+      bulutGirisEkrani('');
+      return;
+    }
+    Yetki.oturumKapat();
     girisEkrani('');
   }
 
@@ -3994,6 +4324,8 @@
     tikla('[data-act="ice-stok"]', () => belgedenAktar('stok'));
 
     /* --- kullanıcılar --- */
+    tikla('[data-act="bulut-ayar"]', bulutAyarFormu);
+    tikla('[data-act="bulut-tasi"]', bulutaTasi);
     tikla('[data-act="kullanici-ekle"]', () => kullaniciFormu(null));
     tikla('[data-kullanici-duzenle]', (b) => kullaniciFormu(b.dataset.kullaniciDuzenle));
     tikla('[data-kullanici-izin]', (b) => kullaniciIzin(b.dataset.kullaniciIzin));
@@ -4160,7 +4492,7 @@
     tikla('[data-pafta-sil]', (b) => paftaSil(b.dataset.paftaSil));
     tikla('[data-pafta-indir]', (b) => {
       const d = S.bul('paftalar', b.dataset.paftaIndir);
-      if (d) Dosya.indir(d.dosyaId, d.ad).catch(() => toast('Dosya içeriği bulunamadı.'));
+      if (d) Dosya.indir(d.dosyaId, d.ad).catch(() => toast(dosyaYokMesaji(d)));
     });
     depoBilgisiniYaz();
 
@@ -4277,11 +4609,35 @@
     if (!k || !kutu) return;
     const bas = k.ad.split(' ').map((x) => x[0]).slice(0, 2).join('').toUpperCase();
     kutu.innerHTML = `
+      <span class="bag-durum" id="bagDurum"></span>
       <span class="aktif-kullanici" title="${k.ad} · ${k.rol}">
         <i>${bas}</i><div><b>${k.ad}</b><small>${k.rol}</small></div>
       </span>
       <button data-cikis title="Çıkış yap">${icon('lock')} Çıkış</button>`;
     kutu.querySelector('[data-cikis]').addEventListener('click', cikisYap);
+    baglantiDurumunuYaz();
+  }
+
+  /* Ust cubuktaki baglanti rozetini gunceller */
+  function baglantiDurumunuYaz() {
+    const el = document.getElementById('bagDurum');
+    if (!el) return;
+    if (!window.Bulut || !Bulut.yapilandirildi()) {
+      el.className = 'bag-durum yerel';
+      el.title = 'Yerel mod: veriler yalnızca bu tarayıcıda saklanır, diğer kullanıcılar görmez.';
+      el.innerHTML = '<i></i>Yerel';
+      return;
+    }
+    const d = Bulut.durumBilgi();
+    const esleme = {
+      bagli: ['ok', 'Ortak', 'Sunucuya bağlı: kayıtlar tüm kullanıcılarda anlık görünür.'],
+      baglaniyor: ['bekle', 'Bağlanıyor', 'Sunucuya bağlanılıyor…'],
+      hata: ['hata', 'Bağlantı yok', 'Sunucuya ulaşılamıyor: ' + d.hata],
+      kapali: ['yerel', 'Yerel', 'Bulut bağlantısı kapalı.']
+    }[d.durum] || ['yerel', 'Yerel', ''];
+    el.className = 'bag-durum ' + esleme[0];
+    el.title = esleme[2];
+    el.innerHTML = '<i></i>' + esleme[1];
   }
 
   /* Yetkisi olmayan islemlerin dugmelerini gizler */
@@ -4323,15 +4679,22 @@
     render();
   }
 
-  /* Acilis: kullanici yoksa kurulum, oturum yoksa giris, varsa panel */
-  function mount() {
-    window.addEventListener('hashchange', render);
-    S.abone(() => { if (Yetki.kullanici()) render(); });
-
+  /* Yerel mod: kullanici yoksa kurulum, oturum yoksa giris, varsa panel */
+  function yerelAcilis() {
     if (!S.get('kullanicilar').length) { kurulumEkrani(); return; }
     if (!Yetki.oturumYukle(S.aktif('kullanicilar'))) { girisEkrani(''); return; }
     kabukGoster(true);
     mountPanel();
+  }
+
+  /* Acilis: yapilandirma varsa bulut, yoksa yerel mod */
+  function mount() {
+    window.addEventListener('hashchange', render);
+    S.abone(() => { if (Yetki.kullanici()) render(); });
+    if (window.Bulut) Bulut.abone(() => baglantiDurumunuYaz());
+
+    if (window.Bulut && Bulut.yapilandirildi()) { bulutAcilis(); return; }
+    yerelAcilis();
   }
 
   document.addEventListener('DOMContentLoaded', mount);
