@@ -10,7 +10,7 @@
    Kurulum adimlari: supabase/KURULUM.md */
 window.YAPILANDIRMA = {
   supabaseUrl: 'https://hwtmgjixaciekallrbmo.supabase.co',
-  supabaseAnonAnahtar: '',    // Supabase > Project Settings > API > anon public
+  supabaseAnonAnahtar: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh3dG1naml4YWNpZWthbGxyYm1vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIwMDIwNzcsImV4cCI6MjA5NzU3ODA3N30.ZfY_tGUv8wvlBvAz6hgC8kH_2n598b01PwHO2iyNkvk',
 
   /* Kullanici kodlari e-postaya bu alan adiyla cevrilir (kod@alanAdi).
      Gercek bir posta kutusu gerekmez, yalnizca kimlik olarak kullanilir. */

@@ -167,6 +167,23 @@ window.Bulut = (function () {
 
   /* ----------------------------------------------------------- veri */
 
+  /* Sunucu hatalarini anlasilir mesaja cevirir */
+  function veriHatasi(e) {
+    const m = String((e && e.message) || e || '');
+    if (/does not exist|schema cache|relation .* kayitlar/i.test(m)) {
+      return new Error('Veritabanı şeması kurulmamış. Supabase → SQL Editor’de ' +
+                       'supabase/sema.sql dosyasını çalıştırın.');
+    }
+    if (/row-level security|violates row-level/i.test(m)) {
+      return new Error('Bu işlem için sunucuda yetkiniz yok (RLS). ' +
+                       'Rolünüzü ve modül izinlerinizi kontrol ettirin.');
+    }
+    if (/JWT|token is expired/i.test(m)) {
+      return new Error('Oturum süresi doldu. Yeniden giriş yapın.');
+    }
+    return new Error(m);
+  }
+
   /* Tum kayitlari cekip {koleksiyon: [kayit...]} bicimine cevirir */
   async function anlikGoruntu() {
     const c = await istemci();
@@ -179,7 +196,7 @@ window.Bulut = (function () {
         .eq('silindi', false)
         .order('guncelleme', { ascending: true })
         .range(bas, bas + sayfa - 1);
-      if (error) throw new Error(error.message);
+      if (error) throw veriHatasi(error);
       (data || []).forEach((satir) => {
         if (satir.guncelleme && (!sonDamga || satir.guncelleme > sonDamga)) sonDamga = satir.guncelleme;
         if (!cikti[satir.koleksiyon]) cikti[satir.koleksiyon] = [];
@@ -198,7 +215,7 @@ window.Bulut = (function () {
       koleksiyon, kayit_id: _id, veri, silindi: false,
       guncelleme: new Date().toISOString()
     }, { onConflict: 'koleksiyon,kayit_id' });
-    if (error) throw new Error(error.message);
+    if (error) throw veriHatasi(error);
   }
 
   /* Silme yumusak yapilir: satir kalir, silindi=true olur.
@@ -209,7 +226,7 @@ window.Bulut = (function () {
       koleksiyon, kayit_id: id, veri: {}, silindi: true,
       guncelleme: new Date().toISOString()
     }, { onConflict: 'koleksiyon,kayit_id' });
-    if (error) throw new Error(error.message);
+    if (error) throw veriHatasi(error);
   }
 
   /* Yerel veriyi topluca buluta tasir (ilk kurulumda kullanilir) */
@@ -227,7 +244,7 @@ window.Bulut = (function () {
     for (let i = 0; i < satirlar.length; i += 200) {
       const { error } = await c.from('kayitlar')
         .upsert(satirlar.slice(i, i + 200), { onConflict: 'koleksiyon,kayit_id' });
-      if (error) throw new Error(error.message);
+      if (error) throw veriHatasi(error);
     }
     return satirlar.length;
   }
