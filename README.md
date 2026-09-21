@@ -32,6 +32,7 @@ lisans sahibi **Ali Gökten**, iletişim bilgileri ve telif notu.
 | **İşler** ✅ | Proje altında iş paketi ekle/düzenle/sil; taşeron ataması, personel görevlendirmesi, malzeme tahsisi (stokta rezerve ayırır), metraj kalemi bağlama, ilerleme ve termin takibi, CSV |
 | **Personel** ✅ | Özlük kartı (TC Kimlik No, SGK, İSG, sağlık raporu, kan grubu, acil durum), evrak geçerlilik uyarıları, görevli olduğu işler, günlük puantaj (gir / düzelt / sil) ve hak ediş hesabı, toplu puantaj, CSV |
 | **Metraj** ✅ | Poz ekleme/düzenleme/silme, proje filtresi, otomatik tutar hesabı, manuel doğrulama, CSV dışa aktarma |
+| **Keşif & Maliyet** ✅ | Yüklenen mimari ruhsat projesinden (DXF) katman adlarına göre duvar uzunluğu, kapı-pencere adedi ve mahal alanı okur; bina parametrelerinden 45'e yakın pozda detaylı metraj üretir (kazı, beton, kalıp, donatı, duvar, yalıtım, çatı, sıva-boya, kaplama, doğrama, tesisat, çevre). Her kalem hangi formülden çıktığını satırında gösterir; birim fiyatlar satır içinde düzenlenir, kalem çıkarılıp eklenebilir. Şantiye genel gideri · beklenmeyen gider · müteahhit kârı · KDV ile maliyet icmali, m² ve bağımsız bölüm birim maliyeti, CSV ve tek tıkla metraja aktarma |
 | **Taşeronlar** ✅ | Taşeron ekle/düzenle/sil (bağlı kayıt uyarısıyla), sözleşme/SGK durumu, üstlendiği işlerin ilerleme listesi; kart başlığına tıklanınca açılan panel yetkileri |
 | **Kalite Kontrol** ✅ | İmalat türüne göre kontrol şablonları, madde bazlı Uygun / Uygun Değil / Kapsam Dışı işaretleme, ağırlıklı otomatik puanlama ve sonuç önerisi, saha fotoğrafı ekleme, sapma notları, yeniden kontrol zinciri, taşeron karnesi, CSV |
 | **Hakediş** ✅ | Metraj kalemlerinden hakediş oluşturma (canlı tutar özeti), kesinti/avans/KDV hesabı, Taslak → Kontrolde → Onay Bekliyor → Onaylandı akışı, red gerekçesi, kalem detayı ve CSV |
@@ -54,7 +55,9 @@ supabase/sema.sql        veritabanı şeması, yetki fonksiyonları ve RLS kural
 supabase/KURULUM.md      çok kullanıcılı kuruluma dair adım adım rehber
 assets/js/data.js        demo veri katmanı (projeler, paftalar, metraj, taşeron, kalite, hakediş, stok, sipariş, rapor)
 assets/js/ui.js          ikon seti, TR sayı/para biçimlendirme, donut · yay · çizgi · sütun grafik üreticileri
-assets/js/app.js         hash tabanlı yönlendirici, dokuz görünüm ve etkileşimler
+assets/js/pafta-analiz.js DXF ayrıştırıcı, DWG başlık/önizleme okuyucu, vektör çizim
+assets/js/kesif.js       keşif motoru: poz kütüphanesi, katman tanıma kuralları, metraj formülleri ve maliyet icmali
+assets/js/app.js         hash tabanlı yönlendirici, görünümler ve etkileşimler
 ```
 
 ## Notlar
@@ -140,7 +143,7 @@ sonraki açılışlarda **giriş ekranı** gelir. Oturum 12 saat sonra kendiliğ
 | **Sistem Yöneticisi** | Tüm modüllerde onay yetkisi + kullanıcı yönetimi |
 | **Proje Müdürü** | Tüm modüllerde onay; kullanıcıları yalnızca görüntüler |
 | **Şantiye Şefi** | İş, personel, kalite, metraj düzenler; tedariki görüntüler |
-| **Kontrol Şefi** | Metraj ve hakediş düzenler, kaliteyi onaylar |
+| **Kontrol Şefi** | Metraj, keşif ve hakediş düzenler, kaliteyi onaylar |
 | **Satın Alma** | Stok ve tedariki onaylar, diğerlerini görüntüler |
 | **Taşeron** | Kendi kalite formu ve hakedişini düzenler; stok, tedarik ve taşeron listesini görmez |
 | **İzleyici** | Her şeyi salt okunur görür |
@@ -267,6 +270,37 @@ Elektrik Tesisatı, Cephe Mantolama). Yeni şablon eklemek için bu nesneye
 Red veya Şartlı Onay alan kayıtlar “açık sapma” sayılır; yeniden kontrol yapıldığında
 eski kayda bağlanır ve açık sapma listesinden düşer. Hakediş oluştururken seçilen
 taşeronun açık sapmaları uyarı olarak gösterilir.
+
+## Keşif ve maliyet hesabı
+
+**Keşif & Maliyet** ekranı, mimari ruhsat projesinden yaklaşık keşif çıkarır.
+
+1. **Projeden oku** — Projeler ekranından yüklenen DXF paftası seçilir. Katman adları
+   (`A-DUVAR-DIS`, `IC_DUVAR`, `KAPI`, `PENCERE`, `MAHAL`, `ISLAK` vb.) desenlerle
+   tanınır; dış/iç duvar uzunluğu, kapı-pencere adedi ve mahal alanları okunur.
+   Duvarlar planda çift çizgiyle gösterildiğinden ölçülen uzunluk ikiye bölünür
+   (tek çizgi çizimler için bölen 1 seçilebilir). DWG ve PDF paftalarda ölçüler elle girilir.
+2. **Parametreler** — kat adedi, kat yüksekliği, döşeme kalınlığı, temel tipi, kazı
+   derinliği, bağımsız bölüm ve asansör adedi gibi alanlar tamamlanır. Beton oranı
+   (m³/m²), kalıp oranı (m²/m³), donatı oranları (kg/m³) ve gider yüzdeleri açılır
+   bölümden değiştirilebilir.
+3. **Detaylı metraj** — kalemler kategori kategori listelenir. Her satırda miktarın
+   hangi formülden çıktığı yazılıdır (örn. *"69,2 m × 2,85 m net yükseklik × 5 kat
+   − 61 m² boşluk"*), böylece keşif elle denetlenebilir. Birim fiyat satır içinde
+   düzenlenir; gereksiz kalem keşiften çıkarılır, özel kalem eklenir.
+4. **Maliyet icmali** — imalat toplamı üzerine şantiye genel gideri, beklenmeyen
+   giderler, müteahhit kârı ve KDV eklenir; m² ve bağımsız bölüm birim maliyeti çıkar.
+5. **Kaydet / Metraja aktar** — keşif proje bazında saklanır; kalemler tek tıkla
+   Metraj modülüne poz olarak yazılır ve hakediş, iş ve rapor ekranlarında kullanılır.
+
+> **Ortak (Supabase) modda kullanıyorsanız**, keşfin sunucuya kaydedilebilmesi için
+> `supabase/sema.sql` dosyasını SQL Editor'de bir kez daha çalıştırın: keşif kayıtları
+> yeni bir koleksiyonda (`kesifler`) tutulur ve yetki tanımı şemadan gelir. Dosya
+> tekrar çalıştırılabilir, veri kaybı olmaz. Yerel modda bir şey yapmanız gerekmez.
+
+Poz numaraları ve birim fiyatlar başlangıç değeridir; yürürlükteki birim fiyat kitabı
+ve alınan tekliflerle güncellenmelidir. Sonuç **yaklaşık keşif** niteliğindedir, onaylı
+uygulama projesi metrajının yerine geçmez.
 
 ## Pafta formatları
 

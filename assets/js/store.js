@@ -7,7 +7,7 @@
    sunucu reddederse degisiklik geri alinir. */
 window.Store = (function () {
   const KEY = 'insaat-hakedis:v2';
-  const KOLEKSIYONLAR = ['projeler', 'paftalar', 'metraj', 'taseronlar', 'isler',
+  const KOLEKSIYONLAR = ['projeler', 'paftalar', 'metraj', 'kesifler', 'taseronlar', 'isler',
                          'personel', 'puantaj', 'kaliteKontrol', 'hakedisler',
                          'stok', 'hareketler', 'siparisler', 'raporlar',
                          'kullanicilar', 'gunluk'];

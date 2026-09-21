@@ -22,6 +22,13 @@ Süre: yaklaşık 10 dakika. Ücretsiz Supabase planı bu panel için yeterlidir
 Bu adım `kayitlar` tablosunu, yetki fonksiyonlarını, satır bazlı güvenlik (RLS)
 kurallarını ve anlık yayını kurar.
 
+> **Paneli güncellediyseniz bu adımı tekrarlayın.** `sema.sql` yeniden
+> çalıştırılabilir (idempotent), veri kaybı olmaz. Yeni modüller yeni koleksiyon
+> ve yetki tanımı getirir; şema güncellenmezse o modülün kayıtları sunucuya
+> yazılamaz ("Kayıt sunucuya yazılamadı" uyarısı alırsınız).
+> **Keşif & Maliyet** modülü `kesifler` koleksiyonunu kullanır ve bu güncellemeyi
+> gerektirir.
+
 ## 3. Kimlik doğrulama ayarları
 
 **Authentication → Providers → Email**

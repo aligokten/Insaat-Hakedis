@@ -66,13 +66,13 @@ $$;
 create or replace function public.rol_izinleri()
 returns jsonb language sql immutable as $$
   select '{
-    "Sistem Yöneticisi": {"ozet":"onayla","paftalar":"onayla","metraj":"onayla","isler":"onayla","taseron":"onayla","personel":"onayla","kalite":"onayla","hakedis":"onayla","stok":"onayla","tedarik":"onayla","rapor":"onayla","kullanici":"onayla"},
-    "Proje Müdürü":      {"ozet":"onayla","paftalar":"onayla","metraj":"onayla","isler":"onayla","taseron":"onayla","personel":"onayla","kalite":"onayla","hakedis":"onayla","stok":"onayla","tedarik":"onayla","rapor":"onayla","kullanici":"goruntule"},
-    "Şantiye Şefi":      {"ozet":"duzenle","paftalar":"duzenle","metraj":"duzenle","isler":"duzenle","taseron":"duzenle","personel":"duzenle","kalite":"duzenle","hakedis":"duzenle","stok":"duzenle","tedarik":"goruntule","rapor":"duzenle","kullanici":"yok"},
-    "Kontrol Şefi":      {"ozet":"goruntule","paftalar":"goruntule","metraj":"duzenle","isler":"goruntule","taseron":"goruntule","personel":"goruntule","kalite":"onayla","hakedis":"duzenle","stok":"goruntule","tedarik":"goruntule","rapor":"goruntule","kullanici":"yok"},
-    "Satın Alma":        {"ozet":"goruntule","paftalar":"goruntule","metraj":"goruntule","isler":"goruntule","taseron":"goruntule","personel":"yok","kalite":"goruntule","hakedis":"goruntule","stok":"onayla","tedarik":"onayla","rapor":"goruntule","kullanici":"yok"},
-    "Taşeron":           {"ozet":"goruntule","paftalar":"goruntule","metraj":"goruntule","isler":"goruntule","taseron":"yok","personel":"goruntule","kalite":"duzenle","hakedis":"duzenle","stok":"yok","tedarik":"yok","rapor":"goruntule","kullanici":"yok"},
-    "İzleyici":          {"ozet":"goruntule","paftalar":"goruntule","metraj":"goruntule","isler":"goruntule","taseron":"goruntule","personel":"goruntule","kalite":"goruntule","hakedis":"goruntule","stok":"goruntule","tedarik":"goruntule","rapor":"goruntule","kullanici":"yok"}
+    "Sistem Yöneticisi": {"ozet":"onayla","paftalar":"onayla","metraj":"onayla","kesif":"onayla","isler":"onayla","taseron":"onayla","personel":"onayla","kalite":"onayla","hakedis":"onayla","stok":"onayla","tedarik":"onayla","rapor":"onayla","kullanici":"onayla"},
+    "Proje Müdürü":      {"ozet":"onayla","paftalar":"onayla","metraj":"onayla","kesif":"onayla","isler":"onayla","taseron":"onayla","personel":"onayla","kalite":"onayla","hakedis":"onayla","stok":"onayla","tedarik":"onayla","rapor":"onayla","kullanici":"goruntule"},
+    "Şantiye Şefi":      {"ozet":"duzenle","paftalar":"duzenle","metraj":"duzenle","kesif":"duzenle","isler":"duzenle","taseron":"duzenle","personel":"duzenle","kalite":"duzenle","hakedis":"duzenle","stok":"duzenle","tedarik":"goruntule","rapor":"duzenle","kullanici":"yok"},
+    "Kontrol Şefi":      {"ozet":"goruntule","paftalar":"goruntule","metraj":"duzenle","kesif":"duzenle","isler":"goruntule","taseron":"goruntule","personel":"goruntule","kalite":"onayla","hakedis":"duzenle","stok":"goruntule","tedarik":"goruntule","rapor":"goruntule","kullanici":"yok"},
+    "Satın Alma":        {"ozet":"goruntule","paftalar":"goruntule","metraj":"goruntule","kesif":"goruntule","isler":"goruntule","taseron":"goruntule","personel":"yok","kalite":"goruntule","hakedis":"goruntule","stok":"onayla","tedarik":"onayla","rapor":"goruntule","kullanici":"yok"},
+    "Taşeron":           {"ozet":"goruntule","paftalar":"goruntule","metraj":"goruntule","kesif":"yok","isler":"goruntule","taseron":"yok","personel":"goruntule","kalite":"duzenle","hakedis":"duzenle","stok":"yok","tedarik":"yok","rapor":"goruntule","kullanici":"yok"},
+    "İzleyici":          {"ozet":"goruntule","paftalar":"goruntule","metraj":"goruntule","kesif":"goruntule","isler":"goruntule","taseron":"goruntule","personel":"goruntule","kalite":"goruntule","hakedis":"goruntule","stok":"goruntule","tedarik":"goruntule","rapor":"goruntule","kullanici":"yok"}
   }'::jsonb
 $$;
 
@@ -83,6 +83,7 @@ returns text language sql immutable as $$
     when 'projeler'      then 'paftalar'
     when 'paftalar'      then 'paftalar'
     when 'metraj'        then 'metraj'
+    when 'kesifler'      then 'kesif'
     when 'isler'         then 'isler'
     when 'taseronlar'    then 'taseron'
     when 'ayarlar'       then 'taseron'
