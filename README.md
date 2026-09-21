@@ -57,6 +57,8 @@ assets/js/data.js        demo veri katmanı (projeler, paftalar, metraj, taşero
 assets/js/ui.js          ikon seti, TR sayı/para biçimlendirme, donut · yay · çizgi · sütun grafik üreticileri
 assets/js/pafta-analiz.js DXF ayrıştırıcı, DWG başlık/önizleme okuyucu, vektör çizim
 assets/js/kesif.js       keşif motoru: poz kütüphanesi, katman tanıma kuralları, metraj formülleri ve maliyet icmali
+docs/CIZIM-STANDARDI.md  metraj için katman ve çizim standardı
+docs/sablon/             boş katman şablonu ve standarda uygun örnek kat planı (DXF)
 assets/js/app.js         hash tabanlı yönlendirici, görünümler ve etkileşimler
 ```
 
@@ -275,9 +277,20 @@ taşeronun açık sapmaları uyarı olarak gösterilir.
 
 **Keşif & Maliyet** ekranı, mimari ruhsat projesinden yaklaşık keşif çıkarır.
 
+> **Çizim standardı:** otomatik okumanın çalışması için metraj dosyasının uyması
+> gereken katman adları ve çizim kuralları [`docs/CIZIM-STANDARDI.md`](docs/CIZIM-STANDARDI.md)
+> belgesindedir. Boş katman şablonu `docs/sablon/metraj-sablon.dxf`, standarda uygun
+> örnek kat planı `docs/sablon/ornek-kat-plani.dxf` dosyasındadır.
+>
+> Uygulama projesinin tamamını (kat planları + kesit + görünüş + vaziyet, üstelik
+> farklı ölçeklerde) içeren bir DXF'ten doğru metraj çıkmaz. Panel böyle bir dosyayı
+> tanır ve *"Bu dosya metraja uygun değil"* uyarısıyla nedenini sayar.
+
 1. **Projeden oku** — Projeler ekranından yüklenen DXF paftası seçilir. Katman adları
-   (`A-DUVAR-DIS`, `IC_DUVAR`, `KAPI`, `PENCERE`, `MAHAL`, `ISLAK` vb.) desenlerle
-   tanınır; dış/iç duvar uzunluğu, kapı-pencere adedi ve mahal alanları okunur.
+   (`MTR-DUVAR-DIS`, `MTR-DUVAR-IC`, `MTR-KAPI`, `MTR-PENCERE`, `MTR-MAHAL`, `MTR-ISLAK`
+   ve ArchiCAD/Revit varsayılanları) desenlerle tanınır; dış/iç duvar uzunluğu,
+   kapı-pencere adedi, mahal ve parsel alanları okunur. Okuma sonrası **uyum raporu**
+   hangi katmanın ne olarak tanındığını, hangi ölçülerin okunamadığını listeler.
    Duvarlar planda çift çizgiyle gösterildiğinden ölçülen uzunluk ikiye bölünür
    (tek çizgi çizimler için bölen 1 seçilebilir). DWG ve PDF paftalarda ölçüler elle girilir.
 2. **Parametreler** — kat adedi, kat yüksekliği, döşeme kalınlığı, temel tipi, kazı
