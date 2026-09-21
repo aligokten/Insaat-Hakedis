@@ -1359,3 +1359,12 @@ input.kesif-fiyat:focus {
   .kesif-izgara { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
   input.kesif-fiyat { width: 86px; }
 }
+
+.kesif-uyari-liste { margin: 8px 0 12px; padding-left: 18px; }
+.kesif-uyari-liste li {
+  margin-bottom: 8px; font-size: 12.5px; line-height: 1.55; color: var(--ink-2);
+}
+.kesif-katman-liste span.eksik {
+  background: rgba(240, 66, 28, .08); color: var(--accent);
+}
+.modal-govde .kesif-baslik { margin: 12px 0 6px; }

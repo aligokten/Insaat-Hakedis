@@ -182,26 +182,48 @@ window.Kesif = (function () {
   /* ======================================== katman adindan imalat tahmini */
   /* DXF katman adlari buyuk olcude standart degildir; asagidaki desenler
      yaygin Turkce/Ingilizce mimari katman adlarini yakalar. */
+  /* Sira onemlidir: ilk eslesen kural kazanir. Once yok sayilacak yardimci
+     katmanlar, sonra ozel (dis/ic) ayrimlar, en sonda genel desenler gelir.
+     Desenler hem CIZIM-STANDARDI.md adlarini hem de ArchiCAD / Revit / AutoCAD
+     yaygin katman adlarini yakalar. */
   const KURALLAR = [
-    { tur: 'disDuvar',   desen: /(dis|dış|d)[\s_-]*duvar|duvar[\s_-]*(dis|dış)|ext.*wall|wall.*ext|a[\s_-]*duvar[\s_-]*d/i },
-    { tur: 'icDuvar',    desen: /(ic|iç)[\s_-]*duvar|duvar[\s_-]*(ic|iç)|bolme|bölme|int.*wall|partition/i },
-    { tur: 'duvar',      desen: /duvar|wall|tugla|tuğla/i },
-    { tur: 'kolon',      desen: /kolon|column|perde|shear/i },
+    /* --- metraja girmeyen yardimci katmanlar --- */
+    { tur: 'yoksay',     desen: /mobilya|furniture|donati|donatı|rebar|arac|araç|vehicle|ağaç|agac|tree|peyzaj[\s_-]*bitki|kuzey|north|antet|pafta[\s_-]*cerceve|title[\s_-]*block|legend|lejant|tarama|hatch/i },
+    { tur: 'olcu',       desen: /olcu|ölçü|dimension|dim[\s_-]|kot|elevation[\s_-]*mark|marker|text|yazi|yazı|aks|axis|grid|nkot|sev(ust|alt)?[\s_-]*$|tarama[\s_-]*cizgi|hatch[\s_-]*line/i },
+
+    /* --- yapi elemanlari --- */
+    { tur: 'disDuvar',   desen: /(dis|dış)[\s_-]*duvar|duvar[\s_-]*(dis|dış)|^d[\s_-]*duvar|ext(erior)?[\s_-]*wall|wall[\s_-]*ext/i },
+    { tur: 'icDuvar',    desen: /(ic|iç)[\s_-]*duvar|duvar[\s_-]*(ic|iç)|bolme|bölme|int(erior)?[\s_-]*wall|partition/i },
+    { tur: 'perde',      desen: /perde|shear[\s_-]*wall|betonarme[\s_-]*duvar/i },
+    { tur: 'kolon',      desen: /kolon|column|structural[\s_-]*bearing|bearing[\s_-]*wall/i },
+    { tur: 'kiris',      desen: /kiris|kiriş|beam|hatil|hatıl|lento/i },
+    { tur: 'doseme',     desen: /doseme|döşeme|slab|floor[\s_-]*plate|kalip[\s_-]*plan|kalıp[\s_-]*plan/i },
+    { tur: 'duvar',      desen: /duvar|wall|tugla|tuğla|gazbeton/i },
+    { tur: 'kapiDis',    desen: /(dis|dış|giris|giriş|daire|celik|çelik)[\s_-]*kapi|kapi[\s_-]*(dis|dış|giris|giriş)|entrance[\s_-]*door/i },
     { tur: 'kapi',       desen: /kapi|kapı|door/i },
-    { tur: 'pencere',    desen: /pencere|window|dograma|doğrama|cam/i },
-    { tur: 'merdiven',   desen: /merdiven|stair|basamak/i },
+    { tur: 'pencere',    desen: /pencere|window|dograma|doğrama|cam[\s_-]|opening/i },
+    { tur: 'merdiven',   desen: /merdiven|stair|basamak|railing|korkuluk/i },
+    { tur: 'cati',       desen: /cati|çatı|roof|teras/i },
+
+    /* --- alan sinirlari --- */
     { tur: 'islak',      desen: /islak|wc|banyo|bath|tuvalet|mutfak|kitchen/i },
-    { tur: 'alan',       desen: /alan|mahal|oda|room|hatch|tarama|net|brut|brüt|zone/i },
-    { tur: 'donati',     desen: /donati|donatı|rebar|celik|çelik/i },
-    { tur: 'olcu',       desen: /olcu|ölçü|dim|kot|text|yazi|yazı|aks|axis|grid|tarama[\s_-]*cizgi/i }
+    { tur: 'parsel',     desen: /parsel|arsa|ada[\s_-]*parsel|plot|site[\s_-]*boundary/i },
+    { tur: 'bina',       desen: /(^|[\s_-])bina([\s_-]|$)|bina[\s_-]*(oturum|sinir|sınır|alan)|oturum[\s_-]*alan|footprint|building[\s_-]*outline/i },
+    { tur: 'alan',       desen: /alan|mahal|oda|room|net|brut|brüt|zone/i }
   ];
 
   const TUR_ADI = {
     disDuvar: 'Dış duvar', icDuvar: 'İç duvar', duvar: 'Duvar (ayrışmamış)',
-    kolon: 'Kolon / perde', kapi: 'Kapı', pencere: 'Pencere', merdiven: 'Merdiven',
-    islak: 'Islak hacim', alan: 'Mahal alanı', donati: 'Donatı', olcu: 'Ölçü / yazı',
+    perde: 'Betonarme perde', kolon: 'Kolon', kiris: 'Kiriş / hatıl',
+    doseme: 'Döşeme', kapi: 'Kapı', kapiDis: 'Dış / daire kapısı',
+    pencere: 'Pencere', merdiven: 'Merdiven', cati: 'Çatı',
+    islak: 'Islak hacim', alan: 'Mahal alanı', parsel: 'Parsel sınırı',
+    bina: 'Bina oturumu', olcu: 'Ölçü / yazı', yoksay: 'Metraj dışı',
     bilinmiyor: 'Sınıflandırılmadı'
   };
+
+  /* Metraja veri saglamayan turler: uyum raporunda "eksik" sayilmazlar */
+  const NOTR_TURLER = ['olcu', 'yoksay', 'bilinmiyor'];
 
   function katmanTuru(ad) {
     const k = KURALLAR.find((r) => r.desen.test(String(ad || '')));
@@ -218,8 +240,8 @@ window.Kesif = (function () {
       uzunluk: k.uzunluk || 0, alan: k.alan || 0, adet: k.adet || 0
     }));
 
-    const topla = (tur, alan) => eslesme.filter((e) => e.tur === tur)
-      .reduce((t, e) => t + (e[alan] || 0), 0);
+    const topla = (tur, olcu) => eslesme.filter((e) => e.tur === tur)
+      .reduce((t, e) => t + (e[olcu] || 0), 0);
 
     const disDuvar = topla('disDuvar', 'uzunluk') / ayar.duvarBolen;
     const icDuvar = topla('icDuvar', 'uzunluk') / ayar.duvarBolen;
@@ -229,23 +251,56 @@ window.Kesif = (function () {
     const disSonuc = disDuvar || ayrismamis * 0.35;
     const icSonuc = icDuvar || ayrismamis * 0.65;
 
+    /* Taban alani icin oncelik sirasi: bina oturumu > doseme > mahal toplami */
+    const binaAlani = topla('bina', 'alan');
+    const dosemeAlani = topla('doseme', 'alan');
     const mahalAlani = topla('alan', 'alan');
+    const tabanAlani = binaAlani || dosemeAlani || mahalAlani;
+    const tabanKaynak = binaAlani ? 'bina oturumu' : dosemeAlani ? 'döşeme' : 'mahal toplamı';
+
     const islakAlani = topla('islak', 'alan');
     const kapiAdet = topla('kapi', 'adet');
+    const kapiDisAdet = topla('kapiDis', 'adet');
     const pencereAdet = topla('pencere', 'adet');
+    const parselAlani = topla('parsel', 'alan');
+    const merdivenUz = topla('merdiven', 'uzunluk');
+
+    /* Uyum raporu: hangi katman ne oldu, hangi olcu okunamadi */
+    const taninan = eslesme.filter((e) => NOTR_TURLER.indexOf(e.tur) < 0);
+    const taninmayan = eslesme.filter((e) => e.tur === 'bilinmiyor' &&
+      (e.uzunluk > 0 || e.alan > 0 || e.adet > 0));
+    const eksik = [];
+    if (!disDuvar && !ayrismamis) eksik.push('dış duvar');
+    if (!icDuvar && !ayrismamis) eksik.push('iç duvar');
+    if (!tabanAlani) eksik.push('taban alanı (bina oturumu / döşeme / mahal)');
+    if (!kapiAdet) eksik.push('kapı');
+    if (!pencereAdet) eksik.push('pencere');
+    if (!islakAlani) eksik.push('ıslak hacim');
+
+    /* Guven: ayrisik duvar katmani + alan siniri varsa yuksek */
+    let guven = 0.4;
+    if (disDuvar || icDuvar) guven = 0.75;
+    else if (ayrismamis) guven = 0.55;
+    if ((disDuvar || icDuvar) && (binaAlani || dosemeAlani)) guven = 0.95;
+    else if ((disDuvar || icDuvar) && mahalAlani) guven = 0.85;
+    if (taninmayan.length > taninan.length) guven = Math.min(guven, 0.5);
 
     return {
       disDuvarUzunluk: yuvarla(disSonuc, 1),
       icDuvarUzunluk: yuvarla(icSonuc, 1),
       binaCevresi: yuvarla(disSonuc, 1),
-      tabanAlani: yuvarla(mahalAlani, 1),
+      tabanAlani: yuvarla(tabanAlani, 1),
+      tabanKaynak,
+      arsaAlani: yuvarla(parselAlani, 1),
       islakHacimAlani: yuvarla(islakAlani, 1),
       icKapiAdet: Math.round(kapiAdet),
+      disKapiAdet: Math.round(kapiDisAdet),
       pencereAdet: Math.round(pencereAdet),
       /* Standart 1,40 × 1,50 m pencere kabulüyle alan tahmini */
       pencereAlani: yuvarla(pencereAdet * 2.1, 1),
-      eslesme,
-      guven: (disDuvar || icDuvar ? 0.9 : ayrismamis ? 0.7 : 0.4)
+      merdivenKolu: yuvarla(merdivenUz, 1),
+      eslesme, taninan, taninmayan, eksik,
+      guven
     };
   }
 
@@ -449,6 +504,6 @@ window.Kesif = (function () {
   const nfmt = new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 2 });
   function num(v) { return nfmt.format(+v || 0); }
 
-  return { POZLAR, KATEGORILER, VARSAYILAN, TUR_ADI,
+  return { POZLAR, KATEGORILER, VARSAYILAN, TUR_ADI, NOTR_TURLER,
            pozBul, tamamla, hesapla, paftadanTahmin, katmanTuru, yuvarla };
 })();

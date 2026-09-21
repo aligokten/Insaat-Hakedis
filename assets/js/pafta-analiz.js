@@ -105,7 +105,7 @@ window.PaftaAnaliz = (function () {
     const sonuc = {
       format: 'DXF', cozulebilir: true, surum: '', onizleme: null,
       katmanlar: [], varliklar: {}, sinir: null, birimKodu: 0, birimAdi: '',
-      olcek: 1, cizim: [], not: ''
+      olcek: 1, cizim: [], not: '', paftaBasliklari: [], olcekler: []
     };
     if (!cift.length) { sonuc.cozulebilir = false; sonuc.not = 'Dosya DXF metin yapısında değil.'; return sonuc; }
 
@@ -173,7 +173,10 @@ window.PaftaAnaliz = (function () {
       if (kod === 50) { v.bas = +deg; continue; }
       if (kod === 51) { v.son = +deg; continue; }
       if (kod === 70) { v.bayrak = parseInt(deg, 10) || 0; continue; }
-      if (kod === 1)  { v.metin = deg; continue; }
+      if (kod === 1)  { v.metin = (v.metin || '') + deg; continue; }
+      if (kod === 3 && (v.tur === 'MTEXT' || v.tur === 'TEXT')) {
+        v.metin = (v.metin || '') + deg; continue;      // uzun MTEXT parcalari
+      }
       if (kod === 2 && v.tur === 'INSERT') { v.blok = deg; continue; }
     }
     varligiKapat();
@@ -245,6 +248,28 @@ window.PaftaAnaliz = (function () {
         }
       }
     });
+
+    /* Cizimdeki pafta basliklari ve olcek yazilari: tek dosyada birden cok
+       pafta (plan + kesit + gorunus) ya da farkli olcekler varsa metraj
+       cikarimi yanlis olur; kullaniciya uyari verebilmek icin toplanir. */
+    const BASLIK_DESEN = /(kat\s*plan|vaziyet|yerleşim|yerlesim|kesit|görünüş|gorunus|cephe|detay|merdiven\s*kesiti)/i;
+    const OLCEK_DESEN = /1\s*[\/:]\s*(\d{1,4})/g;
+    const basliklar = new Set(), olcekler = new Set();
+    varliklar.forEach((e) => {
+      if (e.tur !== 'TEXT' && e.tur !== 'MTEXT') return;
+      const ham = String(e.metin || '')
+        .replace(/\\[A-Za-z][^;]*;/g, '').replace(/[{}]/g, '').trim();
+      if (!ham || ham.length > 80) return;
+      if (BASLIK_DESEN.test(ham)) basliklar.add(ham);
+      let m;
+      OLCEK_DESEN.lastIndex = 0;
+      while ((m = OLCEK_DESEN.exec(ham))) {
+        const n = parseInt(m[1], 10);
+        if (n >= 5 && n <= 2000) olcekler.add('1/' + n);
+      }
+    });
+    sonuc.paftaBasliklari = [...basliklar].slice(0, 40);
+    sonuc.olcekler = [...olcekler];
 
     if (extMin && extMax && isFinite(extMin.x)) {
       sonuc.sinir = { minX: extMin.x, minY: extMin.y, maxX: extMax.x, maxY: extMax.y, kaynak: 'başlık' };

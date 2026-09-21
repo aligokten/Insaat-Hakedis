@@ -551,6 +551,8 @@
           varliklar: coz.varliklar || {},
           varlikSayisi,
           sinir: coz.sinir || null,
+          olcekler: coz.olcekler || [],
+          paftaBasliklari: coz.paftaBasliklari || [],
           alanM2: toplamAlan,
           kucukResim,
           dosyaId,
@@ -4474,6 +4476,61 @@
     return sonuc;
   }
 
+  /* Paftanin metraja uygunlugu: birden cok olcek, kesit/gorunus paftasi ya da
+     asiri genis cizim alani tek dosyada butun proje seti oldugunu gosterir. */
+  function paftaUygunlukUyarisi(d) {
+    const olcekler = d.olcekler || [];
+    const basliklar = d.paftaBasliklari || [];
+    const planDisi = basliklar.filter((b) =>
+      /(kesit|görünüş|gorunus|cephe|vaziyet|yerleşim|yerlesim|detay)/i.test(b));
+    const s = d.sinir || {};
+    const en = Math.abs((s.maxX || 0) - (s.minX || 0));
+    const boy = Math.abs((s.maxY || 0) - (s.minY || 0));
+    const oran = boy ? en / boy : 1;
+
+    const nedenler = [];
+    if (olcekler.length > 1) {
+      nedenler.push(`Çizimde <b>${olcekler.length} farklı ölçek</b> var
+        (${olcekler.join(' · ')}). Tek bir birim katsayısıyla ölçülemez;
+        1/200 vaziyet planındaki bir duvar, 1/50 kat planındakinin dört katı
+        uzunlukta okunur.`);
+    }
+    if (planDisi.length) {
+      nedenler.push(`Dosyada kat planı dışında pafta var:
+        <b>${planDisi.slice(0, 5).join(', ')}</b>${planDisi.length > 5 ? ' …' : ''}.
+        Kesit ve görünüşlerdeki çizgiler de duvar sayılır, metraj katlanır.`);
+    }
+    if (oran > 4 || oran < 0.25) {
+      nedenler.push(`Çizim alanı ${num2(en)} × ${num2(boy)} birim —
+        pafta seti yan yana dizilmiş gibi görünüyor. Metraj dosyasında
+        <b>tek kat planı</b> olmalıdır.`);
+    }
+    if (!nedenler.length) return '';
+
+    return `<p class="modal-metin">Bu dosyadan çıkarılacak ölçüler
+        <b>güvenilir olmaz</b>:</p>
+      <ul class="kesif-uyari-liste">${nedenler.map((n) => `<li>${n}</li>`).join('')}</ul>
+      <p class="modal-metin">Doğru sonuç için projenin
+        <b>yalnızca bir kat planını</b> içeren, tek ölçekli bir DXF hazırlayın.
+        Katman adları ve çizim kuralları için depodaki
+        <b>docs/CIZIM-STANDARDI.md</b> belgesine bakın.</p>`;
+  }
+
+  /* Okunan katmanlarin uyum ozeti: ne taninmis, ne eksik kalmis */
+  function kesifUyumHTML(t) {
+    const rozet = (e) => `<span>${e.ad} <i>${Kesif.TUR_ADI[e.tur]}</i></span>`;
+    return `
+      ${t.taninan.length ? `<h4 class="kesif-baslik">Tanınan katmanlar (${t.taninan.length})</h4>
+        <div class="kesif-katman-liste">${t.taninan.slice(0, 30).map(rozet).join('')}</div>` : ''}
+      ${t.taninmayan.length ? `<h4 class="kesif-baslik">Tanınmayan, ölçüsü olan katmanlar (${t.taninmayan.length})</h4>
+        <div class="kesif-katman-liste">${t.taninmayan.slice(0, 30)
+          .map((e) => `<span class="eksik">${e.ad}</span>`).join('')}</div>
+        <p class="modal-metin" style="font-size:11px">Bu katmanlardaki ölçüler
+          keşfe girmedi. Standarttaki adlara çevirirseniz otomatik okunur.</p>` : ''}
+      ${t.eksik.length ? `<p class="modal-metin"><b>Okunamayan ölçüler:</b>
+        ${t.eksik.join(', ')} — bu değerleri parametre alanlarına elle girin.</p>` : ''}`;
+  }
+
   /* -------------------------------------------- paftadan otomatik okuma */
   async function kesifPaftadanOku() {
     const liste = S.aktif('paftalar')
@@ -4504,6 +4561,20 @@
 
     const d = S.bul('paftalar', secim.pafta);
     if (!d) return;
+
+    /* Tek dosyada birden cok pafta / olcek varsa olculer karisir: once uyar */
+    const uyari = paftaUygunlukUyarisi(d);
+    if (uyari) {
+      const devam = await UI.modal({
+        baslik: 'Bu dosya metraja uygun değil',
+        aciklama: d.ad,
+        icerik: uyari,
+        dugmeler: [{ ad: 'Vazgeç', deger: null },
+                   { ad: 'Yine de oku', deger: true }]
+      });
+      if (!devam) return;
+    }
+
     const t = Kesif.paftadanTahmin(d.katmanlar, { duvarBolen: Number(secim.bolen) });
 
     /* okunan degerleri onaya sun */
@@ -4514,8 +4585,11 @@
       ['Mahal (taban) alanı', t.tabanAlani, 'm²', 'tabanAlani'],
       ['Islak hacim alanı', t.islakHacimAlani, 'm²', 'islakHacimAlani'],
       ['Kapı adedi', t.icKapiAdet, 'adet', 'icKapiAdet'],
+      ['Dış / daire kapısı', t.disKapiAdet, 'adet', 'disKapiAdet'],
       ['Pencere adedi', t.pencereAdet, 'adet', 'pencereAdet'],
-      ['Pencere alanı (tahmini)', t.pencereAlani, 'm²', 'pencereAlani']
+      ['Pencere alanı (tahmini)', t.pencereAlani, 'm²', 'pencereAlani'],
+      ['Merdiven basamağı', t.merdivenKolu, 'mtül', 'merdivenKolu'],
+      ['Parsel (arsa) alanı', t.arsaAlani, 'm²', 'arsaAlani']
     ].filter((s) => s[1] > 0);
 
     if (!satirlar.length) {
@@ -4523,9 +4597,10 @@
         baslik: 'Ölçü okunamadı',
         aciklama: d.ad,
         icerik: `<p class="modal-metin">Bu paftanın katman adlarından tanınan imalat çıkmadı.
-          Katman listesi:</p><div class="kesif-katman-liste">${(d.katmanlar || []).slice(0, 40)
-            .map((k) => `<span>${k.ad} <i>${Kesif.TUR_ADI[Kesif.katmanTuru(k.ad)]}</i></span>`).join('')}</div>
-          <p class="modal-metin">Ölçüleri parametre alanlarına elle girebilirsiniz.</p>`
+          Katman adlarını <b>docs/CIZIM-STANDARDI.md</b> belgesindeki karşılıklarına
+          çevirirseniz ölçüler otomatik okunur.</p>
+          ${kesifUyumHTML(t)}
+          <p class="modal-metin">Şimdilik ölçüleri parametre alanlarına elle girebilirsiniz.</p>`
       });
       return;
     }
@@ -4538,10 +4613,10 @@
           <tbody>${satirlar.map((s) =>
             `<tr><td>${s[0]}</td><td class="num strong">${num2(s[1])}</td><td>${s[2]}</td></tr>`).join('')}</tbody>
         </table></div>
-        <p class="modal-metin">Kat planı ${secim.katSayisi} katta tekrarlıyor kabul edilir.
+        <p class="modal-metin">Taban alanı <b>${t.tabanKaynak}</b> katmanından alındı.
+          Kat planı ${secim.katSayisi} katta tekrarlıyor kabul edilir.
           Değerler parametre alanlarına yazılır ve orada düzeltilebilir.</p>
-        <div class="kesif-katman-liste">${t.eslesme.filter((e) => e.tur !== 'bilinmiyor')
-          .slice(0, 24).map((e) => `<span>${e.ad} <i>${Kesif.TUR_ADI[e.tur]}</i></span>`).join('')}</div>`,
+        ${kesifUyumHTML(t)}`,
       dugmeler: [{ ad: 'Vazgeç', deger: null }, { ad: 'Parametrelere yaz', tur: 'accent', deger: true }]
     });
     if (!onay) return;
