@@ -137,6 +137,9 @@ window.Kesif = (function () {
     pencereAdet: 0,
     icKapiAdet: 0,
     disKapiAdet: 0,
+    disDuvarKalinlik: 0.2,  // m   — çizimden ölçülür, poz seçimini etkiler
+    icDuvarKalinlik: 0.1,   // m
+    bosluklarDusuldu: false,// çizimde duvar çizgileri boşluklarda kesilmişse true
     islakHacimAlani: 0,     // m²  — bina genelinde ıslak hacim zemin alanı
     daireAdet: 1,
     merdivenKolu: 0,        // mtül — toplam basamak uzunluğu
@@ -304,6 +307,162 @@ window.Kesif = (function () {
     };
   }
 
+  /* ============================== çift çizgi duvar çözümlemesi ============
+     Mimari planda duvar iki yüz çizgisiyle gösterilir. Birbirine paralel,
+     izdüşümleri örtüşen ve aralarındaki dik mesafe duvar kalınlığı
+     aralığında olan iki çizgi bir duvar parçası sayılır:
+       - parçanın uzunluğu  = iki çizginin örtüşme boyu (eksen uzunluğu)
+       - parçanın kalınlığı = aradaki dik mesafe
+     Böylece duvar uzunluğu "ikiye bölme" tahmini yerine ölçülerek bulunur ve
+     duvarlar kalınlıklarına göre ayrılır (20 cm dış, 10 cm bölme gibi).
+
+     segmentler : [{x1,y1,x2,y2}] — metre biriminde
+     Döner      : { gruplar: [{kalinlik, uzunluk, parca}], eslesmeyen, toplam } */
+  function duvarAnalizi(segmentler, secenek) {
+    const a = {
+      minKalinlik: 0.05,      // 5 cm'den ince paralellik duvar sayılmaz
+      maxKalinlik: 0.80,      // 80 cm'den kalın olan duvar değil (tarama, kesit)
+      minUzunluk: 0.20,       // 20 cm'den kısa örtüşme dikkate alınmaz
+      aciTolerans: 2,         // derece — paralel kabul sınırı
+      enBuyukSegment: 120000, // üzerinde çözümleme yapılmaz (donma koruması)
+      ...(secenek || {})
+    };
+
+    const segler = [];
+    (segmentler || []).forEach((g) => {
+      const dx = g.x2 - g.x1, dy = g.y2 - g.y1;
+      const boy = Math.hypot(dx, dy);
+      if (!(boy > a.minUzunluk)) return;
+      /* yön açısı [0, π): ters yönde çizilmiş çizgiler aynı sayılsın */
+      let aci = Math.atan2(dy, dx);
+      if (aci < 0) aci += Math.PI;
+      if (aci >= Math.PI - 1e-9) aci = 0;
+      const ux = Math.cos(aci), uy = Math.sin(aci);   // birim yön
+      const nx = -uy, ny = ux;                        // birim normal
+      segler.push({
+        x1: g.x1, y1: g.y1, x2: g.x2, y2: g.y2, boy, aci, ux, uy,
+        c: g.x1 * nx + g.y1 * ny,                     // doğrunun normal ötelemesi
+        t0: Math.min(g.x1 * ux + g.y1 * uy, g.x2 * ux + g.y2 * uy),
+        t1: Math.max(g.x1 * ux + g.y1 * uy, g.x2 * ux + g.y2 * uy),
+        es: null, esOrtusme: 0, esKalinlik: 0
+      });
+    });
+
+    const toplamCizgi = segler.reduce((t, s) => t + s.boy, 0);
+    if (!segler.length || segler.length > a.enBuyukSegment) {
+      return { gruplar: [], eslesmeyen: toplamCizgi, toplam: toplamCizgi,
+               segmentSayisi: segler.length,
+               asildi: segler.length > a.enBuyukSegment };
+    }
+
+    /* Açı kovalarına böl: yalnızca aynı ve komşu kovadaki çizgiler karşılaştırılır */
+    const kovaAci = a.aciTolerans * Math.PI / 180;
+    const kovalar = new Map();
+    segler.forEach((s, i) => {
+      const k = Math.floor(s.aci / kovaAci);
+      if (!kovalar.has(k)) kovalar.set(k, []);
+      kovalar.get(k).push(i);
+    });
+    const kovaSayisi = Math.ceil(Math.PI / kovaAci);
+
+    const acilar = (s1, s2) => {
+      let d = Math.abs(s1.aci - s2.aci);
+      if (d > Math.PI / 2) d = Math.PI - d;           // 0 ve π komşuluğu
+      return d;
+    };
+
+    /* Her çizgi için en iyi eşi: en uzun örtüşmeyi veren paralel komşu */
+    const bak = (liste, digerListe) => {
+      const hepsi = digerListe ? liste.concat(digerListe) : liste;
+      /* normal ötelemeye göre sırala: yalnızca yakın ötelemeler karşılaştırılır */
+      hepsi.sort((i, j) => segler[i].c - segler[j].c);
+      for (let p = 0; p < hepsi.length; p++) {
+        const s = segler[hepsi[p]];
+        for (let q = p + 1; q < hepsi.length; q++) {
+          const o = segler[hepsi[q]];
+          const fark = Math.abs(o.c - s.c);
+          if (fark > a.maxKalinlik) break;            // sıralı: sonrakiler daha uzak
+          if (fark < a.minKalinlik) continue;
+          if (acilar(s, o) > kovaAci) continue;
+          const ortusme = Math.min(s.t1, o.t1) - Math.max(s.t0, o.t0);
+          if (ortusme < a.minUzunluk) continue;
+          if (ortusme > s.esOrtusme) { s.es = hepsi[q]; s.esOrtusme = ortusme; s.esKalinlik = fark; }
+          if (ortusme > o.esOrtusme) { o.es = hepsi[p]; o.esOrtusme = ortusme; o.esKalinlik = fark; }
+        }
+      }
+    };
+
+    kovalar.forEach((liste, k) => {
+      const komsu = kovalar.get((k + 1) % kovaSayisi);
+      bak(liste, k === kovaSayisi - 1 ? null : komsu);
+    });
+
+    /* Karşılıklı eşleşmeleri bir kez say; kalınlığı santimetreye yuvarla */
+    const grup = new Map();
+    let eslesen = 0;
+    segler.forEach((s, i) => {
+      if (s.es === null) return;
+      const o = segler[s.es];
+      if (o.es !== i) return;                          // karşılıklı değilse atla
+      if (s.es < i) return;                            // çifti bir kez say
+      const cm = Math.max(1, Math.round(s.esKalinlik * 100));
+      const g = grup.get(cm) || { kalinlik: cm / 100, uzunluk: 0, parca: 0 };
+      /* Eksen uzunlugu iki yuzun ortalamasidir: kosede dis yuz t/2 uzar,
+         ic yuz t/2 kisalir; ortalama tam eksen uzunlugunu verir. */
+      g.uzunluk += (s.boy + o.boy) / 2; g.parca++;
+      grup.set(cm, g);
+      eslesen += s.boy + o.boy;
+    });
+
+    /* Bir santimetre farkla dağılan grupları birleştir (çizim toleransı) */
+    const sirali = [...grup.entries()].sort((x, y) => x[0] - y[0]);
+    const birlesik = [];
+    sirali.forEach(([cm, g]) => {
+      const son = birlesik[birlesik.length - 1];
+      if (son && cm - Math.round(son.kalinlik * 100) <= 1) {
+        /* uzunluğu büyük olanın kalınlığı korunur */
+        if (g.uzunluk > son.uzunluk) son.kalinlik = g.kalinlik;
+        son.uzunluk += g.uzunluk; son.parca += g.parca;
+      } else {
+        birlesik.push({ ...g });
+      }
+    });
+
+    return {
+      gruplar: birlesik.sort((x, y) => y.uzunluk - x.uzunluk),
+      eslesmeyen: Math.max(0, toplamCizgi - eslesen),
+      toplam: toplamCizgi,
+      segmentSayisi: segler.length,
+      asildi: false
+    };
+  }
+
+  /* Cizim verisinden (PaftaAnaliz.cizim) metre biriminde segment listesi.
+     katmanSuzgec verilirse yalnizca o katmanlar alinir. */
+  function segmentleriCikar(cizim, olcek, katmanSuzgec) {
+    const cik = [];
+    const o = olcek || 1;
+    const uygun = katmanSuzgec
+      ? (k) => katmanSuzgec.indexOf(k) > -1
+      : () => true;
+    (cizim || []).forEach((e) => {
+      if (!uygun(e.k)) return;
+      if (e.t === 'l') {
+        cik.push({ x1: e.p[0] * o, y1: e.p[1] * o, x2: e.p[2] * o, y2: e.p[3] * o, k: e.k });
+      } else if (e.t === 'p') {
+        for (let i = 1; i < e.p.length; i++) {
+          cik.push({ x1: e.p[i - 1][0] * o, y1: e.p[i - 1][1] * o,
+                     x2: e.p[i][0] * o, y2: e.p[i][1] * o, k: e.k });
+        }
+        if (e.kapali && e.p.length > 2) {
+          const ilk = e.p[0], son = e.p[e.p.length - 1];
+          cik.push({ x1: son[0] * o, y1: son[1] * o, x2: ilk[0] * o, y2: ilk[1] * o, k: e.k });
+        }
+      }
+    });
+    return cik;
+  }
+
   const yuvarla = (v, basamak) => {
     const c = Math.pow(10, basamak === undefined ? 2 : basamak);
     return Math.round((v || 0) * c) / c;
@@ -327,10 +486,14 @@ window.Kesif = (function () {
     const kullanimAlani = toplamAlan * o.kullanimOrani;
 
     const disDuvarBrut = (+g.disDuvarUzunluk || 0) * netYukseklik * ustKat;
-    const bosluk = (+g.pencereAlani || 0) + (+g.disKapiAdet || 0) * 2.2;
+    /* Cizimde duvar yuzleri kapi/pencere bosluklarinda kesilmisse uzunluk
+       zaten bosluksuzdur; ikinci kez dusulmez. */
+    const bosluk = g.bosluklarDusuldu
+      ? 0 : (+g.pencereAlani || 0) + (+g.disKapiAdet || 0) * 2.2;
+    const icBosluk = g.bosluklarDusuldu ? 0 : (+g.icKapiAdet || 0) * 1.8;
     const disDuvarNet = Math.max(0, disDuvarBrut - bosluk);
     const icDuvarBrut = (+g.icDuvarUzunluk || 0) * netYukseklik * katSayisi;
-    const icDuvarNet = Math.max(0, icDuvarBrut - (+g.icKapiAdet || 0) * 1.8);
+    const icDuvarNet = Math.max(0, icDuvarBrut - icBosluk);
     const tavanAlani = toplamAlan * o.tavanOrani;
     /* iç sıva: iç duvarın iki yüzü + dış duvarın iç yüzü + tavanlar */
     const icSivaAlani = icDuvarNet * 2 + disDuvarNet + tavanAlani;
@@ -397,9 +560,11 @@ window.Kesif = (function () {
 
     /* --- duvar ve yalıtım --- */
     ekle('18.071.1003', disDuvarNet,
-      `${num(g.disDuvarUzunluk)} m × ${num(netYukseklik)} m net yükseklik × ${ustKat} kat − ${num(bosluk)} m² boşluk`);
+      `${num(g.disDuvarUzunluk)} m × ${num(netYukseklik)} m net yükseklik × ${ustKat} kat` +
+      (bosluk ? ` − ${num(bosluk)} m² boşluk` : ' (boşluklar çizimde düşülmüş)'));
     ekle('18.071.1001', icDuvarNet,
-      `${num(g.icDuvarUzunluk)} m × ${num(netYukseklik)} m × ${katSayisi} kat − ${g.icKapiAdet} kapı × 1,80 m²`);
+      `${num(g.icDuvarUzunluk)} m × ${num(netYukseklik)} m × ${katSayisi} kat` +
+      (icBosluk ? ` − ${g.icKapiAdet} kapı × 1,80 m²` : ' (boşluklar çizimde düşülmüş)'));
     ekle('16.058.1008', ((+g.pencereAdet || 0) + (+g.icKapiAdet || 0) + (+g.disKapiAdet || 0)) * 1.6,
       `(${g.pencereAdet} pencere + ${g.icKapiAdet + g.disKapiAdet} kapı) × 1,60 m ortalama lento`);
     ekle('19.100.1005', disDuvarBrut,
@@ -487,6 +652,10 @@ window.Kesif = (function () {
       olculer: {
         katSayisi, toplamAlan, kullanimAlani, netYukseklik,
         disDuvarNet, icDuvarNet, icSivaAlani, kaziHacmi,
+        disDuvarKalinlik: +g.disDuvarKalinlik || 0,
+        icDuvarKalinlik: +g.icDuvarKalinlik || 0,
+        duvarHacmi: disDuvarNet * (+g.disDuvarKalinlik || 0) +
+                    icDuvarNet * (+g.icDuvarKalinlik || 0),
         toplamBeton: groBeton + temelBeton + ustBeton,
         toplamKalip: ustKalip + temelKalip, donatiTon, catiAlani
       },
@@ -505,5 +674,6 @@ window.Kesif = (function () {
   function num(v) { return nfmt.format(+v || 0); }
 
   return { POZLAR, KATEGORILER, VARSAYILAN, TUR_ADI, NOTR_TURLER,
+           duvarAnalizi, segmentleriCikar,
            pozBul, tamamla, hesapla, paftadanTahmin, katmanTuru, yuvarla };
 })();

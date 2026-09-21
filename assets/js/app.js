@@ -4290,6 +4290,8 @@
             ${kAlan('pencereAlani', 'Pencere alanı (m²)', { adim: '0.5' })}
             ${kAlan('icKapiAdet', 'İç kapı adedi', { adim: '1' })}
             ${kAlan('disKapiAdet', 'Dış / daire kapısı', { adim: '1' })}
+            ${kAlan('disDuvarKalinlik', 'Dış duvar kalınlığı (m)', { adim: '0.01', not: 'Çizimden ölçülür' })}
+            ${kAlan('icDuvarKalinlik', 'İç duvar kalınlığı (m)', { adim: '0.01' })}
             ${kAlan('islakHacimAlani', 'Islak hacim alanı (m²)', { adim: '0.5' })}
             ${kAlan('merdivenKolu', 'Merdiven basamağı (mtül)', { adim: '0.5' })}
             ${kAlan('kaziDerinligi', 'Kazı derinliği (m)', { adim: '0.1' })}
@@ -4454,6 +4456,9 @@
            ['Toplam kalıp', num2(o.toplamKalip) + ' m²'],
            ['Donatı', num2(o.donatiTon) + ' ton'],
            ['Kazı', num2(o.kaziHacmi) + ' m³'],
+           ['Duvar kalınlığı (dış / iç)',
+            cm(o.disDuvarKalinlik) + ' / ' + cm(o.icDuvarKalinlik)],
+           ['Duvar hacmi', num2(o.duvarHacmi) + ' m³'],
            ['Sıva / boya alanı', num2(o.icSivaAlani) + ' m²'],
            ['Çatı alanı', num2(o.catiAlani) + ' m²']]
           .map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('')}
@@ -4516,6 +4521,66 @@
         <b>docs/CIZIM-STANDARDI.md</b> belgesine bakın.</p>`;
   }
 
+  /* Paftanin duvar katmanlarindaki cift cizgileri esleyip kalinlik gruplarini
+     cikarir. Dosya okunamazsa (eski kayit, silinmis dosya) null doner ve
+     okuma katman toplamlarina geri duser. */
+  async function duvarAnaliziniCalistir(d) {
+    if (!d.dosyaId) return null;
+    try {
+      const kayit = await Dosya.oku(d.dosyaId);
+      if (!kayit) return null;
+      const coz = await PaftaAnaliz.cozumle(new File([kayit.blob], d.ad));
+      if (!coz.cizim || !coz.cizim.length) return null;
+      const duvarKatmanlari = (coz.katmanlar || [])
+        .map((k) => k.ad)
+        .filter((ad) => ['disDuvar', 'icDuvar', 'duvar'].indexOf(Kesif.katmanTuru(ad)) > -1);
+      if (!duvarKatmanlari.length) return null;
+      const segmentler = Kesif.segmentleriCikar(coz.cizim, coz.olcek, duvarKatmanlari);
+      const sonuc = Kesif.duvarAnalizi(segmentler);
+      return sonuc.gruplar.length ? sonuc : null;
+    } catch (e) {
+      console.warn('Duvar çözümlemesi yapılamadı:', e);
+      return null;
+    }
+  }
+
+  /* Kalinlik yazimi: 20 cm, 8,5 cm — gereksiz sifir basamagi yazilmaz */
+  const cm = (metre) => (metre * 100).toLocaleString('tr-TR', { maximumFractionDigits: 1 }) + ' cm';
+
+  /* Kalinliga gore varsayilan atama: 15 cm ve uzeri dis, 7-15 cm ic duvar */
+  const duvarVarsayilanAtama = (kalinlik) =>
+    kalinlik >= 0.15 ? 'dis' : kalinlik >= 0.07 ? 'ic' : 'yok';
+
+  /* Kalinlik gruplarini atama secimleriyle birlikte gosteren tablo */
+  function duvarAnaliziHTML(analiz) {
+    if (!analiz) return '';
+    return `
+      <div class="kalem-tablo">
+        <h4>Duvar kalınlıkları (çift çizgi çözümlemesi)</h4>
+        <div class="table-wrap"><table>
+          <thead><tr><th class="num">Kalınlık</th><th class="num">Eksen uzunluğu</th>
+            <th class="num">Parça</th><th>Ne olarak sayılsın</th></tr></thead>
+          <tbody>${analiz.gruplar.map((g, i) => `
+            <tr>
+              <td class="num strong">${cm(g.kalinlik)}</td>
+              <td class="num">${num2(g.uzunluk)} m</td>
+              <td class="num">${g.parca}</td>
+              <td><select data-duvar-grup="${i}" aria-label="${cm(g.kalinlik)} duvar ataması">
+                ${[['dis', 'Dış duvar'], ['ic', 'İç duvar'], ['yok', 'Sayma']]
+                  .map(([v, ad]) => `<option value="${v}"
+                    ${duvarVarsayilanAtama(g.kalinlik) === v ? 'selected' : ''}>${ad}</option>`).join('')}
+              </select></td>
+            </tr>`).join('')}</tbody>
+        </table></div>
+        <p class="modal-metin" style="font-size:11px">
+          Eksen uzunluğu iki yüz çizgisinin ortalamasıdır; köşe payları böylece
+          kendiliğinden doğru hesaplanır.
+          ${analiz.eslesmeyen > 0.5 ? `Çift bulunamayan <b>${num2(analiz.eslesmeyen)} m</b>
+            çizgi sayılmadı (tek çizgi, tarama ya da kopuk yüzler).` : ''}
+        </p>
+      </div>`;
+  }
+
   /* Okunan katmanlarin uyum ozeti: ne taninmis, ne eksik kalmis */
   function kesifUyumHTML(t) {
     const rozet = (e) => `<span>${e.ad} <i>${Kesif.TUR_ADI[e.tur]}</i></span>`;
@@ -4544,14 +4609,17 @@
     const secim = await UI.form({
       baslik: 'Mimari projeden metraj oku',
       aciklama: 'Katman adlarından duvar, kapı, pencere ve mahal ölçüleri çıkarılır. ' +
-                'Duvarlar çizimde çift çizgi ile gösterildiğinden ölçülen uzunluk ikiye bölünür.',
+                'Duvarlar çift çizgi çizildiği için iki yüz eşleştirilir: eksen uzunluğu ' +
+                've duvar kalınlığı çizimden ölçülür.',
       kaydetEtiketi: 'Oku ve doldur',
       alanlar: [
         { ad: 'pafta', etiket: 'Pafta', tur: 'secim',
           secenekler: liste.map((p) => ({ deger: p._id,
             ad: `${p.ad} — ${p.format} · ${(p.katmanlar || []).length} katman` })) },
-        { ad: 'bolen', etiket: 'Duvar çizgisi böleni', tur: 'secim', deger: '2',
-          secenekler: [{ deger: '2', ad: 'Çift çizgi (÷2)' }, { deger: '1', ad: 'Tek çizgi (÷1)' }] },
+        { ad: 'bosluk', etiket: 'Kapı / pencere boşlukları', tur: 'secim', deger: 'kesilmemis',
+          secenekler: [{ deger: 'kesilmemis', ad: 'Duvar çizgileri boşluklarda kesilmemiş' },
+                       { deger: 'kesilmis', ad: 'Duvar çizgileri boşluklarda kesilmiş' }],
+          not: 'Kesilmişse boşluk alanı ikinci kez düşülmez.' },
         { ad: 'katSayisi', etiket: 'Bu plan kaç katta tekrarlıyor?', tur: 'number', min: 1,
           adim: '1', deger: Math.max(1, kesifGirdisi().normalKat || 1),
           not: 'Normal kat sayısı olarak yazılır.' }
@@ -4575,13 +4643,16 @@
       if (!devam) return;
     }
 
-    const t = Kesif.paftadanTahmin(d.katmanlar, { duvarBolen: Number(secim.bolen) });
+    /* Cift cizgi duvar cozumlemesi icin geometri gerekir; localStorage'da
+       yalnizca ozet var, dosya IndexedDB'den yeniden cozulur. */
+    const analiz = await duvarAnaliziniCalistir(d);
+    const t = Kesif.paftadanTahmin(d.katmanlar, { duvarBolen: 2 });
 
-    /* okunan degerleri onaya sun */
+    /* okunan degerleri onaya sun — duvarlar cozumlendiyse oradan gelir */
     const satirlar = [
-      ['Dış duvar uzunluğu', t.disDuvarUzunluk, 'm', 'disDuvarUzunluk'],
-      ['İç duvar uzunluğu', t.icDuvarUzunluk, 'm', 'icDuvarUzunluk'],
-      ['Bina çevresi', t.binaCevresi, 'm', 'binaCevresi'],
+      analiz ? null : ['Dış duvar uzunluğu', t.disDuvarUzunluk, 'm', 'disDuvarUzunluk'],
+      analiz ? null : ['İç duvar uzunluğu', t.icDuvarUzunluk, 'm', 'icDuvarUzunluk'],
+      analiz ? null : ['Bina çevresi', t.binaCevresi, 'm', 'binaCevresi'],
       ['Mahal (taban) alanı', t.tabanAlani, 'm²', 'tabanAlani'],
       ['Islak hacim alanı', t.islakHacimAlani, 'm²', 'islakHacimAlani'],
       ['Kapı adedi', t.icKapiAdet, 'adet', 'icKapiAdet'],
@@ -4590,9 +4661,9 @@
       ['Pencere alanı (tahmini)', t.pencereAlani, 'm²', 'pencereAlani'],
       ['Merdiven basamağı', t.merdivenKolu, 'mtül', 'merdivenKolu'],
       ['Parsel (arsa) alanı', t.arsaAlani, 'm²', 'arsaAlani']
-    ].filter((s) => s[1] > 0);
+    ].filter((r) => r && r[1] > 0);
 
-    if (!satirlar.length) {
+    if (!satirlar.length && !analiz) {
       await UI.modal({
         baslik: 'Ölçü okunamadı',
         aciklama: d.ad,
@@ -4608,27 +4679,55 @@
     const onay = await UI.modal({
       baslik: 'Okunan ölçüler',
       aciklama: `${d.ad} · güven ${pct(t.guven * 100)}`,
-      icerik: `<div class="table-wrap"><table>
+      icerik: duvarAnaliziHTML(analiz) +
+        (satirlar.length ? `<div class="kalem-tablo"><h4>Diğer ölçüler</h4>
+          <div class="table-wrap"><table>
           <thead><tr><th>Ölçü</th><th class="num">Değer</th><th>Birim</th></tr></thead>
-          <tbody>${satirlar.map((s) =>
-            `<tr><td>${s[0]}</td><td class="num strong">${num2(s[1])}</td><td>${s[2]}</td></tr>`).join('')}</tbody>
-        </table></div>
-        <p class="modal-metin">Taban alanı <b>${t.tabanKaynak}</b> katmanından alındı.
+          <tbody>${satirlar.map((r) =>
+            `<tr><td>${r[0]}</td><td class="num strong">${num2(r[1])}</td><td>${r[2]}</td></tr>`).join('')}</tbody>
+        </table></div></div>` : '') +
+        `<p class="modal-metin">Taban alanı <b>${t.tabanKaynak}</b> katmanından alındı.
           Kat planı ${secim.katSayisi} katta tekrarlıyor kabul edilir.
           Değerler parametre alanlarına yazılır ve orada düzeltilebilir.</p>
         ${kesifUyumHTML(t)}`,
-      dugmeler: [{ ad: 'Vazgeç', deger: null }, { ad: 'Parametrelere yaz', tur: 'accent', deger: true }]
+      hazir: (kutu) => { if (analiz) kutu.querySelector('.modal').classList.add('genis'); },
+      dugmeler: [{ ad: 'Vazgeç', deger: null },
+                 { ad: 'Parametrelere yaz', tur: 'accent',
+                   deger: (kutu) => ({
+                     atama: [...kutu.querySelectorAll('[data-duvar-grup]')].map((el) => el.value)
+                   }) }]
     });
     if (!onay) return;
 
     const g = kesifGirdisi();
-    satirlar.forEach((s) => { g[s[3]] = s[1]; });
+    satirlar.forEach((r) => { g[r[3]] = r[1]; });
+
+    /* Duvar kalinlik gruplarini kullanicinin atamasina gore topla */
+    if (analiz) {
+      let dis = 0, ic = 0, disKalinlik = 0, icKalinlik = 0;
+      analiz.gruplar.forEach((grup, i) => {
+        const hedef = (onay.atama && onay.atama[i]) || duvarVarsayilanAtama(grup.kalinlik);
+        if (hedef === 'dis') {
+          dis += grup.uzunluk;
+          if (grup.uzunluk > disKalinlik) { disKalinlik = grup.uzunluk; g.disDuvarKalinlik = grup.kalinlik; }
+        } else if (hedef === 'ic') {
+          ic += grup.uzunluk;
+          if (grup.uzunluk > icKalinlik) { icKalinlik = grup.uzunluk; g.icDuvarKalinlik = grup.kalinlik; }
+        }
+      });
+      g.disDuvarUzunluk = Kesif.yuvarla(dis, 1);
+      g.icDuvarUzunluk = Kesif.yuvarla(ic, 1);
+      if (dis) g.binaCevresi = Kesif.yuvarla(dis, 1);
+    }
+    g.bosluklarDusuldu = secim.bosluk === 'kesilmis';
     g.normalKat = Math.max(0, Number(secim.katSayisi) - 1);
     g.zeminKat = 1;
     g.paftaId = d._id;
     g.paftaAd = d.ad;
     if (!g.daireAdet || g.daireAdet < 1) g.daireAdet = 1;
-    toast(d.ad + ' paftasından ölçüler okundu.');
+    toast(analiz
+      ? `${d.ad}: ${analiz.gruplar.length} duvar kalınlığı ölçüldü, ölçüler yazıldı.`
+      : d.ad + ' paftasından ölçüler okundu.');
     render();
   }
 
