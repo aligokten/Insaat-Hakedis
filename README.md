@@ -293,6 +293,11 @@ taşeronun açık sapmaları uyarı olarak gösterilir.
 5. **Kaydet / Metraja aktar** — keşif proje bazında saklanır; kalemler tek tıkla
    Metraj modülüne poz olarak yazılır ve hakediş, iş ve rapor ekranlarında kullanılır.
 
+> **Ortak (Supabase) modda kullanıyorsanız**, keşfin sunucuya kaydedilebilmesi için
+> `supabase/sema.sql` dosyasını SQL Editor'de bir kez daha çalıştırın: keşif kayıtları
+> yeni bir koleksiyonda (`kesifler`) tutulur ve yetki tanımı şemadan gelir. Dosya
+> tekrar çalıştırılabilir, veri kaybı olmaz. Yerel modda bir şey yapmanız gerekmez.
+
 Poz numaraları ve birim fiyatlar başlangıç değeridir; yürürlükteki birim fiyat kitabı
 ve alınan tekliflerle güncellenmelidir. Sonuç **yaklaşık keşif** niteliğindedir, onaylı
 uygulama projesi metrajının yerine geçmez.
