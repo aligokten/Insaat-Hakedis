@@ -8,6 +8,8 @@
   /* -------------------------------------------------------------- durum */
   const state = {
     metrajProje: 'hepsi',
+    kesifProje: '',
+    kesifGirdi: null,
     hakedisDurum: 'hepsi',
     kaliteSonuc: 'hepsi',
     stokDepo: 'hepsi',
@@ -37,6 +39,7 @@
     { id: 'ozet',     ad: 'Genel Bakış',  ikon: 'grid' },
     { id: 'paftalar', ad: 'Projeler', ikon: 'layers' },
     { id: 'metraj',   ad: 'Metraj',       ikon: 'ruler' },
+    { id: 'kesif',    ad: 'Keşif & Maliyet', ikon: 'building' },
     { id: 'isler',    ad: 'İşler',        ikon: 'briefcase' },
     { id: 'taseron',  ad: 'Taşeronlar',   ikon: 'users' },
     { id: 'personel', ad: 'Personel',     ikon: 'kimlik' },
@@ -739,7 +742,7 @@
         <td class="num">${num2(m.miktar)} ${m.birim}</td>
         <td class="num">${money(m.birimFiyat)}</td>
         <td class="num strong">${money(metrajTutar(m))}</td>
-        <td>${badge(m.kaynak, m.kaynak === 'Otomatik' ? 'info' : '')}</td>
+        <td>${badge(m.kaynak, m.kaynak === 'Manuel' ? '' : 'info')}</td>
         <td style="min-width:120px">${bar(m.guven * 100, m.guven >= 0.9 ? 'ok' : m.guven >= 0.85 ? 'warn' : 'bad')}</td>
         <td>
           <div class="satir-islem">
@@ -751,7 +754,7 @@
       </tr>`).join('') ||
       '<tr><td colspan="8"><div class="empty">Bu filtrede metraj kalemi yok. “Poz ekle” ile başlayın.</div></td></tr>';
 
-    const otomatik = liste.filter((m) => m.kaynak === 'Otomatik').length;
+    const otomatik = liste.filter((m) => m.kaynak !== 'Manuel').length;
     const ortGuven = liste.length ? liste.reduce((t, m) => t + m.guven, 0) / liste.length * 100 : 0;
     const dusukGuven = liste.filter((m) => m.guven < 0.9);
 
@@ -2957,7 +2960,7 @@
   }
 
   const VIEWS = {
-    ozet: viewOzet, paftalar: viewPaftalar, metraj: viewMetraj, isler: viewIsler,
+    ozet: viewOzet, paftalar: viewPaftalar, metraj: viewMetraj, kesif: viewKesif, isler: viewIsler,
     taseron: viewTaseron, personel: viewPersonel, kalite: viewKalite, hakedis: viewHakedis,
     stok: viewStok, tedarik: viewTedarik, rapor: viewRapor, kullanici: viewKullanici
   };
@@ -4178,6 +4181,513 @@
     toast(sonuc.ad + ' güncellendi.');
   }
 
+  /* ====================================================== keşif & maliyet */
+  /* Mimari ruhsat projesinden otomatik metraj ve insaat maliyeti.
+     Girdi ekranda tutulur; "Kaydet" ile proje bazinda kalici hale gelir. */
+
+  /* Calisilan girdi: once ekran durumu, yoksa kayitli kesif, yoksa varsayilan */
+  function kesifGirdisi() {
+    if (state.kesifGirdi) return state.kesifGirdi;
+    const kayit = kesifKaydi(state.kesifProje);
+    state.kesifGirdi = Kesif.tamamla(kayit ? kayit.girdi : { proje: state.kesifProje });
+    return state.kesifGirdi;
+  }
+
+  const kesifKaydi = (proje) =>
+    S.aktif('kesifler').find((k) => k.proje === proje) || null;
+
+  /* Ekrandaki alanlar: "oranlar.betonOrani" gibi ic ice yollari da yazar */
+  function kesifAlanYaz(yol, deger) {
+    const g = kesifGirdisi();
+    const parca = yol.split('.');
+    let hedef = g;
+    while (parca.length > 1) hedef = hedef[parca.shift()];
+    hedef[parca[0]] = deger;
+  }
+
+  function kesifAlanOku(yol) {
+    const parca = yol.split('.');
+    let d = kesifGirdisi();
+    parca.forEach((p) => { d = d === undefined || d === null ? d : d[p]; });
+    return d;
+  }
+
+  /* girdi alani */
+  function kAlan(yol, etiket, opts) {
+    const o = opts || {};
+    const deger = kesifAlanOku(yol);
+    if (o.secenekler) {
+      return `<label class="kesif-alan"><span>${etiket}</span>
+        <select data-kesif="${yol}">${o.secenekler.map((s) =>
+          `<option value="${s}" ${String(s) === String(deger) ? 'selected' : ''}>${s}</option>`).join('')}</select>
+        ${o.not ? `<em>${o.not}</em>` : ''}</label>`;
+    }
+    return `<label class="kesif-alan"><span>${etiket}</span>
+      <input type="number" data-kesif="${yol}" value="${deger === undefined ? '' : deger}"
+             min="0" step="${o.adim || '0.01'}" inputmode="decimal">
+      ${o.not ? `<em>${o.not}</em>` : ''}</label>`;
+  }
+
+  function viewKesif() {
+    const projeler = S.aktif('projeler');
+    const g = kesifGirdisi();
+    const sonuc = Kesif.hesapla(g);
+    const kayit = kesifKaydi(state.kesifProje);
+    const paftalar = S.aktif('paftalar').filter((p) =>
+      !state.kesifProje || p.proje === state.kesifProje);
+
+    return `
+    ${pageHead('KEŞİF & MALİYET',
+      'Yüklenen mimari ruhsat projesinden detaylı metraj çıkarır, poz bazlı inşaat maliyetini hesaplar. ' +
+      'Miktarlar açık formüllerle üretilir; birim fiyatlar ve oranlar bu ekrandan değiştirilebilir.',
+      `<button class="btn ghost sm" data-act="kesif-csv">${icon('download')} CSV</button>
+       <button class="btn ghost sm" data-act="kesif-metraj">${icon('ruler')} Metraja aktar</button>
+       <button class="btn accent sm" data-act="kesif-kaydet">${icon('check')} Keşfi kaydet</button>`)}
+
+    <div class="grid cols-4" style="padding:0 10px 14px" id="kesifKpi">${kesifKpiHTML(sonuc)}</div>
+
+    <div class="grid side" style="padding:0 10px">
+      <div class="grid" style="gap:14px">
+
+        <div class="card">
+          <div class="card-head"><h3>Bina parametreleri</h3><div class="spacer"></div>
+            <div class="arac-cubugu">
+              <select id="kesifProje" aria-label="Proje seçimi">
+                <option value="">Proje seçilmedi</option>
+                ${projeler.map((p) => `<option value="${p.id}" ${state.kesifProje === p.id ? 'selected' : ''}>${p.ad}</option>`).join('')}
+              </select>
+              <button class="btn ghost sm" data-act="kesif-pafta">${icon('layers')} Projeden oku</button>
+              <button class="btn ghost sm" data-act="kesif-sifirla">${icon('geri')} Sıfırla</button>
+            </div></div>
+
+          ${g.paftaAd ? `<p class="kesif-kaynak">${icon('file')}
+            <b>${g.paftaAd}</b> paftasından okundu. Okunan değerler aşağıda düzenlenebilir.</p>` : ''}
+
+          <h4 class="kesif-baslik">Yapı</h4>
+          <div class="kesif-izgara">
+            ${kAlan('sistem', 'Taşıyıcı sistem', { secenekler: ['Betonarme karkas', 'Tünel kalıp', 'Çelik', 'Yığma'] })}
+            ${kAlan('temel', 'Temel tipi', { secenekler: ['Radye temel', 'Tekil temel + bağ kirişi', 'Sürekli temel'] })}
+            ${kAlan('catiTipi', 'Çatı tipi', { secenekler: ['Kırma çatı', 'Teras çatı'] })}
+            ${kAlan('tabanAlani', 'Taban alanı (m²)', { adim: '1' })}
+            ${kAlan('arsaAlani', 'Arsa alanı (m²)', { adim: '1', not: 'Çevre düzenlemesi için' })}
+            ${kAlan('bodrumKat', 'Bodrum kat', { adim: '1' })}
+            ${kAlan('zeminKat', 'Zemin kat', { adim: '1' })}
+            ${kAlan('normalKat', 'Normal kat', { adim: '1' })}
+            ${kAlan('katYuksekligi', 'Kat yüksekliği (m)', { adim: '0.05' })}
+            ${kAlan('dosemeKalinligi', 'Döşeme kalınlığı (m)', { adim: '0.01' })}
+            ${kAlan('daireAdet', 'Bağımsız bölüm', { adim: '1' })}
+            ${kAlan('asansorAdet', 'Asansör adedi', { adim: '1' })}
+          </div>
+
+          <h4 class="kesif-baslik">Projeden okunan ölçüler</h4>
+          <div class="kesif-izgara">
+            ${kAlan('binaCevresi', 'Bina çevresi (m)', { adim: '0.5' })}
+            ${kAlan('disDuvarUzunluk', 'Dış duvar / kat (m)', { adim: '0.5' })}
+            ${kAlan('icDuvarUzunluk', 'İç duvar / kat (m)', { adim: '0.5' })}
+            ${kAlan('pencereAdet', 'Pencere adedi', { adim: '1' })}
+            ${kAlan('pencereAlani', 'Pencere alanı (m²)', { adim: '0.5' })}
+            ${kAlan('icKapiAdet', 'İç kapı adedi', { adim: '1' })}
+            ${kAlan('disKapiAdet', 'Dış / daire kapısı', { adim: '1' })}
+            ${kAlan('islakHacimAlani', 'Islak hacim alanı (m²)', { adim: '0.5' })}
+            ${kAlan('merdivenKolu', 'Merdiven basamağı (mtül)', { adim: '0.5' })}
+            ${kAlan('kaziDerinligi', 'Kazı derinliği (m)', { adim: '0.1' })}
+            ${kAlan('radyeKalinlik', 'Radye kalınlığı (m)', { adim: '0.05' })}
+          </div>
+
+          <details class="kesif-katlama">
+            <summary>Hesap oranları ve gider yüzdeleri</summary>
+            <div class="kesif-izgara">
+              ${kAlan('oranlar.betonOrani', 'Beton oranı (m³/m²)', { adim: '0.01' })}
+              ${kAlan('oranlar.kalipOrani', 'Kalıp oranı (m²/m³)', { adim: '0.1' })}
+              ${kAlan('oranlar.donatiTemel', 'Temel donatısı (kg/m³)', { adim: '1' })}
+              ${kAlan('oranlar.donatiUst', 'Üst yapı donatısı (kg/m³)', { adim: '1' })}
+              ${kAlan('oranlar.kullanimOrani', 'Net kullanım oranı', { adim: '0.01' })}
+              ${kAlan('oranlar.kabarma', 'Nakliye kabarma katsayısı', { adim: '0.01' })}
+              ${kAlan('giderler.genelGider', 'Şantiye genel gideri (%)', { adim: '0.5' })}
+              ${kAlan('giderler.beklenmeyen', 'Beklenmeyen giderler (%)', { adim: '0.5' })}
+              ${kAlan('giderler.muteahhitKari', 'Müteahhit kârı (%)', { adim: '0.5' })}
+              ${kAlan('giderler.kdv', 'KDV (%)', { adim: '1' })}
+            </div>
+          </details>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h3>Detaylı metraj</h3><div class="spacer"></div>
+            <span class="hint">${sonuc.kalemler.length} kalem · birim fiyatlar düzenlenebilir</span>
+            <button class="btn ghost sm" data-act="kesif-kalem">${icon('plus')} Kalem ekle</button>
+          </div>
+          <div id="kesifTablo">${kesifTabloHTML(sonuc)}</div>
+        </div>
+      </div>
+
+      <div class="grid" style="gap:14px">
+        <div class="card" id="kesifIcmal">${kesifIcmalHTML(sonuc)}</div>
+
+        <div class="card">
+          <div class="card-head"><h3>Projeden okuma</h3></div>
+          <p class="modal-metin" style="margin-bottom:10px">
+            Mimari ruhsat projesinin DXF sürümü yüklendiyse katman adlarından duvar uzunlukları,
+            kapı-pencere adetleri ve mahal alanları otomatik okunur. DWG ve PDF paftalarda
+            ölçüler elle girilir.</p>
+          ${paftalar.length ? `<div class="list-item">
+              <div class="ico">${icon('layers')}</div>
+              <div class="txt"><b>${paftalar.length} pafta</b>
+                <span>${paftalar.filter((p) => p.format === 'DXF').length} DXF çözümlenebilir</span></div>
+              <div class="spacer"></div>
+              <button class="btn accent sm" data-act="kesif-pafta">Oku</button>
+            </div>`
+            : `<div class="empty">Bu projede pafta yok.
+                 <a href="#paftalar">Projeler</a> ekranından mimari projeyi yükleyin.</div>`}
+        </div>
+
+        <div class="card" id="kesifDagilim">${kesifDagilimHTML(sonuc)}</div>
+
+        <div class="card" id="kesifOlculer">${kesifOlculerHTML(sonuc)}</div>
+
+        ${kayit ? `<div class="card">
+          <div class="card-head"><h3>Kayıtlı keşif</h3></div>
+          <div class="list-item"><div class="ico">${icon('check')}</div>
+            <div class="txt"><b>${money(kayit.genelToplam || 0)}</b>
+              <span>${kayit.tarih} · ${kayit.hazirlayan || '—'}</span></div></div>
+        </div>` : ''}
+
+        <p class="modal-metin" style="font-size:11px;padding:0 4px">
+          Poz numaraları ve birim fiyatlar başlangıç değeridir; yürürlükteki birim fiyat
+          kitabı ve alınan tekliflerle karşılaştırıp güncelleyin. Hesap yaklaşık keşif
+          niteliğindedir, onaylı uygulama projesi metrajının yerine geçmez.</p>
+      </div>
+    </div>`;
+  }
+
+  function kesifKpiHTML(sonuc) {
+    const i = sonuc.icmal, o = sonuc.olculer;
+    return kpi(moneyShort(i.araToplam), 'Keşif bedeli (KDV hariç)', 'up',
+               moneyShort(i.genelToplam) + ' KDV dahil') +
+           kpi(money(Math.round(i.m2Maliyet)), 'm² birim maliyet', 'up',
+               num2(o.toplamAlan) + ' m² inşaat') +
+           kpi(num(sonuc.kalemler.length), 'Metraj kalemi', 'up',
+               sonuc.icmal.kategoriToplam.length + ' imalat grubu') +
+           kpi(moneyShort(i.daireMaliyet), 'Bağımsız bölüm maliyeti', 'up',
+               num(sonuc.girdi.daireAdet) + ' bağımsız bölüm');
+  }
+
+  function kesifTabloHTML(sonuc) {
+    if (!sonuc.kalemler.length) {
+      return `<div class="empty">Taban alanı ve kat adedi girildiğinde metraj otomatik oluşur.
+        Mimari projenin DXF sürümü yüklüyse <b>Projeden oku</b> ile ölçüler doldurulur.</div>`;
+    }
+    const govde = Kesif.KATEGORILER.map((kat) => {
+      const grup = sonuc.kalemler.filter((k) => k.kategori === kat);
+      if (!grup.length) return '';
+      const altToplam = grup.reduce((t, k) => t + k.tutar, 0);
+      return `<tr class="kesif-grup"><td colspan="5">${kat}</td>
+                <td class="num">${money(altToplam)}</td><td></td></tr>` +
+        grup.map((k) => `
+          <tr>
+            <td><span class="strong">${k.poz}</span></td>
+            <td>${k.tanim}<div class="muted kesif-formul">${k.formul}</div></td>
+            <td class="num">${num2(k.miktar)}</td>
+            <td>${k.birim}</td>
+            <td class="num"><input class="kesif-fiyat" type="number" min="0" step="0.01"
+                  data-kesif-fiyat="${k.poz}" value="${k.birimFiyat}" aria-label="${k.poz} birim fiyatı"></td>
+            <td class="num strong">${money(k.tutar)}</td>
+            <td><div class="satir-islem">
+              ${k.ozel
+                ? `<button class="ikon-btn tehlike" title="Kalemi sil" data-kesif-kalem-sil="${k._id}">${icon('cop')}</button>`
+                : `<button class="ikon-btn" title="Kalemi keşiften çıkar" data-kesif-kapat="${k.poz}">${icon('cop')}</button>`}
+            </div></td>
+          </tr>`).join('');
+    }).join('');
+
+    const kapali = Object.keys(sonuc.girdi.kapali || {}).filter((p) => sonuc.girdi.kapali[p]);
+
+    return `<div class="table-wrap"><table>
+      <thead><tr><th>Poz No</th><th>İmalat ve metraj formülü</th><th class="num">Miktar</th>
+        <th>Birim</th><th class="num">Birim Fiyat</th><th class="num">Tutar</th><th></th></tr></thead>
+      <tbody>${govde}</tbody>
+      <tfoot><tr><td colspan="5">İmalat toplamı (KDV ve kâr hariç)</td>
+        <td class="num">${money(sonuc.icmal.imalat)}</td><td></td></tr></tfoot>
+    </table></div>
+    ${kapali.length ? `<div class="kesif-kapali">
+      <span>Keşiften çıkarılan ${kapali.length} kalem:</span>
+      ${kapali.map((p) => `<button class="chip sm" data-kesif-ac="${p}">${icon('geri')} ${p}</button>`).join('')}
+    </div>` : ''}`;
+  }
+
+  function kesifIcmalHTML(sonuc) {
+    const i = sonuc.icmal, gd = sonuc.girdi.giderler;
+    const satir = (ad, deger, kalin) =>
+      `<div class="${kalin ? 'kesif-satir kalin' : 'kesif-satir'}"><span>${ad}</span><b>${money(deger)}</b></div>`;
+    return `
+      <div class="card-head"><h3>Maliyet icmali</h3></div>
+      ${satir('İmalat toplamı', i.imalat)}
+      ${satir(`Şantiye genel gideri (%${num2(gd.genelGider)})`, i.genelGider)}
+      ${satir(`Beklenmeyen giderler (%${num2(gd.beklenmeyen)})`, i.beklenmeyen)}
+      ${satir(`Müteahhit kârı (%${num2(gd.muteahhitKari)})`, i.muteahhitKari)}
+      ${satir('Ara toplam (KDV hariç)', i.araToplam, true)}
+      ${satir(`KDV (%${num2(gd.kdv)})`, i.kdv)}
+      ${satir('GENEL TOPLAM', i.genelToplam, true)}
+      <div class="kesif-olcu" style="margin-top:10px">
+        <div><span>m² maliyet (KDV hariç)</span><b>${money(i.m2Maliyet)}</b></div>
+        <div><span>m² maliyet (KDV dahil)</span><b>${money(i.m2MaliyetKdv)}</b></div>
+      </div>`;
+  }
+
+  function kesifDagilimHTML(sonuc) {
+    return `<div class="card-head"><h3>Maliyet dağılımı</h3></div>` +
+      (sonuc.kalemler.length
+        ? barChart(sonuc.icmal.kategoriToplam.map((k) => ({
+            label: k.ad, short: pct(k.tutar / (sonuc.icmal.imalat || 1) * 100), value: k.tutar })))
+        : '<div class="empty">Parametreleri girin.</div>');
+  }
+
+  function kesifOlculerHTML(sonuc) {
+    const o = sonuc.olculer;
+    return `<div class="card-head"><h3>Türetilen ölçüler</h3></div>
+      <div class="kesif-olcu">
+        ${[['Kat adedi', num(o.katSayisi)],
+           ['Toplam inşaat alanı', num2(o.toplamAlan) + ' m²'],
+           ['Net kullanım alanı', num2(o.kullanimAlani) + ' m²'],
+           ['Toplam beton', num2(o.toplamBeton) + ' m³'],
+           ['Toplam kalıp', num2(o.toplamKalip) + ' m²'],
+           ['Donatı', num2(o.donatiTon) + ' ton'],
+           ['Kazı', num2(o.kaziHacmi) + ' m³'],
+           ['Sıva / boya alanı', num2(o.icSivaAlani) + ' m²'],
+           ['Çatı alanı', num2(o.catiAlani) + ' m²']]
+          .map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('')}
+      </div>`;
+  }
+
+  /* Ekrandaki sonuc bolumlerini yeniden cizer (form alanlarina dokunmaz) */
+  function kesifYenile() {
+    const sonuc = Kesif.hesapla(kesifGirdisi());
+    const kpiKutu = document.getElementById('kesifKpi');
+    const tablo = document.getElementById('kesifTablo');
+    const icmal = document.getElementById('kesifIcmal');
+    if (kpiKutu) kpiKutu.innerHTML = kesifKpiHTML(sonuc);
+    if (tablo) { tablo.innerHTML = kesifTabloHTML(sonuc); kesifTabloBagla(); }
+    if (icmal) icmal.innerHTML = kesifIcmalHTML(sonuc);
+    const dagilim = document.getElementById('kesifDagilim');
+    const olculer = document.getElementById('kesifOlculer');
+    if (dagilim) dagilim.innerHTML = kesifDagilimHTML(sonuc);
+    if (olculer) olculer.innerHTML = kesifOlculerHTML(sonuc);
+    return sonuc;
+  }
+
+  /* -------------------------------------------- paftadan otomatik okuma */
+  async function kesifPaftadanOku() {
+    const liste = S.aktif('paftalar')
+      .filter((p) => !state.kesifProje || p.proje === state.kesifProje)
+      .filter((p) => (p.katmanlar || []).length);
+    if (!liste.length) {
+      toast('Çözümlenebilir katman içeren pafta yok. Mimari projenin DXF sürümünü yükleyin.');
+      return;
+    }
+
+    const secim = await UI.form({
+      baslik: 'Mimari projeden metraj oku',
+      aciklama: 'Katman adlarından duvar, kapı, pencere ve mahal ölçüleri çıkarılır. ' +
+                'Duvarlar çizimde çift çizgi ile gösterildiğinden ölçülen uzunluk ikiye bölünür.',
+      kaydetEtiketi: 'Oku ve doldur',
+      alanlar: [
+        { ad: 'pafta', etiket: 'Pafta', tur: 'secim',
+          secenekler: liste.map((p) => ({ deger: p._id,
+            ad: `${p.ad} — ${p.format} · ${(p.katmanlar || []).length} katman` })) },
+        { ad: 'bolen', etiket: 'Duvar çizgisi böleni', tur: 'secim', deger: '2',
+          secenekler: [{ deger: '2', ad: 'Çift çizgi (÷2)' }, { deger: '1', ad: 'Tek çizgi (÷1)' }] },
+        { ad: 'katSayisi', etiket: 'Bu plan kaç katta tekrarlıyor?', tur: 'number', min: 1,
+          adim: '1', deger: Math.max(1, kesifGirdisi().normalKat || 1),
+          not: 'Normal kat sayısı olarak yazılır.' }
+      ]
+    });
+    if (!secim) return;
+
+    const d = S.bul('paftalar', secim.pafta);
+    if (!d) return;
+    const t = Kesif.paftadanTahmin(d.katmanlar, { duvarBolen: Number(secim.bolen) });
+
+    /* okunan degerleri onaya sun */
+    const satirlar = [
+      ['Dış duvar uzunluğu', t.disDuvarUzunluk, 'm', 'disDuvarUzunluk'],
+      ['İç duvar uzunluğu', t.icDuvarUzunluk, 'm', 'icDuvarUzunluk'],
+      ['Bina çevresi', t.binaCevresi, 'm', 'binaCevresi'],
+      ['Mahal (taban) alanı', t.tabanAlani, 'm²', 'tabanAlani'],
+      ['Islak hacim alanı', t.islakHacimAlani, 'm²', 'islakHacimAlani'],
+      ['Kapı adedi', t.icKapiAdet, 'adet', 'icKapiAdet'],
+      ['Pencere adedi', t.pencereAdet, 'adet', 'pencereAdet'],
+      ['Pencere alanı (tahmini)', t.pencereAlani, 'm²', 'pencereAlani']
+    ].filter((s) => s[1] > 0);
+
+    if (!satirlar.length) {
+      await UI.modal({
+        baslik: 'Ölçü okunamadı',
+        aciklama: d.ad,
+        icerik: `<p class="modal-metin">Bu paftanın katman adlarından tanınan imalat çıkmadı.
+          Katman listesi:</p><div class="kesif-katman-liste">${(d.katmanlar || []).slice(0, 40)
+            .map((k) => `<span>${k.ad} <i>${Kesif.TUR_ADI[Kesif.katmanTuru(k.ad)]}</i></span>`).join('')}</div>
+          <p class="modal-metin">Ölçüleri parametre alanlarına elle girebilirsiniz.</p>`
+      });
+      return;
+    }
+
+    const onay = await UI.modal({
+      baslik: 'Okunan ölçüler',
+      aciklama: `${d.ad} · güven ${pct(t.guven * 100)}`,
+      icerik: `<div class="table-wrap"><table>
+          <thead><tr><th>Ölçü</th><th class="num">Değer</th><th>Birim</th></tr></thead>
+          <tbody>${satirlar.map((s) =>
+            `<tr><td>${s[0]}</td><td class="num strong">${num2(s[1])}</td><td>${s[2]}</td></tr>`).join('')}</tbody>
+        </table></div>
+        <p class="modal-metin">Kat planı ${secim.katSayisi} katta tekrarlıyor kabul edilir.
+          Değerler parametre alanlarına yazılır ve orada düzeltilebilir.</p>
+        <div class="kesif-katman-liste">${t.eslesme.filter((e) => e.tur !== 'bilinmiyor')
+          .slice(0, 24).map((e) => `<span>${e.ad} <i>${Kesif.TUR_ADI[e.tur]}</i></span>`).join('')}</div>`,
+      dugmeler: [{ ad: 'Vazgeç', deger: null }, { ad: 'Parametrelere yaz', tur: 'accent', deger: true }]
+    });
+    if (!onay) return;
+
+    const g = kesifGirdisi();
+    satirlar.forEach((s) => { g[s[3]] = s[1]; });
+    g.normalKat = Math.max(0, Number(secim.katSayisi) - 1);
+    g.zeminKat = 1;
+    g.paftaId = d._id;
+    g.paftaAd = d.ad;
+    if (!g.daireAdet || g.daireAdet < 1) g.daireAdet = 1;
+    toast(d.ad + ' paftasından ölçüler okundu.');
+    render();
+  }
+
+  /* --------------------------------------------------- kalem ve kayıtlar */
+  async function kesifKalemEkle() {
+    const sonuc = await UI.form({
+      baslik: 'Keşfe kalem ekle',
+      aciklama: 'Poz listesinde olmayan imalatlar için elle kalem tanımlayın.',
+      kaydetEtiketi: 'Ekle',
+      alanlar: [
+        { ad: 'poz', etiket: 'Poz No', deger: 'ÖZEL-' + (((kesifGirdisi().ekKalemler || []).length) + 1) },
+        { ad: 'tanim', etiket: 'İmalat tanımı', zorunlu: true, genis: true },
+        { ad: 'kategori', etiket: 'Kategori', tur: 'secim', secenekler: Kesif.KATEGORILER },
+        { ad: 'miktar', etiket: 'Miktar', tur: 'number', min: 0, adim: '0.01', zorunlu: true },
+        { ad: 'birim', etiket: 'Birim', tur: 'secim', secenekler: BIRIMLER },
+        { ad: 'birimFiyat', etiket: 'Birim fiyat (₺)', tur: 'number', min: 0, adim: '0.01', zorunlu: true }
+      ]
+    });
+    if (!sonuc) return;
+    const g = kesifGirdisi();
+    g.ekKalemler = g.ekKalemler || [];
+    g.ekKalemler.push({ ...sonuc, _id: S.uid('KES') });
+    kesifYenile();
+    toast(sonuc.tanim + ' keşfe eklendi.');
+  }
+
+  function kesifKaydet() {
+    if (!state.kesifProje) { toast('Önce bir proje seçin.'); return; }
+    const sonuc = Kesif.hesapla(kesifGirdisi());
+    const mevcut = kesifKaydi(state.kesifProje);
+    const kayit = {
+      proje: state.kesifProje,
+      girdi: kesifGirdisi(),
+      imalat: sonuc.icmal.imalat,
+      araToplam: sonuc.icmal.araToplam,
+      genelToplam: sonuc.icmal.genelToplam,
+      m2Maliyet: sonuc.icmal.m2Maliyet,
+      toplamAlan: sonuc.olculer.toplamAlan,
+      kalemSayisi: sonuc.kalemler.length,
+      tarih: new Date().toISOString().slice(0, 10),
+      hazirlayan: (Yetki.kullanici() || {}).ad || ''
+    };
+    if (mevcut) S.guncelle('kesifler', mevcut._id, kayit);
+    else S.ekle('kesifler', kayit);
+    toast(projeAd(state.kesifProje) + ' keşfi kaydedildi: ' + money(sonuc.icmal.genelToplam));
+  }
+
+  /* Kesif kalemlerini metraj moduluna poz olarak yazar */
+  async function kesifMetrajaAktar() {
+    if (!state.kesifProje) { toast('Önce bir proje seçin.'); return; }
+    const sonuc = Kesif.hesapla(kesifGirdisi());
+    if (!sonuc.kalemler.length) { toast('Aktarılacak kalem yok.'); return; }
+
+    const eski = S.aktif('metraj').filter((m) => m.proje === state.kesifProje && m.kaynak === 'Keşif');
+    const secim = await UI.modal({
+      baslik: 'Keşfi metraja aktar',
+      aciklama: `${sonuc.kalemler.length} kalem · ${money(sonuc.icmal.imalat)} imalat bedeli`,
+      icerik: `<p class="modal-metin">Kalemler ${projeAd(state.kesifProje)} projesine metraj pozu
+        olarak yazılır. Böylece hakediş, iş ve rapor ekranlarında kullanılabilir.</p>
+        ${eski.length ? `<p class="modal-metin"><b>${eski.length}</b> kalem daha önce bu keşiften
+          aktarılmış. "Yenile" bunları siler ve güncel keşfi yazar.</p>` : ''}`,
+      dugmeler: [{ ad: 'Vazgeç', deger: null },
+                 eski.length ? { ad: 'Yenile', deger: 'yenile' } : null,
+                 { ad: 'Aktar', tur: 'accent', deger: 'ekle' }].filter(Boolean)
+    });
+    if (!secim) return;
+    if (secim === 'yenile') eski.forEach((m) => S.sil('metraj', m._id));
+
+    sonuc.kalemler.forEach((k) => {
+      S.ekle('metraj', {
+        poz: k.poz, tanim: k.tanim, proje: state.kesifProje,
+        miktar: k.miktar, birim: birimNormal(k.birim), birimFiyat: k.birimFiyat,
+        pafta: kesifGirdisi().paftaAd ? kesifGirdisi().paftaAd.split('_')[0] : 'Keşif',
+        kaynak: 'Keşif', guven: k.ozel ? 1 : 0.9,
+        kaynakDetay: k.formul
+      });
+    });
+    toast(sonuc.kalemler.length + ' kalem metraja aktarıldı.');
+  }
+
+  function kesifCSV() {
+    const sonuc = Kesif.hesapla(kesifGirdisi());
+    const basliklar = ['Poz No', 'İmalat', 'Kategori', 'Metraj formülü', 'Miktar', 'Birim',
+                       'Birim Fiyat', 'Tutar'];
+    const satirlar = sonuc.kalemler.map((k) =>
+      [k.poz, k.tanim, k.kategori, k.formul, k.miktar, k.birim, k.birimFiyat, k.tutar]);
+    const i = sonuc.icmal;
+    satirlar.push([], ['', 'İmalat toplamı', '', '', '', '', '', i.imalat],
+      ['', 'Şantiye genel gideri', '', '', '', '', '', i.genelGider],
+      ['', 'Beklenmeyen giderler', '', '', '', '', '', i.beklenmeyen],
+      ['', 'Müteahhit kârı', '', '', '', '', '', i.muteahhitKari],
+      ['', 'Ara toplam (KDV hariç)', '', '', '', '', '', i.araToplam],
+      ['', 'KDV', '', '', '', '', '', i.kdv],
+      ['', 'GENEL TOPLAM', '', '', '', '', '', i.genelToplam],
+      ['', 'm² birim maliyet', '', '', '', '', '', i.m2Maliyet]);
+    /* Excel'in TR yerel ayarinda okunabilmesi icin ondalik ayraci virgul */
+    const hucre = (h) => typeof h === 'number'
+      ? String(Math.round(h * 100) / 100).replace('.', ',')
+      : String(h === undefined ? '' : h).replace(/"/g, '""');
+    indir('kesif-ozeti.csv', 'text/csv;charset=utf-8',
+      '﻿' + [basliklar].concat(satirlar)
+        .map((r) => r.map((h) => '"' + hucre(h) + '"').join(';')).join('\n'));
+    toast('Keşif özeti CSV olarak indirildi.');
+  }
+
+  /* Tablo yeniden cizildiginde satir icindeki dugmeler tekrar baglanir */
+  function kesifTabloBagla() {
+    const kok = document.getElementById('kesifTablo');
+    if (!kok) return;
+    kok.querySelectorAll('[data-kesif-fiyat]').forEach((el) =>
+      el.addEventListener('change', () => {
+        const g = kesifGirdisi();
+        g.fiyat[el.dataset.kesifFiyat] = Number(el.value) || 0;
+        kesifYenile();
+      }));
+    kok.querySelectorAll('[data-kesif-kapat]').forEach((el) =>
+      el.addEventListener('click', () => {
+        kesifGirdisi().kapali[el.dataset.kesifKapat] = true;
+        kesifYenile();
+      }));
+    kok.querySelectorAll('[data-kesif-ac]').forEach((el) =>
+      el.addEventListener('click', () => {
+        delete kesifGirdisi().kapali[el.dataset.kesifAc];
+        kesifYenile();
+      }));
+    kok.querySelectorAll('[data-kesif-kalem-sil]').forEach((el) =>
+      el.addEventListener('click', () => {
+        const g = kesifGirdisi();
+        g.ekKalemler = (g.ekKalemler || []).filter((k) => k._id !== el.dataset.kesifKalemSil);
+        kesifYenile();
+      }));
+  }
+
+
   /* ------------------------------------------------------- yonlendirme */
   function currentRoute() {
     const id = (location.hash || '#ozet').slice(1);
@@ -4275,6 +4785,32 @@
     const metrajProje = document.getElementById('metrajProje');
     if (metrajProje) metrajProje.addEventListener('change', () => {
       state.metrajProje = metrajProje.value; render();
+    });
+
+    /* --- keşif & maliyet --- */
+    const kesifProje = document.getElementById('kesifProje');
+    if (kesifProje) kesifProje.addEventListener('change', () => {
+      state.kesifProje = kesifProje.value;
+      state.kesifGirdi = null;              // secilen projenin kayitli kesfi yuklenir
+      render();
+    });
+    document.querySelectorAll('[data-kesif]').forEach((el) =>
+      el.addEventListener('input', () => {
+        const ham = el.value;
+        kesifAlanYaz(el.dataset.kesif, el.tagName === 'SELECT' ? ham : (Number(ham) || 0));
+        kesifYenile();
+      }));
+    kesifTabloBagla();
+    tikla('[data-act="kesif-pafta"]', kesifPaftadanOku);
+    tikla('[data-act="kesif-kalem"]', kesifKalemEkle);
+    tikla('[data-act="kesif-kaydet"]', kesifKaydet);
+    tikla('[data-act="kesif-metraj"]', kesifMetrajaAktar);
+    tikla('[data-act="kesif-csv"]', kesifCSV);
+    tikla('[data-act="kesif-sifirla"]', async () => {
+      if (!await UI.onay('Keşfi sıfırla',
+        'Ekrandaki tüm parametreler ve birim fiyat düzeltmeleri varsayılana döner.', 'Sıfırla')) return;
+      state.kesifGirdi = Kesif.tamamla({ proje: state.kesifProje });
+      render(); toast('Keşif parametreleri sıfırlandı.');
     });
 
     /* --- hakediş --- */
@@ -4660,7 +5196,8 @@
         '[data-stok-duzenle], [data-stok-sil], [data-stok-hareket], [data-stok-talep],' +
         '[data-siparis-duzenle], [data-siparis-sil],' +
         '[data-kullanici-duzenle], [data-kullanici-sil], [data-kullanici-sifre],' +
-        '[data-act="puantaj-toplu"]'
+        '[data-act="puantaj-toplu"]', '[data-act="kesif-kaydet"]', '[data-act="kesif-metraj"]',
+        '[data-act="kesif-kalem"]'
       ).forEach((el) => el.remove());
     }
     if (!onayla) {

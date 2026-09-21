@@ -9,6 +9,9 @@ window.DB = (function () {
   /* Paftalardan üretilen metraj kalemleri */
   const metraj = [];
 
+  /* Proje bazli kayitli kesif (otomatik metraj + maliyet) */
+  const kesifler = [];
+
   const taseronlar = [];
 
   const YETKI_LISTESI = [
@@ -117,7 +120,7 @@ window.DB = (function () {
 
 
 
-  return { projeler, paftalar, metraj, taseronlar, isler, personel, puantaj,
+  return { projeler, paftalar, metraj, kesifler, taseronlar, isler, personel, puantaj,
            YETKI_LISTESI, KALITE_SABLON, KALITE_ESIK, PERSONEL_GOREV, PUANTAJ_DURUM,
            kaliteKontrol, hakedisler, stok, hareketler, siparisler, raporlar,
            kullanicilar: [], gunluk: [] };
