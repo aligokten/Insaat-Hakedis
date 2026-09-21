@@ -87,9 +87,9 @@ harf farkı ve `_` / `-` ayracı önemsizdir.
 
 | Katman adı | İçerik | Çizim tipi | Neyi besler |
 |---|---|---|---|
-| `MTR-DUVAR-DIS` | Dış duvar ekseni | Çizgi / polyline | Dış duvar m², mantolama, cephe boyası |
-| `MTR-DUVAR-IC` | İç bölme duvar ekseni | Çizgi / polyline | İç duvar m², sıva, boya |
-| `MTR-PERDE` | Betonarme perde ekseni | Çizgi / polyline | Perde betonu (bilgi amaçlı) |
+| `MTR-DUVAR-DIS` | Dış duvar — iki yüz çizgisi | Çizgi / polyline | Dış duvar m², kalınlık, mantolama, cephe boyası |
+| `MTR-DUVAR-IC` | İç bölme duvar — iki yüz çizgisi | Çizgi / polyline | İç duvar m², kalınlık, sıva, boya |
+| `MTR-PERDE` | Betonarme perde — iki yüz çizgisi | Çizgi / polyline | Perde betonu (bilgi amaçlı) |
 | `MTR-KOLON` | Kolon kesitleri | Kapalı polyline | Kolon adedi (bilgi amaçlı) |
 | `MTR-KIRIS` | Kiriş ekseni | Çizgi | Lento / hatıl kontrolü |
 | `MTR-DOSEME` | Kat döşeme sınırı | **Kapalı** polyline | Taban alanı, şap, kaplama |
@@ -116,22 +116,47 @@ MTR-MOBILYA   mobilya, donanım, bitki
 MTR-TARAMA    süs taramaları
 ```
 
-### 3.3 Duvar çizimi — tek çizgi kuralı
+### 3.3 Duvar çizimi — çift çizgi (mimari çizim düzeni)
 
-Metraj katmanında duvar **ekseninden tek çizgi** ile gösterilir:
+Duvarlar mimari projedeki gibi **iki yüz çizgisiyle** gösterilir. Duvarı eksen
+çizgisine indirmeniz gerekmez:
 
 ```
-MTR-DUVAR-DIS  ─────────────────────   ✔ tek çizgi (eksen)
-mimari çizim   ═════════════════════   ✘ iki yüz çizgisi
+MTR-DUVAR-DIS  ═════════════════════   iki yüz çizgisi — 20 cm dış duvar
+MTR-DUVAR-IC   ─────────────────────   iki yüz çizgisi — 10 cm bölme duvar
 ```
 
-Uygulama projesinden kopyaladığınız duvarlar iki yüz çizgisi olarak geliyorsa
-silmeyin — okuma penceresinde **"Çift çizgi (÷2)"** seçeneğini işaretleyin,
-panel ölçülen uzunluğu ikiye böler. Doğruluk için tek çizgi tercih edilmelidir;
-çift çizgide köşe birleşimleri ve kapı boşlukları %3–5 sapma yaratır.
+Panel iki yüzü eşleştirir ve ikisinden birden **iki ölçü** çıkarır:
 
-Duvar çizgileri **kapı ve pencere boşluklarında kesilmez** — boşluklar
-`MTR-KAPI` / `MTR-PENCERE` bloklarının adedinden düşülür.
+- **Eksen uzunluğu** = iki yüz çizgisinin uzunluk ortalaması. Köşede dış yüz
+  yarım duvar kalınlığı kadar uzar, iç yüz aynı kadar kısalır; ortalamaları tam
+  eksen uzunluğunu verir. "İkiye bölme" tahmini değil, ölçümdür.
+- **Duvar kalınlığı** = iki çizgi arasındaki dik mesafe.
+
+Kalınlık ölçüldüğü için duvarlar **kalınlıklarına göre gruplanır**. Okuma
+penceresinde şöyle bir tablo çıkar ve her grubu ne sayacağınızı seçersiniz:
+
+| Kalınlık | Eksen uzunluğu | Parça | Ne olarak sayılsın |
+|---|---|---|---|
+| 20 cm | 48,00 m | 4 | Dış duvar |
+| 10 cm | 24,00 m | 4 | İç duvar |
+
+Bunun iki yararı var: kalınlığa uygun poz seçilir (19 cm tuğla / 8,5 cm bölme),
+ve **dış-iç duvar aynı katmanda çizilmiş olsa bile ayrışır** — ArchiCAD'in
+`Structural - Bearing` gibi tek katmanda topladığı çizimlerde bu tek çözümdür.
+
+Eşleşmeyen çizgiler (tek çizgi kalmış yüzler, tarama, kopuk parçalar) sayılmaz
+ve okuma penceresinde toplamı bildirilir.
+
+**Kapı ve pencere boşlukları.** Duvar yüzleri boşluklarda kesilebilir de
+kesilmeyebilir de — okuma penceresinde hangisi olduğunu seçersiniz:
+
+- *Kesilmemiş* (duvar çizgisi boşluğun önünden devam ediyor): panel boşluk
+  alanını kapı/pencere adedinden hesaplayıp duvar alanından düşer.
+- *Kesilmiş* (yüzler boşlukta duruyor, sövede kapanıyor): uzunluk zaten
+  boşluksuzdur, panel ikinci kez düşmez.
+
+Yanlış seçim, her kapı için ~1,8 m²'lik bir sapma demektir.
 
 ### 3.4 Kapı ve pencere — blok kuralı
 
@@ -185,7 +210,7 @@ sonraki revizyonlarda dışa aktarım tek tıkla tekrarlanır.
 1. Uygulama projesini **farklı kaydet** → `MTR_ZEMIN.dxf`
 2. Kat planı dışındaki her şeyi sil (kesit, görünüş, antet, lejant, diğer katlar)
 3. Katmanları `MTR-` adlarına çevir (`LAYMRG` / `LAYER` yöneticisi)
-4. Duvarları tek çizgiye indir — ya da çift çizgi bırakıp okuma penceresinde ÷2 seç
+4. Duvarları olduğu gibi (çift çizgi) bırak — kalınlık ve eksen uzunluğu ölçülerek bulunur
 5. Mahal ve döşeme sınırlarını kapalı polyline yap (`BPOLY`)
 6. `OVERKILL` → `PURGE` → `AUDIT`
 7. DXF olarak kaydet (AutoCAD 2013+, ASCII)
@@ -213,8 +238,8 @@ karşılaştırıldığında şu sapma aralığındadır:
 | Ölçü | Beklenen sapma |
 |---|---|
 | Mahal / döşeme alanı | %1'in altında |
-| Duvar uzunluğu (tek çizgi) | %2'nin altında |
-| Duvar uzunluğu (çift çizgi ÷2) | %3–5 |
+| Duvar uzunluğu (çift çizgi, yüzler eşleşiyorsa) | %1'in altında |
+| Duvar kalınlığı | ±1 cm |
 | Kapı / pencere adedi | Blok kullanıldıysa tam |
 | Pencere alanı (adetten tahmin) | %15–20 — elle düzeltilmesi önerilir |
 

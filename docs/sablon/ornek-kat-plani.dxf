@@ -493,7 +493,7 @@ $SKPOLY
   9
 $TDCREATE
  40
-2461305.53275463
+2461305.537916667
   9
 $TDUCREATE
  40
@@ -501,7 +501,7 @@ $TDUCREATE
   9
 $TDUPDATE
  40
-2461305.53275463
+2461305.537916667
   9
 $TDUUPDATE
  40
@@ -553,7 +553,7 @@ $SPLINESEGS
   9
 $HANDSEED
   5
-E9
+DF
   9
 $SURFTAB1
  70
@@ -933,11 +933,11 @@ $PSTYLEMODE
   9
 $FINGERPRINTGUID
   2
-{837D71AA-53F9-45D9-9FA7-423C67D64C68}
+{6656E914-2A9D-44B5-834A-5B6A2AB1C422}
   9
 $VERSIONGUID
   2
-{116D5DD0-AEAA-4DF5-BDD4-BB2AA6E578A0}
+{614E9811-F9AE-47E2-9B33-49B832178A25}
   9
 $EXTNAMES
 290
@@ -1327,9 +1327,9 @@ ISM
   0
 CLASS
   1
-LAYOUT
+ACDBPLACEHOLDER
   2
-AcDbLayout
+AcDbPlaceHolder
   3
 ObjectDBX Classes
  90
@@ -1343,9 +1343,9 @@ ObjectDBX Classes
   0
 CLASS
   1
-ACDBPLACEHOLDER
+LAYOUT
   2
-AcDbPlaceHolder
+AcDbLayout
   3
 ObjectDBX Classes
  90
@@ -1377,7 +1377,7 @@ AcDbSymbolTable
   0
 VPORT
   5
-E5
+23
 330
 8
 100
@@ -1397,9 +1397,9 @@ AcDbViewportTableRecord
  21
 1.0
  12
-700.0
+0.0
  22
-500.0
+0.0
  13
 0.0
  23
@@ -1425,7 +1425,7 @@ AcDbViewportTableRecord
  37
 0.0
  40
-2200.0
+1000.0
  41
 1.34
  42
@@ -1457,26 +1457,6 @@ AcDbViewportTableRecord
 281
 0
  65
-1
-110
-0.0
-120
-0.0
-130
-0.0
-111
-1.0
-121
-0.0
-131
-0.0
-112
-0.0
-122
-1.0
-132
-0.0
- 79
 0
 146
 0.0
@@ -2257,7 +2237,7 @@ LAYER
 100
 AcDbSymbolTable
  70
-22
+17
   0
 LAYER
   5
@@ -2332,16 +2312,10 @@ Continuous
 13
 347
 21
-1001
-AcAecLayerStandard
-1000
-
-1000
-Dis duvar ekseni - tek cizgi
   0
 LAYER
   5
-8C
+8B
 330
 1
 100
@@ -2362,106 +2336,10 @@ Continuous
 13
 347
 21
-1001
-AcAecLayerStandard
-1000
-
-1000
-Ic bolme duvar ekseni - tek cizgi
   0
 LAYER
   5
-8D
-330
-1
-100
-AcDbSymbolTableRecord
-100
-AcDbLayerTableRecord
-  2
-MTR-PERDE
- 70
-0
- 62
-5
-  6
-Continuous
-370
--3
-390
-13
-347
-21
-1001
-AcAecLayerStandard
-1000
-
-1000
-Betonarme perde ekseni
-  0
-LAYER
-  5
-8E
-330
-1
-100
-AcDbSymbolTableRecord
-100
-AcDbLayerTableRecord
-  2
-MTR-KOLON
- 70
-0
- 62
-6
-  6
-Continuous
-370
--3
-390
-13
-347
-21
-1001
-AcAecLayerStandard
-1000
-
-1000
-Kolon kesiti - kapali polyline
-  0
-LAYER
-  5
-8F
-330
-1
-100
-AcDbSymbolTableRecord
-100
-AcDbLayerTableRecord
-  2
-MTR-KIRIS
- 70
-0
- 62
-4
-  6
-Continuous
-370
--3
-390
-13
-347
-21
-1001
-AcAecLayerStandard
-1000
-
-1000
-Kiris ekseni
-  0
-LAYER
-  5
-90
+8C
 330
 1
 100
@@ -2482,16 +2360,10 @@ Continuous
 13
 347
 21
-1001
-AcAecLayerStandard
-1000
-
-1000
-Kat doseme siniri - KAPALI polyline
   0
 LAYER
   5
-91
+8D
 330
 1
 100
@@ -2512,16 +2384,10 @@ Continuous
 13
 347
 21
-1001
-AcAecLayerStandard
-1000
-
-1000
-Bina oturum siniri - KAPALI polyline
   0
 LAYER
   5
-92
+8E
 330
 1
 100
@@ -2542,16 +2408,10 @@ Continuous
 13
 347
 21
-1001
-AcAecLayerStandard
-1000
-
-1000
-Her oda icin bir KAPALI polyline
   0
 LAYER
   5
-93
+8F
 330
 1
 100
@@ -2572,16 +2432,10 @@ Continuous
 13
 347
 21
-1001
-AcAecLayerStandard
-1000
-
-1000
-Banyo / WC / mutfak siniri - KAPALI polyline
   0
 LAYER
   5
-94
+90
 330
 1
 100
@@ -2602,16 +2456,10 @@ Continuous
 13
 347
 21
-1001
-AcAecLayerStandard
-1000
-
-1000
-Ic kapi - blok, 1 kapi = 1 blok
   0
 LAYER
   5
-95
+91
 330
 1
 100
@@ -2632,16 +2480,10 @@ Continuous
 13
 347
 21
-1001
-AcAecLayerStandard
-1000
-
-1000
-Daire girisi / dis kapi - blok
   0
 LAYER
   5
-96
+92
 330
 1
 100
@@ -2662,16 +2504,10 @@ Continuous
 13
 347
 21
-1001
-AcAecLayerStandard
-1000
-
-1000
-Pencere - blok
   0
 LAYER
   5
-97
+93
 330
 1
 100
@@ -2692,16 +2528,10 @@ Continuous
 13
 347
 21
-1001
-AcAecLayerStandard
-1000
-
-1000
-Merdiven kolu ekseni
   0
 LAYER
   5
-98
+94
 330
 1
 100
@@ -2722,16 +2552,10 @@ Continuous
 13
 347
 21
-1001
-AcAecLayerStandard
-1000
-
-1000
-Cati siniri - KAPALI polyline
   0
 LAYER
   5
-99
+95
 330
 1
 100
@@ -2752,16 +2576,10 @@ Continuous
 13
 347
 21
-1001
-AcAecLayerStandard
-1000
-
-1000
-Parsel siniri - KAPALI polyline
   0
 LAYER
   5
-9A
+96
 330
 1
 100
@@ -2782,16 +2600,10 @@ Continuous
 13
 347
 21
-1001
-AcAecLayerStandard
-1000
-
-1000
-Olcu cizgileri ve kotlar - metraja girmez
   0
 LAYER
   5
-9B
+97
 330
 1
 100
@@ -2812,46 +2624,10 @@ Continuous
 13
 347
 21
-1001
-AcAecLayerStandard
-1000
-
-1000
-Mahal adlari ve notlar - metraja girmez
   0
 LAYER
   5
-9C
-330
-1
-100
-AcDbSymbolTableRecord
-100
-AcDbLayerTableRecord
-  2
-MTR-AKS
- 70
-0
- 62
-9
-  6
-Continuous
-370
--3
-390
-13
-347
-21
-1001
-AcAecLayerStandard
-1000
-
-1000
-Aks cizgileri - metraja girmez
-  0
-LAYER
-  5
-9D
+98
 330
 1
 100
@@ -2872,42 +2648,6 @@ Continuous
 13
 347
 21
-1001
-AcAecLayerStandard
-1000
-
-1000
-Mobilya ve donanim - metraja girmez
-  0
-LAYER
-  5
-9E
-330
-1
-100
-AcDbSymbolTableRecord
-100
-AcDbLayerTableRecord
-  2
-MTR-TARAMA
- 70
-0
- 62
-9
-  6
-Continuous
-370
--3
-390
-13
-347
-21
-1001
-AcAecLayerStandard
-1000
-
-1000
-Sus taramalari - metraja girmez
   0
 ENDTAB
   0
@@ -3691,7 +3431,7 @@ APPID
 100
 AcDbSymbolTable
  70
-4
+3
   0
 APPID
   5
@@ -3709,21 +3449,7 @@ ACAD
   0
 APPID
   5
-8B
-330
-3
-100
-AcDbSymbolTableRecord
-100
-AcDbRegAppTableRecord
-  2
-AcAecLayerStandard
- 70
-0
-  0
-APPID
-  5
-E6
+DC
 330
 3
 100
@@ -3737,7 +3463,7 @@ HATCHBACKGROUNDCOLOR
   0
 APPID
   5
-E7
+DD
 330
 3
 100
@@ -5543,7 +5269,7 @@ _CLOSEDBLANK
   0
 BLOCK_RECORD
   5
-9F
+AC
 330
 9
 100
@@ -5551,7 +5277,7 @@ AcDbSymbolTableRecord
 100
 AcDbBlockTableRecord
   2
-MTR_KAPI_90
+K90
 340
 0
  70
@@ -5563,7 +5289,7 @@ MTR_KAPI_90
   0
 BLOCK_RECORD
   5
-A5
+B1
 330
 9
 100
@@ -5571,7 +5297,7 @@ AcDbSymbolTableRecord
 100
 AcDbBlockTableRecord
   2
-MTR_PENCERE_140
+P140
 340
 0
  70
@@ -5583,7 +5309,7 @@ MTR_PENCERE_140
   0
 BLOCK_RECORD
   5
-AA
+B5
 330
 9
 100
@@ -5591,7 +5317,7 @@ AcDbSymbolTableRecord
 100
 AcDbBlockTableRecord
   2
-MTR_KAPI_CELIK_100
+CK100
 340
 0
  70
@@ -5903,9 +5629,9 @@ AcDbBlockEnd
   0
 BLOCK
   5
-A0
+AD
 330
-9F
+AC
 100
 AcDbEntity
   8
@@ -5913,7 +5639,7 @@ AcDbEntity
 100
 AcDbBlockBegin
   2
-MTR_KAPI_90
+K90
  70
 0
  10
@@ -5923,15 +5649,15 @@ MTR_KAPI_90
  30
 0.0
   3
-MTR_KAPI_90
+K90
   1
 
   0
 LINE
   5
-A2
+AF
 330
-9F
+AC
 100
 AcDbEntity
   8
@@ -5953,9 +5679,9 @@ AcDbLine
   0
 ARC
   5
-A3
+B0
 330
-9F
+AC
 100
 AcDbEntity
   8
@@ -5977,223 +5703,151 @@ AcDbArc
  51
 90.0
   0
-LINE
-  5
-A4
-330
-9F
-100
-AcDbEntity
-  8
-0
-100
-AcDbLine
- 10
-0.0
- 20
-0.0
- 30
-0.0
- 11
-0.0
- 21
-90.0
- 31
-0.0
-  0
 ENDBLK
-  5
-A1
-330
-9F
-100
-AcDbEntity
-  8
-0
-100
-AcDbBlockEnd
-  0
-BLOCK
-  5
-A6
-330
-A5
-100
-AcDbEntity
-  8
-0
-100
-AcDbBlockBegin
-  2
-MTR_PENCERE_140
- 70
-0
- 10
-0.0
- 20
-0.0
- 30
-0.0
-  3
-MTR_PENCERE_140
-  1
-
-  0
-LWPOLYLINE
-  5
-A8
-330
-A5
-100
-AcDbEntity
-  8
-0
-100
-AcDbPolyline
- 90
-4
- 70
-1
- 10
-0.0
- 20
--5.0
- 10
-140.0
- 20
--5.0
- 10
-140.0
- 20
-5.0
- 10
-0.0
- 20
-5.0
-  0
-LINE
-  5
-A9
-330
-A5
-100
-AcDbEntity
-  8
-0
-100
-AcDbLine
- 10
-0.0
- 20
-0.0
- 30
-0.0
- 11
-140.0
- 21
-0.0
- 31
-0.0
-  0
-ENDBLK
-  5
-A7
-330
-A5
-100
-AcDbEntity
-  8
-0
-100
-AcDbBlockEnd
-  0
-BLOCK
-  5
-AB
-330
-AA
-100
-AcDbEntity
-  8
-0
-100
-AcDbBlockBegin
-  2
-MTR_KAPI_CELIK_100
- 70
-0
- 10
-0.0
- 20
-0.0
- 30
-0.0
-  3
-MTR_KAPI_CELIK_100
-  1
-
-  0
-LWPOLYLINE
-  5
-AD
-330
-AA
-100
-AcDbEntity
-  8
-0
-100
-AcDbPolyline
- 90
-4
- 70
-1
- 10
-0.0
- 20
--5.0
- 10
-100.0
- 20
--5.0
- 10
-100.0
- 20
-5.0
- 10
-0.0
- 20
-5.0
-  0
-LINE
   5
 AE
 330
-AA
+AC
 100
 AcDbEntity
   8
 0
 100
-AcDbLine
+AcDbBlockEnd
+  0
+BLOCK
+  5
+B2
+330
+B1
+100
+AcDbEntity
+  8
+0
+100
+AcDbBlockBegin
+  2
+P140
+ 70
+0
  10
 0.0
  20
 0.0
  30
 0.0
- 11
+  3
+P140
+  1
+
+  0
+LWPOLYLINE
+  5
+B4
+330
+B1
+100
+AcDbEntity
+  8
+0
+100
+AcDbPolyline
+ 90
+4
+ 70
+1
+ 10
 0.0
- 21
-100.0
- 31
+ 20
+-5.0
+ 10
+140.0
+ 20
+-5.0
+ 10
+140.0
+ 20
+5.0
+ 10
 0.0
+ 20
+5.0
   0
 ENDBLK
   5
-AC
+B3
 330
-AA
+B1
+100
+AcDbEntity
+  8
+0
+100
+AcDbBlockEnd
+  0
+BLOCK
+  5
+B6
+330
+B5
+100
+AcDbEntity
+  8
+0
+100
+AcDbBlockBegin
+  2
+CK100
+ 70
+0
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+  3
+CK100
+  1
+
+  0
+LWPOLYLINE
+  5
+B8
+330
+B5
+100
+AcDbEntity
+  8
+0
+100
+AcDbPolyline
+ 90
+4
+ 70
+1
+ 10
+0.0
+ 20
+-5.0
+ 10
+100.0
+ 20
+-5.0
+ 10
+100.0
+ 20
+5.0
+ 10
+0.0
+ 20
+5.0
+  0
+ENDBLK
+  5
+B7
+330
+B5
 100
 AcDbEntity
   8
@@ -6209,7 +5863,7 @@ ENTITIES
   0
 LWPOLYLINE
   5
-AF
+99
 330
 17
 100
@@ -6223,49 +5877,225 @@ AcDbPolyline
  70
 1
  10
-0.0
+-10.0
  20
-0.0
+-10.0
  10
-1400.0
+1410.0
+ 20
+-10.0
+ 10
+1410.0
+ 20
+1010.0
+ 10
+-10.0
+ 20
+1010.0
+  0
+LWPOLYLINE
+  5
+9A
+330
+17
+100
+AcDbEntity
+  8
+MTR-DUVAR-DIS
+100
+AcDbPolyline
+ 90
+4
+ 70
+1
+ 10
+10.0
+ 20
+10.0
+ 10
+1390.0
+ 20
+10.0
+ 10
+1390.0
+ 20
+990.0
+ 10
+10.0
+ 20
+990.0
+  0
+LINE
+  5
+9B
+330
+17
+100
+AcDbEntity
+  8
+MTR-DUVAR-IC
+100
+AcDbLine
+ 10
+795.0
  20
 0.0
+ 30
+0.0
+ 11
+795.0
+ 21
+600.0
+ 31
+0.0
+  0
+LINE
+  5
+9C
+330
+17
+100
+AcDbEntity
+  8
+MTR-DUVAR-IC
+100
+AcDbLine
  10
-1400.0
+805.0
  20
+0.0
+ 30
+0.0
+ 11
+805.0
+ 21
+600.0
+ 31
+0.0
+  0
+LINE
+  5
+9D
+330
+17
+100
+AcDbEntity
+  8
+MTR-DUVAR-IC
+100
+AcDbLine
+ 10
+0.0
+ 20
+595.0
+ 30
+0.0
+ 11
+800.0
+ 21
+595.0
+ 31
+0.0
+  0
+LINE
+  5
+9E
+330
+17
+100
+AcDbEntity
+  8
+MTR-DUVAR-IC
+100
+AcDbLine
+ 10
+0.0
+ 20
+605.0
+ 30
+0.0
+ 11
+800.0
+ 21
+605.0
+ 31
+0.0
+  0
+LINE
+  5
+9F
+330
+17
+100
+AcDbEntity
+  8
+MTR-DUVAR-IC
+100
+AcDbLine
+ 10
+800.0
+ 20
+345.0
+ 30
+0.0
+ 11
+1400.0
+ 21
+345.0
+ 31
+0.0
+  0
+LINE
+  5
+A0
+330
+17
+100
+AcDbEntity
+  8
+MTR-DUVAR-IC
+100
+AcDbLine
+ 10
+800.0
+ 20
+355.0
+ 30
+0.0
+ 11
+1400.0
+ 21
+355.0
+ 31
+0.0
+  0
+LINE
+  5
+A1
+330
+17
+100
+AcDbEntity
+  8
+MTR-DUVAR-IC
+100
+AcDbLine
+ 10
+395.0
+ 20
+600.0
+ 30
+0.0
+ 11
+395.0
+ 21
 1000.0
- 10
-0.0
- 20
-1000.0
-  0
-LINE
-  5
-B0
-330
-17
-100
-AcDbEntity
-  8
-MTR-DUVAR-IC
-100
-AcDbLine
- 10
-800.0
- 20
-0.0
- 30
-0.0
- 11
-800.0
- 21
-600.0
  31
 0.0
   0
 LINE
   5
-B1
+A2
 330
 17
 100
@@ -6275,61 +6105,13 @@ MTR-DUVAR-IC
 100
 AcDbLine
  10
-0.0
+405.0
  20
 600.0
  30
 0.0
  11
-800.0
- 21
-600.0
- 31
-0.0
-  0
-LINE
-  5
-B2
-330
-17
-100
-AcDbEntity
-  8
-MTR-DUVAR-IC
-100
-AcDbLine
- 10
-800.0
- 20
-350.0
- 30
-0.0
- 11
-1400.0
- 21
-350.0
- 31
-0.0
-  0
-LINE
-  5
-B3
-330
-17
-100
-AcDbEntity
-  8
-MTR-DUVAR-IC
-100
-AcDbLine
- 10
-400.0
- 20
-600.0
- 30
-0.0
- 11
-400.0
+405.0
  21
 1000.0
  31
@@ -6337,7 +6119,7 @@ AcDbLine
   0
 LWPOLYLINE
   5
-B4
+A3
 330
 17
 100
@@ -6369,7 +6151,7 @@ AcDbPolyline
   0
 LWPOLYLINE
   5
-B5
+A4
 330
 17
 100
@@ -6401,7 +6183,7 @@ AcDbPolyline
   0
 LWPOLYLINE
   5
-B6
+A5
 330
 17
 100
@@ -6433,7 +6215,7 @@ AcDbPolyline
   0
 LWPOLYLINE
   5
-B7
+A6
 330
 17
 100
@@ -6465,7 +6247,7 @@ AcDbPolyline
   0
 LWPOLYLINE
   5
-B8
+A7
 330
 17
 100
@@ -6497,7 +6279,7 @@ AcDbPolyline
   0
 LWPOLYLINE
   5
-B9
+A8
 330
 17
 100
@@ -6529,7 +6311,7 @@ AcDbPolyline
   0
 LWPOLYLINE
   5
-BA
+A9
 330
 17
 100
@@ -6561,7 +6343,7 @@ AcDbPolyline
   0
 LWPOLYLINE
   5
-BB
+AA
 330
 17
 100
@@ -6593,7 +6375,7 @@ AcDbPolyline
   0
 LWPOLYLINE
   5
-BC
+AB
 330
 17
 100
@@ -6622,106 +6404,10 @@ AcDbPolyline
 800.0
  20
 350.0
-  0
-LWPOLYLINE
-  5
-BD
-330
-17
-100
-AcDbEntity
-  8
-MTR-KOLON
-100
-AcDbPolyline
- 90
-4
- 70
-1
- 10
-780.0
- 20
-580.0
- 10
-820.0
- 20
-580.0
- 10
-820.0
- 20
-620.0
- 10
-780.0
- 20
-620.0
-  0
-LWPOLYLINE
-  5
-BE
-330
-17
-100
-AcDbEntity
-  8
-MTR-KOLON
-100
-AcDbPolyline
- 90
-4
- 70
-1
- 10
-780.0
- 20
-330.0
- 10
-820.0
- 20
-330.0
- 10
-820.0
- 20
-370.0
- 10
-780.0
- 20
-370.0
-  0
-LWPOLYLINE
-  5
-BF
-330
-17
-100
-AcDbEntity
-  8
-MTR-KOLON
-100
-AcDbPolyline
- 90
-4
- 70
-1
- 10
-380.0
- 20
-580.0
- 10
-420.0
- 20
-580.0
- 10
-420.0
- 20
-620.0
- 10
-380.0
- 20
-620.0
   0
 INSERT
   5
-C0
+B9
 330
 17
 100
@@ -6731,7 +6417,7 @@ MTR-KAPI
 100
 AcDbBlockReference
   2
-MTR_KAPI_90
+K90
  10
 810.0
  20
@@ -6741,7 +6427,7 @@ MTR_KAPI_90
   0
 INSERT
   5
-C2
+BB
 330
 17
 100
@@ -6751,7 +6437,7 @@ MTR-KAPI
 100
 AcDbBlockReference
   2
-MTR_KAPI_90
+K90
  10
 410.0
  20
@@ -6761,7 +6447,7 @@ MTR_KAPI_90
   0
 INSERT
   5
-C4
+BD
 330
 17
 100
@@ -6771,7 +6457,7 @@ MTR-KAPI
 100
 AcDbBlockReference
   2
-MTR_KAPI_90
+K90
  10
 150.0
  20
@@ -6781,7 +6467,7 @@ MTR_KAPI_90
   0
 INSERT
   5
-C6
+BF
 330
 17
 100
@@ -6791,7 +6477,7 @@ MTR-KAPI
 100
 AcDbBlockReference
   2
-MTR_KAPI_90
+K90
  10
 1110.0
  20
@@ -6801,7 +6487,7 @@ MTR_KAPI_90
   0
 INSERT
   5
-C8
+C1
 330
 17
 100
@@ -6811,7 +6497,7 @@ MTR-KAPI
 100
 AcDbBlockReference
   2
-MTR_KAPI_90
+K90
  10
 600.0
  20
@@ -6821,7 +6507,7 @@ MTR_KAPI_90
   0
 INSERT
   5
-CA
+C3
 330
 17
 100
@@ -6831,7 +6517,7 @@ MTR-KAPI
 100
 AcDbBlockReference
   2
-MTR_KAPI_90
+K90
  10
 810.0
  20
@@ -6841,7 +6527,7 @@ MTR_KAPI_90
   0
 INSERT
   5
-CC
+C5
 330
 17
 100
@@ -6851,7 +6537,7 @@ MTR-KAPI-DIS
 100
 AcDbBlockReference
   2
-MTR_KAPI_CELIK_100
+CK100
  10
 0.0
  20
@@ -6861,7 +6547,7 @@ MTR_KAPI_CELIK_100
   0
 INSERT
   5
-CE
+C7
 330
 17
 100
@@ -6871,7 +6557,7 @@ MTR-PENCERE
 100
 AcDbBlockReference
   2
-MTR_PENCERE_140
+P140
  10
 150.0
  20
@@ -6881,7 +6567,7 @@ MTR_PENCERE_140
   0
 INSERT
   5
-D0
+C9
 330
 17
 100
@@ -6891,7 +6577,7 @@ MTR-PENCERE
 100
 AcDbBlockReference
   2
-MTR_PENCERE_140
+P140
  10
 450.0
  20
@@ -6901,7 +6587,7 @@ MTR_PENCERE_140
   0
 INSERT
   5
-D2
+CB
 330
 17
 100
@@ -6911,7 +6597,7 @@ MTR-PENCERE
 100
 AcDbBlockReference
   2
-MTR_PENCERE_140
+P140
  10
 950.0
  20
@@ -6921,7 +6607,7 @@ MTR_PENCERE_140
   0
 INSERT
   5
-D4
+CD
 330
 17
 100
@@ -6931,7 +6617,7 @@ MTR-PENCERE
 100
 AcDbBlockReference
   2
-MTR_PENCERE_140
+P140
  10
 1400.0
  20
@@ -6943,7 +6629,7 @@ MTR_PENCERE_140
   0
 INSERT
   5
-D6
+CF
 330
 17
 100
@@ -6953,7 +6639,7 @@ MTR-PENCERE
 100
 AcDbBlockReference
   2
-MTR_PENCERE_140
+P140
  10
 1400.0
  20
@@ -6965,7 +6651,7 @@ MTR_PENCERE_140
   0
 INSERT
   5
-D8
+D1
 330
 17
 100
@@ -6975,7 +6661,7 @@ MTR-PENCERE
 100
 AcDbBlockReference
   2
-MTR_PENCERE_140
+P140
  10
 950.0
  20
@@ -6987,7 +6673,7 @@ MTR_PENCERE_140
   0
 INSERT
   5
-DA
+D3
 330
 17
 100
@@ -6997,7 +6683,7 @@ MTR-PENCERE
 100
 AcDbBlockReference
   2
-MTR_PENCERE_140
+P140
  10
 550.0
  20
@@ -7009,7 +6695,7 @@ MTR_PENCERE_140
   0
 INSERT
   5
-DC
+D5
 330
 17
 100
@@ -7019,7 +6705,7 @@ MTR-PENCERE
 100
 AcDbBlockReference
   2
-MTR_PENCERE_140
+P140
  10
 0.0
  20
@@ -7031,7 +6717,7 @@ MTR_PENCERE_140
   0
 LINE
   5
-DE
+D7
 330
 17
 100
@@ -7055,7 +6741,7 @@ AcDbLine
   0
 LWPOLYLINE
   5
-DF
+D8
 330
 17
 100
@@ -7087,7 +6773,7 @@ AcDbPolyline
   0
 LWPOLYLINE
   5
-E0
+D9
 330
 17
 100
@@ -7119,7 +6805,7 @@ AcDbPolyline
   0
 LINE
   5
-E1
+DA
 330
 17
 100
@@ -7141,33 +6827,9 @@ AcDbLine
  31
 0.0
   0
-LINE
-  5
-E2
-330
-17
-100
-AcDbEntity
-  8
-MTR-AKS
-100
-AcDbLine
- 10
--200.0
- 20
-500.0
- 30
-0.0
- 11
-1600.0
- 21
-500.0
- 31
-0.0
-  0
 LWPOLYLINE
   5
-E3
+DB
 330
 17
 100
@@ -7196,36 +6858,6 @@ AcDbPolyline
 100.0
  20
 250.0
-  0
-TEXT
-  5
-E4
-330
-17
-100
-AcDbEntity
-  8
-MTR-YAZI
-100
-AcDbText
- 10
-0.0
- 20
-1120.0
- 30
-0.0
- 40
-25.0
-  1
-ORNEK ZEMIN KAT PLANI - 14,00 x 10,00 m - standarda uygun
- 11
-0.0
- 21
-1120.0
- 31
-0.0
-100
-AcDbText
   0
 ENDSEC
   0
@@ -8317,7 +7949,7 @@ CREATED_BY_EZDXF
   3
 WRITTEN_BY_EZDXF
 350
-E8
+DE
   0
 DICTIONARYVAR
   5
@@ -8329,7 +7961,7 @@ DictionaryVariables
 280
 0
   1
-1.4.4 @ 2026-09-21T12:47:10.245944+00:00
+1.4.4 @ 2026-09-21T12:54:36.555992+00:00
   0
 VISUALSTYLE
   5
@@ -14883,7 +14515,7 @@ strokes_ogs.tif
   0
 DICTIONARYVAR
   5
-E8
+DE
 330
 2D
 100
@@ -14891,7 +14523,7 @@ DictionaryVariables
 280
 0
   1
-1.4.4 @ 2026-09-21T12:47:10.252523+00:00
+1.4.4 @ 2026-09-21T12:54:36.562402+00:00
   0
 ENDSEC
   0
