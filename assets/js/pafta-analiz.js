@@ -133,7 +133,13 @@ window.PaftaAnaliz = (function () {
         if (deg === 'ENDSEC') { varligiKapat(); bolum = ''; continue; }
         if (deg === 'EOF') break;
 
-        if (bolum === 'TABLES') { altTur = deg; if (deg === 'LAYER') v = { tur: 'LAYER' }; continue; }
+        /* TABLES icinde yalnizca LAYER girdileri izlenir; LTYPE, STYLE, DIMSTYLE
+           gibi diger tablo girdilerinin adi (kod 2) katman sanilmamalidir. */
+        if (bolum === 'TABLES') {
+          altTur = deg;
+          v = deg === 'LAYER' ? { tur: 'LAYER' } : null;
+          continue;
+        }
 
         if (bolum === 'ENTITIES' || bolum === 'BLOCKS') {
           varligiKapat();
