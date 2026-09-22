@@ -1,0 +1,1848 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Villa Proje Yönetimi</title>
+<meta name="description" content="Anahtar teslim villa projeleri için maliyet, hakediş, iş takip, tedarik, sipariş ve cari yönetim programı.">
+<style>
+:root{
+  --arka:#f4f6f9; --panel:#ffffff; --panel2:#fafbfd;
+  --yazi:#15202b; --soluk:#6b7a8d; --cizgi:#e2e8f0;
+  --vurgu:#0f62d6; --vurgu-yazi:#ffffff; --vurgu-soft:#e8f0fe;
+  --yesil:#0f9d58; --yesil-soft:#e6f6ee;
+  --sari:#b7791f; --sari-soft:#fdf3e0;
+  --kirmizi:#d33a3a; --kirmizi-soft:#fdeaea;
+  --mor:#6b46c1; --mor-soft:#efe9fb;
+  --golge:0 1px 2px rgba(16,24,40,.06), 0 8px 24px rgba(16,24,40,.06);
+  --r:10px; --r-s:7px;
+  --yazitipi:"Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--arka);color:var(--yazi);font-family:var(--yazitipi);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+a{color:var(--vurgu);text-decoration:none}
+button,input,select,textarea{font-family:inherit;font-size:14px;color:inherit}
+
+/* ---------- yerleşim ---------- */
+.kabuk{display:grid;grid-template-columns:232px 1fr;grid-template-rows:auto 1fr;min-height:100vh;grid-template-areas:"ustbar ustbar" "menu icerik"}
+.ustbar{grid-area:ustbar;display:flex;align-items:center;gap:16px;padding:0 18px;height:58px;background:var(--panel);border-bottom:1px solid var(--cizgi);position:sticky;top:0;z-index:30}
+.marka{display:flex;align-items:center;gap:10px;min-width:200px}
+.marka-ikon{width:32px;height:32px;border-radius:9px;background:var(--vurgu);color:#fff;display:grid;place-items:center;font-weight:700;font-size:15px}
+.marka b{display:block;font-size:14.5px;line-height:1.1}
+.marka small{color:var(--soluk);font-size:11.5px}
+.ustbar-sag{margin-left:auto;display:flex;align-items:center;gap:8px}
+.proje-secici{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--cizgi);border-radius:var(--r-s);padding:5px 8px}
+.proje-secici span{color:var(--soluk);font-size:12px}
+.proje-secici select{border:0;background:transparent;font-weight:600;max-width:230px;outline:none}
+
+.menu{grid-area:menu;background:var(--panel);border-right:1px solid var(--cizgi);padding:12px 10px;overflow:auto}
+.menu-baslik{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--soluk);margin:14px 8px 6px}
+.menu a{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r-s);color:var(--yazi);font-weight:500;margin-bottom:2px}
+.menu a:hover{background:var(--panel2)}
+.menu a.aktif{background:var(--vurgu-soft);color:var(--vurgu);font-weight:600}
+.menu a .mi{width:18px;text-align:center;font-size:15px}
+.menu a .rozet{margin-left:auto;background:var(--kirmizi-soft);color:var(--kirmizi);border-radius:20px;padding:0 7px;font-size:11px;font-weight:700}
+
+.icerik{grid-area:icerik;padding:18px 20px 60px;overflow:auto}
+.sayfa-bas{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.sayfa-bas h1{margin:0;font-size:21px;letter-spacing:-.01em}
+.sayfa-bas p{margin:2px 0 0;color:var(--soluk);font-size:13px}
+.sayfa-bas .islemler{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+
+/* ---------- kartlar ---------- */
+.kart{background:var(--panel);border:1px solid var(--cizgi);border-radius:var(--r);box-shadow:var(--golge)}
+.kart-bas{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--cizgi)}
+.kart-bas h2{margin:0;font-size:14.5px}
+.kart-bas .islemler{margin-left:auto;display:flex;gap:6px}
+.kart-govde{padding:14px}
+.izgara{display:grid;gap:14px}
+.i2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.i3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.i4{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:1100px){.i4{grid-template-columns:repeat(2,minmax(0,1fr))}.i3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.kabuk{grid-template-columns:1fr;grid-template-areas:"ustbar" "icerik"}.menu{display:none}.menu.acik{display:block;position:fixed;inset:58px auto 0 0;width:240px;z-index:40;box-shadow:var(--golge)}.i2,.i3,.i4{grid-template-columns:1fr}}
+
+.kutu{background:var(--panel);border:1px solid var(--cizgi);border-radius:var(--r);padding:14px;box-shadow:var(--golge)}
+.kutu .etiket{color:var(--soluk);font-size:12px;display:flex;align-items:center;gap:6px}
+.kutu .deger{font-size:22px;font-weight:700;letter-spacing:-.02em;margin-top:6px;font-variant-numeric:tabular-nums}
+.kutu .alt{color:var(--soluk);font-size:12px;margin-top:4px}
+.kutu.vurgulu{border-color:var(--vurgu);box-shadow:0 0 0 3px var(--vurgu-soft)}
+
+/* ---------- butonlar ---------- */
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--cizgi);background:var(--panel);color:var(--yazi);padding:7px 12px;border-radius:var(--r-s);cursor:pointer;font-weight:600;font-size:13px;white-space:nowrap}
+.btn:hover{background:var(--panel2)}
+.btn.ana{background:var(--vurgu);border-color:var(--vurgu);color:var(--vurgu-yazi)}
+.btn.ana:hover{filter:brightness(1.07)}
+.btn.tehlike{color:var(--kirmizi);border-color:#f3c9c9}
+.btn.tehlike:hover{background:var(--kirmizi-soft)}
+.btn.kucuk{padding:4px 8px;font-size:12px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* ---------- form ---------- */
+.form-izgara{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.form-izgara .tam{grid-column:1/-1}
+@media(max-width:640px){.form-izgara{grid-template-columns:1fr}}
+.alan{display:flex;flex-direction:column;gap:5px}
+.alan>label{font-size:12.5px;font-weight:600;color:var(--soluk)}
+.alan input,.alan select,.alan textarea{border:1px solid var(--cizgi);border-radius:var(--r-s);padding:8px 10px;background:var(--panel);outline:none;width:100%}
+.alan input:focus,.alan select:focus,.alan textarea:focus{border-color:var(--vurgu);box-shadow:0 0 0 3px var(--vurgu-soft)}
+.alan textarea{min-height:74px;resize:vertical}
+.alan .ipucu{font-size:11.5px;color:var(--soluk)}
+input[type=number]{font-variant-numeric:tabular-nums}
+
+/* ---------- tablo ---------- */
+.tablo-sar{overflow:auto;border-radius:var(--r)}
+table.tablo{width:100%;border-collapse:collapse;font-size:13.2px}
+table.tablo th{position:sticky;top:0;background:var(--panel2);text-align:left;font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--soluk);padding:9px 10px;border-bottom:1px solid var(--cizgi);white-space:nowrap}
+table.tablo td{padding:9px 10px;border-bottom:1px solid var(--cizgi);vertical-align:middle}
+table.tablo tr:last-child td{border-bottom:0}
+table.tablo tbody tr:hover{background:var(--panel2)}
+table.tablo th.sol,table.tablo td.sol{text-align:left}
+table.tablo th.sag,table.tablo td.sag{text-align:right;font-variant-numeric:tabular-nums}
+table.tablo td.islem{text-align:right;white-space:nowrap}
+table.tablo tfoot td{background:var(--panel2);font-weight:700;border-top:2px solid var(--cizgi)}
+.bos{padding:34px 14px;text-align:center;color:var(--soluk)}
+.bos b{display:block;color:var(--yazi);margin-bottom:4px}
+
+/* ---------- etiket / rozet ---------- */
+.rz{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:20px;font-size:11.5px;font-weight:700;background:var(--panel2);color:var(--soluk);border:1px solid var(--cizgi);white-space:nowrap}
+.rz.yesil{background:var(--yesil-soft);color:var(--yesil);border-color:transparent}
+.rz.sari{background:var(--sari-soft);color:var(--sari);border-color:transparent}
+.rz.kirmizi{background:var(--kirmizi-soft);color:var(--kirmizi);border-color:transparent}
+.rz.mavi{background:var(--vurgu-soft);color:var(--vurgu);border-color:transparent}
+.rz.mor{background:var(--mor-soft);color:var(--mor);border-color:transparent}
+
+/* ---------- ilerleme ---------- */
+.ilerleme{height:7px;background:var(--cizgi);border-radius:20px;overflow:hidden;min-width:70px}
+.ilerleme i{display:block;height:100%;background:var(--vurgu);border-radius:20px}
+.ilerleme.yesil i{background:var(--yesil)}
+.ilerleme.kirmizi i{background:var(--kirmizi)}
+.cubuk-satir{display:flex;align-items:center;gap:8px}
+.cubuk-satir span{font-size:12px;color:var(--soluk);font-variant-numeric:tabular-nums;min-width:38px;text-align:right}
+
+/* ---------- araç çubuğu ---------- */
+.arac{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.arac input[type=search],.arac select{border:1px solid var(--cizgi);border-radius:var(--r-s);padding:7px 10px;background:var(--panel);outline:none}
+.arac input[type=search]{min-width:230px}
+.arac .say{margin-right:auto;color:var(--soluk);font-size:12.5px}
+
+/* ---------- modal ---------- */
+.ortu{position:fixed;inset:0;background:rgba(15,23,32,.45);display:grid;place-items:center;padding:18px;z-index:80}
+.modal{background:var(--panel);border-radius:14px;width:min(860px,100%);max-height:92vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(16,24,40,.28)}
+.modal-bas{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--cizgi)}
+.modal-bas h3{margin:0;font-size:16px}
+.modal-bas .kapat{margin-left:auto;border:0;background:transparent;font-size:22px;line-height:1;cursor:pointer;color:var(--soluk)}
+.modal-govde{padding:16px;overflow:auto}
+.modal-alt{display:flex;gap:8px;justify-content:flex-end;padding:12px 16px;border-top:1px solid var(--cizgi)}
+.modal-alt .sol-taraf{margin-right:auto}
+
+/* ---------- bildirim ---------- */
+.bildirimler{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:8px;z-index:90}
+.bildirim{background:var(--yazi);color:#fff;padding:10px 14px;border-radius:var(--r-s);box-shadow:var(--golge);font-size:13px;animation:gir .18s ease}
+.bildirim.hata{background:var(--kirmizi)}
+.bildirim.basari{background:var(--yesil)}
+@keyframes gir{from{opacity:0;transform:translateY(6px)}}
+
+/* ---------- çeşitli ---------- */
+.satir-arasi{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.kucuk-yazi{font-size:12px;color:var(--soluk)}
+.bolum-baslik{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--soluk);margin:16px 0 8px}
+.sekmeler{display:flex;gap:4px;border-bottom:1px solid var(--cizgi);margin-bottom:14px;flex-wrap:wrap}
+.sekmeler button{border:0;background:transparent;padding:9px 13px;cursor:pointer;font-weight:600;color:var(--soluk);border-bottom:2px solid transparent;margin-bottom:-1px}
+.sekmeler button.aktif{color:var(--vurgu);border-bottom-color:var(--vurgu)}
+.liste-bos{color:var(--soluk);font-size:13px;padding:10px 0}
+.mini-tablo td{padding:5px 0;font-size:13px}
+.mini-tablo td:last-child{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.menu-ac{display:none;border:1px solid var(--cizgi);background:var(--panel);border-radius:var(--r-s);padding:6px 10px;cursor:pointer}
+@media(max-width:760px){.menu-ac{display:block}.proje-secici select{max-width:130px}}
+.zaman-cubuk{position:relative;height:22px;background:var(--panel2);border-radius:6px;overflow:hidden;min-width:160px}
+.zaman-cubuk i{position:absolute;top:3px;bottom:3px;background:var(--vurgu);border-radius:5px;opacity:.85}
+.zaman-cubuk.gecikmis i{background:var(--kirmizi)}
+.zaman-cubuk.bitti i{background:var(--yesil)}
+.site-alt{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;padding:14px 20px;border-top:1px solid var(--cizgi);background:var(--panel);color:var(--soluk);font-size:12px}
+@media print{.menu,.ustbar,.site-alt,.sayfa-bas .islemler,.arac{display:none!important}.kabuk{display:block}.icerik{padding:0}}
+</style>
+</head>
+<body>
+<div id="kok"></div>
+<footer class="site-alt" id="site-alt">
+  <span><b>Villa Proje Yönetimi</b> · Anahtar teslim maliyet, hakediş, tedarik ve iş takip programı</span>
+  <span>Lisans sahibi: Ali Gökten · SAGG+ App</span>
+</footer>
+<div class="bildirimler" id="bildirimler"></div>
+<script>
+"use strict";
+/* =======================================================================
+   Villa Proje Yönetimi - bağımsız tek dosya uygulama
+   Veri: tarayıcı localStorage + JSON yedek
+   ======================================================================= */
+
+/* ----------------------- yardımcılar ----------------------- */
+const $ = (s, k = document) => k.querySelector(s);
+const el = (etiket, ozellik = {}, ...cocuklar) => {
+  const d = document.createElement(etiket);
+  for (const [a, v] of Object.entries(ozellik)) {
+    if (v === null || v === undefined || v === false) continue;
+    if (a === "class") d.className = v;
+    else if (a === "html") d.innerHTML = v;
+    else if (a === "text") d.textContent = v;
+    else if (a.startsWith("on") && typeof v === "function") d.addEventListener(a.slice(2), v);
+    else if (a === "data") Object.assign(d.dataset, v);
+    else d.setAttribute(a, v);
+  }
+  for (const c of cocuklar.flat()) {
+    if (c === null || c === undefined || c === false) continue;
+    d.appendChild(typeof c === "object" ? c : document.createTextNode(String(c)));
+  }
+  return d;
+};
+const kimlik = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const sayi = (v) => {
+  if (typeof v === "number") return isFinite(v) ? v : 0;
+  if (!v) return 0;
+  const t = String(v).replace(/\s/g, "").replace(/\./g, "").replace(",", ".");
+  const n = parseFloat(t);
+  return isFinite(n) ? n : 0;
+};
+const paraBicim = new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const adetBicim = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 3 });
+const para = (v) => paraBicim.format(sayi(v)) + " ₺";
+const paraKisa = (v) => {
+  const n = sayi(v), m = Math.abs(n);
+  if (m >= 1e9) return (n / 1e9).toFixed(2).replace(".", ",") + " Mr ₺";
+  if (m >= 1e6) return (n / 1e6).toFixed(2).replace(".", ",") + " M ₺";
+  if (m >= 1e4) return Math.round(n / 1e3).toLocaleString("tr-TR") + " B ₺";
+  return para(n);
+};
+const adet = (v) => adetBicim.format(sayi(v));
+const yuzde = (v) => adetBicim.format(Math.round(sayi(v) * 10) / 10) + "%";
+const bugun = () => new Date().toISOString().slice(0, 10);
+const tarih = (t) => (t ? new Date(t + "T00:00:00").toLocaleDateString("tr-TR") : "—");
+const gunFarki = (a, b) => Math.round((new Date(b) - new Date(a)) / 86400000);
+const kacir = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const toplam = (dizi, f) => dizi.reduce((t, x) => t + sayi(f(x)), 0);
+const grupla = (dizi, f) => dizi.reduce((o, x) => { const k = f(x); (o[k] = o[k] || []).push(x); return o; }, {});
+
+function bildir(mesaj, tur = "") {
+  const b = el("div", { class: "bildirim " + tur, text: mesaj });
+  $("#bildirimler").appendChild(b);
+  setTimeout(() => { b.style.opacity = "0"; b.style.transition = "opacity .3s"; setTimeout(() => b.remove(), 320); }, 2600);
+}
+
+/* ----------------------- sabit listeler ----------------------- */
+const CARI_TURU = {
+  taseron:   { ad: "Taşeron",              renk: "mavi" },
+  tedarikci: { ad: "Malzeme Tedarikçisi",  renk: "mor" },
+  isci:      { ad: "İşçi / Usta",          renk: "yesil" },
+  nakliye:   { ad: "Nakliyeci",            renk: "sari" },
+  kiralama:  { ad: "İş Makinesi / Kiralama", renk: "" },
+  musavir:   { ad: "Müşavir / Proje Ofisi", renk: "" },
+  diger:     { ad: "Diğer",                renk: "" },
+};
+const PROJE_DURUMU = {
+  planlama: { ad: "Planlama", renk: "sari" },
+  devam:    { ad: "Devam Ediyor", renk: "mavi" },
+  duraklatildi: { ad: "Duraklatıldı", renk: "kirmizi" },
+  tamam:    { ad: "Tamamlandı", renk: "yesil" },
+};
+const IS_DURUMU = {
+  bekliyor: { ad: "Bekliyor", renk: "" },
+  devam:    { ad: "Devam Ediyor", renk: "mavi" },
+  tamam:    { ad: "Tamamlandı", renk: "yesil" },
+  iptal:    { ad: "İptal", renk: "kirmizi" },
+};
+const HAKEDIS_DURUMU = {
+  taslak:  { ad: "Taslak", renk: "" },
+  onayda:  { ad: "Onayda", renk: "sari" },
+  onayli:  { ad: "Onaylandı", renk: "mavi" },
+  odendi:  { ad: "Ödendi", renk: "yesil" },
+};
+const SIPARIS_DURUMU = {
+  talep:  { ad: "Talep", renk: "" },
+  siparis:{ ad: "Sipariş Verildi", renk: "mavi" },
+  yolda:  { ad: "Yolda", renk: "sari" },
+  kismi:  { ad: "Kısmi Teslim", renk: "sari" },
+  teslim: { ad: "Teslim Alındı", renk: "yesil" },
+  iptal:  { ad: "İptal", renk: "kirmizi" },
+};
+const ONCELIK = { dusuk: { ad: "Düşük", renk: "" }, normal: { ad: "Normal", renk: "mavi" }, yuksek: { ad: "Yüksek", renk: "sari" }, kritik: { ad: "Kritik", renk: "kirmizi" } };
+const IMALAT_GRUPLARI = [
+  "Arsa ve Ruhsat", "Hafriyat ve Zemin", "Kaba Yapı - Betonarme", "Çatı", "Duvar ve Sıva",
+  "Yalıtım", "Mekanik Tesisat", "Elektrik Tesisatı", "Kapı ve Pencere (Doğrama)",
+  "Zemin Kaplama", "Duvar Kaplama ve Boya", "Mutfak ve Banyo", "Havuz ve Peyzaj",
+  "Cephe", "Genel Giderler", "Diğer",
+];
+const BIRIMLER = ["m²", "m³", "m", "adet", "kg", "ton", "takım", "gün", "saat", "paket", "lt", "götürü"];
+const ODEME_YONTEMI = ["Havale/EFT", "Nakit", "Çek", "Senet", "Kredi Kartı", "Mahsup"];
+
+/* ----------------------- veri katmanı ----------------------- */
+const ANAHTAR = "villa-yonetim-v1";
+const BOS_VERI = () => ({
+  surum: 1,
+  projeler: [], cariler: [], kalemler: [], sozlesmeler: [],
+  hakedisler: [], odemeler: [], siparisler: [], isler: [], masraflar: [],
+  ayar: { aktifProje: "", firmaAdi: "" },
+});
+let VERI = BOS_VERI();
+
+function yukle() {
+  try {
+    const ham = localStorage.getItem(ANAHTAR);
+    if (ham) {
+      const o = JSON.parse(ham);
+      VERI = Object.assign(BOS_VERI(), o);
+      VERI.ayar = Object.assign(BOS_VERI().ayar, o.ayar || {});
+    }
+  } catch (e) { console.warn("Veri okunamadı:", e); }
+}
+let kayitZaman = null;
+function kaydet() {
+  clearTimeout(kayitZaman);
+  kayitZaman = setTimeout(() => {
+    try { localStorage.setItem(ANAHTAR, JSON.stringify(VERI)); }
+    catch (e) { bildir("Kayıt yapılamadı: depolama dolu olabilir.", "hata"); }
+  }, 60);
+}
+const tablo = (ad) => (VERI[ad] = VERI[ad] || []);
+function ekle(ad, nesne) { const k = Object.assign({ id: kimlik(), olusturma: new Date().toISOString() }, nesne); tablo(ad).push(k); kaydet(); return k; }
+function guncelle(ad, id, yama) { const k = tablo(ad).find((x) => x.id === id); if (k) { Object.assign(k, yama); kaydet(); } return k; }
+function sil(ad, id) { VERI[ad] = tablo(ad).filter((x) => x.id !== id); kaydet(); }
+const bul = (ad, id) => tablo(ad).find((x) => x.id === id);
+const projeAdi = (id) => (bul("projeler", id) || {}).ad || "—";
+const cariAdi = (id) => (bul("cariler", id) || {}).ad || "—";
+
+/* ----------------------- hesaplamalar ----------------------- */
+function hakedisHesapla(h) {
+  const brut = (h.satirlar && h.satirlar.length)
+    ? toplam(h.satirlar, (s) => sayi(s.miktar) * sayi(s.birimFiyat))
+    : sayi(h.brut);
+  const k = h.kesinti || {};
+  const teminat = brut * sayi(k.teminatOrani) / 100;
+  const stopaj  = brut * sayi(k.stopajOrani) / 100;
+  const avans   = sayi(k.avans);
+  const digerK  = sayi(k.diger);
+  const kesintiToplam = teminat + stopaj + avans + digerK;
+  return { brut, teminat, stopaj, avans, diger: digerK, kesintiToplam, net: brut - kesintiToplam };
+}
+const hakedisNet = (h) => hakedisHesapla(h).net;
+const siparisTutar = (s) => sayi(s.miktar) * sayi(s.birimFiyat);
+const kalemTutar = (k) => sayi(k.miktar) * sayi(k.birimFiyat);
+
+function projeOzet(projeId) {
+  const f = (ad) => tablo(ad).filter((x) => x.projeId === projeId);
+  const kalemler = f("kalemler"), sozlesmeler = f("sozlesmeler"), hakedisler = f("hakedisler");
+  const odemeler = f("odemeler"), siparisler = f("siparisler"), isler = f("isler"), masraflar = f("masraflar");
+  const p = bul("projeler", projeId) || {};
+
+  const butce = toplam(kalemler, kalemTutar);
+  const sozlesmeToplam = toplam(sozlesmeler, (s) => s.tutar);
+  const hakedisBrut = toplam(hakedisler, (h) => hakedisHesapla(h).brut);
+  const hakedisNetT = toplam(hakedisler, hakedisNet);
+  const siparisToplam = toplam(siparisler.filter((s) => s.durum !== "iptal"), siparisTutar);
+  const masrafToplam = toplam(masraflar, (m) => m.tutar);
+  const odenen = toplam(odemeler, (o) => o.tutar);
+  const gerceklesen = hakedisNetT + siparisToplam + masrafToplam;
+  const borc = gerceklesen - odenen;
+  const satisBedeli = sayi(p.satisBedeli);
+
+  const isAgirlikli = isler.length ? toplam(isler, (i) => sayi(i.ilerleme)) / isler.length : 0;
+  const fizikselIlerleme = isler.length ? isAgirlikli : (butce ? Math.min(100, hakedisBrut / butce * 100) : 0);
+
+  return {
+    proje: p, butce, sozlesmeToplam, hakedisBrut, hakedisNet: hakedisNetT, siparisToplam,
+    masrafToplam, odenen, gerceklesen, borc, kalanButce: butce - gerceklesen, satisBedeli,
+    kar: satisBedeli ? satisBedeli - gerceklesen : 0,
+    fizikselIlerleme,
+    sayilar: {
+      kalem: kalemler.length, sozlesme: sozlesmeler.length, hakedis: hakedisler.length,
+      siparis: siparisler.length, is: isler.length,
+      acikIs: isler.filter((i) => i.durum !== "tamam" && i.durum !== "iptal").length,
+      gecikenIs: isler.filter((i) => i.durum !== "tamam" && i.durum !== "iptal" && i.bitis && i.bitis < bugun()).length,
+      bekleyenSiparis: siparisler.filter((s) => ["talep", "siparis", "yolda", "kismi"].includes(s.durum)).length,
+      odenmemisHakedis: hakedisler.filter((h) => h.durum !== "odendi").length,
+    },
+  };
+}
+
+function cariOzet(cariId, projeId = "") {
+  const sz = (x) => (!projeId || x.projeId === projeId);
+  const hakedisler = tablo("hakedisler").filter((h) => h.cariId === cariId && sz(h));
+  const siparisler = tablo("siparisler").filter((s) => s.cariId === cariId && s.durum !== "iptal" && sz(s));
+  const odemeler = tablo("odemeler").filter((o) => o.cariId === cariId && sz(o));
+  const sozlesmeler = tablo("sozlesmeler").filter((s) => s.cariId === cariId && sz(s));
+  const alacak = toplam(hakedisler, hakedisNet) + toplam(siparisler, siparisTutar);
+  const odenen = toplam(odemeler, (o) => o.tutar);
+  return { hakedisler, siparisler, odemeler, sozlesmeler, alacak, odenen, bakiye: alacak - odenen };
+}
+
+/* ----------------------- modal ve form motoru ----------------------- */
+function modalAc({ baslik, govde, altKisim, genis }) {
+  const ortu = el("div", { class: "ortu" });
+  const kapat = () => { ortu.remove(); document.removeEventListener("keydown", esc); };
+  const esc = (e) => { if (e.key === "Escape") kapat(); };
+  document.addEventListener("keydown", esc);
+  ortu.addEventListener("mousedown", (e) => { if (e.target === ortu) kapat(); });
+  const m = el("div", { class: "modal" },
+    el("div", { class: "modal-bas" }, el("h3", { text: baslik }), el("button", { class: "kapat", type: "button", "aria-label": "Kapat", onclick: kapat }, "×")),
+    el("div", { class: "modal-govde" }, govde),
+    altKisim ? el("div", { class: "modal-alt" }, altKisim) : null
+  );
+  if (genis) m.style.width = "min(" + genis + "px,100%)";
+  ortu.appendChild(m);
+  document.body.appendChild(ortu);
+  const ilk = m.querySelector("input,select,textarea");
+  if (ilk) setTimeout(() => ilk.focus(), 30);
+  return { kapat, govde: m.querySelector(".modal-govde") };
+}
+
+function onayAl(mesaj, tamam) {
+  const { kapat } = modalAc({
+    baslik: "Onay",
+    govde: el("p", { text: mesaj, style: "margin:4px 0 0" }),
+    genis: 460,
+    altKisim: [
+      el("button", { class: "btn", type: "button", onclick: () => kapat() }, "Vazgeç"),
+      el("button", { class: "btn tehlike", type: "button", onclick: () => { kapat(); tamam(); } }, "Evet, sil"),
+    ],
+  });
+}
+
+function alanCiz(a, deger) {
+  let giris;
+  const ortak = { name: a.ad, id: "alan-" + a.ad };
+  if (a.tip === "secim") {
+    giris = el("select", ortak, ...(a.bos !== false ? [el("option", { value: "" }, a.bosYazi || "— seçiniz —")] : []),
+      ...a.secenekler.map((s) => el("option", { value: s.d }, s.e)));
+    giris.value = deger ?? "";
+  } else if (a.tip === "metinKutu") {
+    giris = el("textarea", ortak); giris.value = deger ?? "";
+  } else if (a.tip === "onay") {
+    giris = el("input", Object.assign({ type: "checkbox" }, ortak));
+    giris.checked = !!deger;
+    giris.style.width = "18px"; giris.style.height = "18px";
+  } else {
+    const tipler = { sayi: "number", para: "number", tarih: "date", eposta: "email", telefon: "tel" };
+    giris = el("input", Object.assign({ type: tipler[a.tip] || "text" }, ortak));
+    if (a.tip === "sayi" || a.tip === "para") { giris.step = a.adim || "0.01"; }
+    if (a.liste) {
+      const lid = "liste-" + a.ad + "-" + kimlik();
+      giris.setAttribute("list", lid);
+      giris.dataset.liste = lid;
+      giris._liste = el("datalist", { id: lid }, ...a.liste.map((v) => el("option", { value: v })));
+    }
+    giris.value = deger ?? "";
+  }
+  if (a.gerekli) giris.required = true;
+  if (a.salt) giris.disabled = true;
+  if (a.yerTutucu) giris.placeholder = a.yerTutucu;
+  const sarmal = el("div", { class: "alan" + (a.tam ? " tam" : "") },
+    el("label", { for: ortak.id, text: a.etiket + (a.gerekli ? " *" : "") }),
+    giris, giris._liste || null,
+    a.ipucu ? el("div", { class: "ipucu", text: a.ipucu }) : null);
+  if (a.tam) sarmal.classList.add("tam");
+  return sarmal;
+}
+
+function formAc({ baslik, alanlar, kayit = {}, genis = 760, kaydet: kaydetFn, ekBolum }) {
+  const form = el("form", { class: "form-izgara" });
+  alanlar.forEach((a) => {
+    if (a.baslik) { form.appendChild(el("div", { class: "bolum-baslik tam", text: a.baslik })); return; }
+    form.appendChild(alanCiz(a, kayit[a.ad] ?? a.varsayilan ?? ""));
+  });
+  if (ekBolum) form.appendChild(ekBolum);
+  const { kapat } = modalAc({
+    baslik, genis, govde: form,
+    altKisim: [
+      el("button", { class: "btn", type: "button", onclick: () => kapat() }, "Vazgeç"),
+      el("button", { class: "btn ana", type: "button", onclick: () => gonder() }, "Kaydet"),
+    ],
+  });
+  form.addEventListener("submit", (e) => { e.preventDefault(); gonder(); });
+  form.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.tagName !== "TEXTAREA") { e.preventDefault(); gonder(); } });
+  function gonder() {
+    if (!form.reportValidity()) return;
+    const cikti = {};
+    alanlar.forEach((a) => {
+      if (a.baslik || a.salt) return;
+      const g = form.elements[a.ad];
+      if (!g) return;
+      if (a.tip === "onay") cikti[a.ad] = g.checked;
+      else if (a.tip === "sayi" || a.tip === "para") cikti[a.ad] = sayi(g.value);
+      else cikti[a.ad] = g.value.trim ? g.value.trim() : g.value;
+    });
+    const sonuc = kaydetFn(cikti, form);
+    if (sonuc !== false) { kapat(); ciz(); }
+  }
+  return { kapat, form };
+}
+
+/* ----------------------- tablo motoru ----------------------- */
+function tabloCiz({ sutunlar, satirlar, bosMesaj = "Henüz kayıt yok.", bosEk, altToplam }) {
+  if (!satirlar.length) {
+    return el("div", { class: "bos" }, el("b", { text: bosMesaj }), bosEk || null);
+  }
+  const thead = el("thead", {}, el("tr", {}, ...sutunlar.map((s) => el("th", { class: s.sinif || "" }, s.baslik))));
+  const tbody = el("tbody", {}, ...satirlar.map((r, i) => el("tr", {}, ...sutunlar.map((s) => {
+    const icerik = s.hucre(r, i);
+    const td = el("td", { class: s.sinif || "" });
+    if (icerik instanceof Node) td.appendChild(icerik);
+    else td.innerHTML = icerik ?? "";
+    return td;
+  }))));
+  const t = el("table", { class: "tablo" }, thead, tbody);
+  if (altToplam) {
+    t.appendChild(el("tfoot", {}, el("tr", {}, ...sutunlar.map((s) => {
+      const v = altToplam[s.anahtar];
+      return el("td", { class: s.sinif || "" }, v === undefined ? "" : v);
+    }))));
+  }
+  return el("div", { class: "tablo-sar" }, t);
+}
+
+const rozet = (harita, deger) => {
+  const t = harita[deger] || { ad: deger || "—", renk: "" };
+  return '<span class="rz ' + t.renk + '">' + kacir(t.ad) + "</span>";
+};
+const ilerlemeCubuk = (v, sinif = "") => {
+  const p = Math.max(0, Math.min(100, sayi(v)));
+  return '<div class="cubuk-satir"><div class="ilerleme ' + sinif + '"><i style="width:' + p + '%"></i></div><span>' + Math.round(p) + "%</span></div>";
+};
+function islemDugmeleri(duzenle, silFn, ekler = []) {
+  return el("div", { class: "satir-arasi", style: "justify-content:flex-end" },
+    ...ekler,
+    duzenle ? el("button", { class: "btn kucuk", type: "button", title: "Düzenle", onclick: duzenle }, "Düzenle") : null,
+    silFn ? el("button", { class: "btn kucuk tehlike", type: "button", title: "Sil", onclick: silFn }, "Sil") : null);
+}
+function araciCiz(durum, alanlar) {
+  const kutu = el("div", { class: "arac" });
+  alanlar.forEach((a) => {
+    if (a.tip === "arama") {
+      const g = el("input", { type: "search", placeholder: a.yerTutucu || "Ara…", value: durum[a.ad] || "" });
+      g.addEventListener("input", () => { durum[a.ad] = g.value; a.degisti(); });
+      kutu.appendChild(g);
+    } else if (a.tip === "secim") {
+      const g = el("select", {}, el("option", { value: "" }, a.tumu || "Tümü"), ...a.secenekler.map((s) => el("option", { value: s.d }, s.e)));
+      g.value = durum[a.ad] || "";
+      g.addEventListener("change", () => { durum[a.ad] = g.value; a.degisti(); });
+      kutu.appendChild(g);
+    } else if (a.tip === "dugme") {
+      kutu.appendChild(el("button", { class: "btn " + (a.sinif || ""), type: "button", onclick: a.tiklama }, a.etiket));
+    } else if (a.tip === "bilgi") {
+      kutu.appendChild(el("div", { class: "say", text: a.metin }));
+    }
+  });
+  return kutu;
+}
+function kutuCiz(etiket, deger, alt, sinif = "") {
+  return el("div", { class: "kutu " + sinif },
+    el("div", { class: "etiket", text: etiket }),
+    el("div", { class: "deger", text: deger }),
+    alt ? el("div", { class: "alt", html: alt }) : null);
+}
+
+/* ----------------------- uygulama iskeleti ----------------------- */
+const MODULLER = [
+  { yol: "panel",       ad: "Panel",              ikon: "◎", grup: "Genel" },
+  { yol: "projeler",    ad: "Projeler",           ikon: "▤", grup: "Genel" },
+  { yol: "cariler",     ad: "Cari Kartlar",       ikon: "☰", grup: "Genel" },
+  { yol: "butce",       ad: "Maliyet / Bütçe",    ikon: "₺", grup: "Maliyet" },
+  { yol: "sozlesmeler", ad: "Sözleşmeler",        ikon: "✎", grup: "Maliyet" },
+  { yol: "hakedisler",  ad: "Hakedişler",         ikon: "▦", grup: "Maliyet" },
+  { yol: "odemeler",    ad: "Ödemeler",           ikon: "◇", grup: "Maliyet" },
+  { yol: "masraflar",   ad: "Genel Masraflar",    ikon: "○", grup: "Maliyet" },
+  { yol: "siparisler",  ad: "Sipariş / Tedarik",  ikon: "⛟", grup: "Saha" },
+  { yol: "isler",       ad: "İş Takip",           ikon: "✓", grup: "Saha" },
+  { yol: "raporlar",    ad: "Raporlar",           ikon: "▲", grup: "Analiz" },
+  { yol: "ayarlar",     ad: "Ayarlar / Yedek",    ikon: "⚙", grup: "Analiz" },
+];
+const DURUM = { yol: "panel", filtre: {} };
+
+function aktifProjeId() {
+  const a = VERI.ayar.aktifProje;
+  if (a === "*") return "*";
+  if (a && bul("projeler", a)) return a;
+  return tablo("projeler")[0] ? tablo("projeler")[0].id : "";
+}
+function kapsam(ad) {
+  const p = aktifProjeId();
+  const liste = tablo(ad);
+  return p === "*" || !p ? liste.slice() : liste.filter((x) => x.projeId === p);
+}
+function projeSecenek(bos = true) {
+  return tablo("projeler").map((p) => ({ d: p.id, e: p.ad }));
+}
+function cariSecenek(tur) {
+  return tablo("cariler")
+    .filter((c) => !tur || (Array.isArray(tur) ? tur.includes(c.tur) : c.tur === tur))
+    .sort((a, b) => a.ad.localeCompare(b.ad, "tr"))
+    .map((c) => ({ d: c.id, e: c.ad + " (" + (CARI_TURU[c.tur] || {}).ad + ")" }));
+}
+function varsayilanProje() {
+  const p = aktifProjeId();
+  return p && p !== "*" ? p : (tablo("projeler")[0] || {}).id || "";
+}
+function projeGerekli() {
+  if (!tablo("projeler").length) {
+    bildir("Önce bir proje eklemelisiniz.", "hata");
+    git("projeler");
+    return false;
+  }
+  return true;
+}
+function git(yol) { DURUM.yol = yol; DURUM.filtre = {}; location.hash = "#" + yol; ciz(); }
+
+function iskeletCiz() {
+  const kok = $("#kok");
+  kok.innerHTML = "";
+  const projeler = tablo("projeler");
+  const secici = el("select", {},
+    el("option", { value: "*" }, "Tüm Projeler"),
+    ...projeler.map((p) => el("option", { value: p.id }, p.ad)));
+  secici.value = VERI.ayar.aktifProje || (projeler[0] ? projeler[0].id : "*");
+  secici.addEventListener("change", () => { VERI.ayar.aktifProje = secici.value; kaydet(); ciz(); });
+
+  const menuKutu = el("aside", { class: "menu", id: "menu" });
+  let sonGrup = "";
+  MODULLER.forEach((m) => {
+    if (m.grup !== sonGrup) { sonGrup = m.grup; menuKutu.appendChild(el("div", { class: "menu-baslik", text: m.grup })); }
+    const rozetSayi = menuRozet(m.yol);
+    menuKutu.appendChild(el("a", {
+      href: "#" + m.yol, class: DURUM.yol === m.yol ? "aktif" : "",
+      onclick: (e) => { e.preventDefault(); $("#menu").classList.remove("acik"); git(m.yol); },
+    }, el("span", { class: "mi", text: m.ikon }), el("span", { text: m.ad }),
+       rozetSayi ? el("span", { class: "rozet", text: String(rozetSayi) }) : null));
+  });
+
+  const kabuk = el("div", { class: "kabuk" },
+    el("header", { class: "ustbar" },
+      el("button", { class: "menu-ac", type: "button", onclick: () => $("#menu").classList.toggle("acik") }, "☰"),
+      el("div", { class: "marka" },
+        el("div", { class: "marka-ikon", text: "V" }),
+        el("div", {}, el("b", { text: "Villa Proje Yönetimi" }), el("small", { text: VERI.ayar.firmaAdi || "Anahtar teslim maliyet ve hakediş takibi" }))),
+      el("div", { class: "ustbar-sag" },
+        el("div", { class: "proje-secici" }, el("span", { text: "Proje:" }), secici),
+        el("button", { class: "btn ana", type: "button", onclick: projeFormu }, "+ Proje"))),
+    menuKutu,
+    el("main", { class: "icerik", id: "icerik" }));
+  kok.appendChild(kabuk);
+}
+function menuRozet(yol) {
+  const p = aktifProjeId();
+  if (!p) return 0;
+  if (yol === "isler") return kapsam("isler").filter((i) => i.durum !== "tamam" && i.durum !== "iptal" && i.bitis && i.bitis < bugun()).length;
+  if (yol === "siparisler") return kapsam("siparisler").filter((s) => ["talep", "siparis", "yolda", "kismi"].includes(s.durum) && s.teslimTarihi && s.teslimTarihi < bugun()).length;
+  if (yol === "hakedisler") return kapsam("hakedisler").filter((h) => h.durum === "onayli").length;
+  return 0;
+}
+function sayfaBas(baslik, aciklama, islemler = []) {
+  return el("div", { class: "sayfa-bas" },
+    el("div", {}, el("h1", { text: baslik }), aciklama ? el("p", { text: aciklama }) : null),
+    islemler.length ? el("div", { class: "islemler" }, ...islemler) : null);
+}
+function ciz() {
+  const yol = (location.hash || "#panel").slice(1);
+  if (MODULLER.some((m) => m.yol === yol)) DURUM.yol = yol;
+  iskeletCiz();
+  const k = $("#icerik");
+  k.innerHTML = "";
+  const f = SAYFALAR[DURUM.yol] || SAYFALAR.panel;
+  try { f(k); } catch (e) { console.error(e); k.appendChild(el("div", { class: "bos" }, el("b", { text: "Sayfa çizilemedi" }), String(e.message))); }
+}
+window.addEventListener("hashchange", () => {
+  const yol = location.hash.slice(1);
+  if (MODULLER.some((m) => m.yol === yol) && yol !== DURUM.yol) { DURUM.yol = yol; DURUM.filtre = {}; ciz(); }
+});
+
+const SAYFALAR = {};
+
+/* =====================  PROJE KARTI  ===================== */
+const PROJE_ALANLARI = () => ([
+  { ad: "ad", etiket: "Proje Adı", gerekli: true, tam: true, yerTutucu: "Örn: Çeşme Villa A Blok" },
+  { ad: "musteri", etiket: "İşveren / Müşteri" },
+  { ad: "tip", etiket: "Yapı Tipi", tip: "secim", bos: false, secenekler: [
+      { d: "villa", e: "Villa (Müstakil)" }, { d: "ikiz", e: "İkiz Villa" },
+      { d: "site", e: "Villa Sitesi" }, { d: "apartman", e: "Apartman" }, { d: "diger", e: "Diğer" }] },
+  { ad: "adres", etiket: "Adres / Konum", tam: true },
+  { ad: "arsaAlani", etiket: "Arsa Alanı (m²)", tip: "sayi" },
+  { ad: "insaatAlani", etiket: "İnşaat Alanı (m²)", tip: "sayi" },
+  { ad: "baslangic", etiket: "Başlangıç Tarihi", tip: "tarih", varsayilan: bugun() },
+  { ad: "bitis", etiket: "Planlanan Bitiş", tip: "tarih" },
+  { ad: "hedefButce", etiket: "Hedef Bütçe (₺)", tip: "para", ipucu: "Boş bırakılırsa bütçe kalemleri toplamı kullanılır." },
+  { ad: "satisBedeli", etiket: "Sözleşme / Satış Bedeli (₺)", tip: "para", ipucu: "Kâr hesabı için." },
+  { ad: "durum", etiket: "Durum", tip: "secim", bos: false, varsayilan: "devam",
+    secenekler: Object.entries(PROJE_DURUMU).map(([d, v]) => ({ d, e: v.ad })) },
+  { ad: "sorumlu", etiket: "Şantiye Sorumlusu" },
+  { ad: "notlar", etiket: "Notlar", tip: "metinKutu", tam: true },
+]);
+
+function projeFormu(kayit) {
+  formAc({
+    baslik: kayit ? "Proje Düzenle" : "Yeni Proje",
+    alanlar: PROJE_ALANLARI(), kayit: kayit || {},
+    kaydet: (v) => {
+      if (kayit) { guncelle("projeler", kayit.id, v); bildir("Proje güncellendi.", "basari"); }
+      else { const y = ekle("projeler", v); VERI.ayar.aktifProje = y.id; kaydet(); bildir("Proje eklendi.", "basari"); }
+    },
+  });
+}
+
+SAYFALAR.projeler = (k) => {
+  k.appendChild(sayfaBas("Projeler", "Takip ettiğiniz tüm villa / yapı projeleri.", [
+    el("button", { class: "btn ana", type: "button", onclick: () => projeFormu() }, "+ Yeni Proje"),
+  ]));
+  const projeler = tablo("projeler");
+  if (!projeler.length) {
+    k.appendChild(el("div", { class: "kart" }, el("div", { class: "bos" },
+      el("b", { text: "Henüz proje yok" }),
+      el("p", { text: "Başlamak için ilk projenizi ekleyin ya da örnek veriyi yükleyip programı deneyin.", style: "margin:4px 0 12px" }),
+      el("div", { class: "satir-arasi", style: "justify-content:center" },
+        el("button", { class: "btn ana", type: "button", onclick: () => projeFormu() }, "+ Yeni Proje"),
+        el("button", { class: "btn", type: "button", onclick: ornekVeriYukle }, "Örnek veri yükle")))));
+    return;
+  }
+  k.appendChild(el("div", { class: "izgara i2" }, ...projeler.map((p) => {
+    const o = projeOzet(p.id);
+    const butce = sayi(p.hedefButce) || o.butce;
+    const oran = butce ? o.gerceklesen / butce * 100 : 0;
+    return el("div", { class: "kart" },
+      el("div", { class: "kart-bas" },
+        el("h2", { text: p.ad }),
+        el("span", { html: rozet(PROJE_DURUMU, p.durum) }),
+        el("div", { class: "islemler" },
+          el("button", { class: "btn kucuk", type: "button", onclick: () => { VERI.ayar.aktifProje = p.id; kaydet(); git("panel"); } }, "Aç"),
+          el("button", { class: "btn kucuk", type: "button", onclick: () => projeFormu(p) }, "Düzenle"),
+          el("button", { class: "btn kucuk tehlike", type: "button", onclick: () => onayAl(
+            p.ad + " projesi ve bağlı tüm kayıtları (bütçe, hakediş, sipariş, iş) silinecek. Onaylıyor musunuz?",
+            () => { ["kalemler", "sozlesmeler", "hakedisler", "odemeler", "siparisler", "isler", "masraflar"].forEach((t) => { VERI[t] = tablo(t).filter((x) => x.projeId !== p.id); }); sil("projeler", p.id); bildir("Proje silindi."); ciz(); }) }, "Sil"))),
+      el("div", { class: "kart-govde" },
+        el("div", { class: "kucuk-yazi", style: "margin-bottom:10px" },
+          [p.musteri, p.adres, p.insaatAlani ? adet(p.insaatAlani) + " m²" : ""].filter(Boolean).join(" · ") || "—"),
+        el("div", { html: ilerlemeCubuk(o.fizikselIlerleme, o.fizikselIlerleme >= 100 ? "yesil" : "") }),
+        el("table", { class: "mini-tablo", style: "width:100%;margin-top:10px" },
+          el("tr", {}, el("td", { text: "Bütçe" }), el("td", { text: para(butce) })),
+          el("tr", {}, el("td", { text: "Gerçekleşen maliyet" }), el("td", { text: para(o.gerceklesen) })),
+          el("tr", {}, el("td", { text: "Ödenen" }), el("td", { text: para(o.odenen) })),
+          el("tr", {}, el("td", { text: "Cari borç" }), el("td", { text: para(o.borc) })),
+          o.satisBedeli ? el("tr", {}, el("td", { text: "Beklenen kâr" }), el("td", { text: para(o.kar) })) : null),
+        el("div", { class: "kucuk-yazi", style: "margin-top:10px" },
+          tarih(p.baslangic) + " → " + tarih(p.bitis) + " · bütçe kullanımı %" + Math.round(oran))));
+  })));
+};
+
+/* =====================  PANEL  ===================== */
+SAYFALAR.panel = (k) => {
+  const projeler = tablo("projeler");
+  if (!projeler.length) {
+    k.appendChild(sayfaBas("Hoş geldiniz", "Anahtar teslim villa projelerinizin maliyet, hakediş, tedarik ve iş takibi."));
+    k.appendChild(el("div", { class: "kart" }, el("div", { class: "bos" },
+      el("b", { text: "Programı kullanmaya başlayın" }),
+      el("p", { style: "margin:6px auto 14px;max-width:520px" },
+        "Önce bir proje açın, ardından taşeron / tedarikçi / işçi cari kartlarını tanımlayın. Bütçe kalemleri, sözleşmeler, hakedişler, siparişler ve iş takibi projeye bağlı olarak ilerler."),
+      el("div", { class: "satir-arasi", style: "justify-content:center" },
+        el("button", { class: "btn ana", type: "button", onclick: () => projeFormu() }, "+ Yeni Proje"),
+        el("button", { class: "btn", type: "button", onclick: ornekVeriYukle }, "Örnek veri yükle")))));
+    return;
+  }
+  const pid = aktifProjeId();
+  if (pid === "*") return portfoyPaneli(k);
+
+  const p = bul("projeler", pid);
+  const o = projeOzet(pid);
+  const butce = sayi(p.hedefButce) || o.butce;
+  k.appendChild(sayfaBas(p.ad, [PROJE_DURUMU[p.durum] && PROJE_DURUMU[p.durum].ad, p.musteri, p.adres].filter(Boolean).join(" · "), [
+    el("button", { class: "btn", type: "button", onclick: () => projeFormu(p) }, "Proje Bilgileri"),
+    el("button", { class: "btn", type: "button", onclick: () => git("raporlar") }, "Rapor"),
+  ]));
+
+  k.appendChild(el("div", { class: "izgara i4", style: "margin-bottom:14px" },
+    kutuCiz("Bütçe", para(butce), o.butce ? tablo("kalemler").filter((x) => x.projeId === pid).length + " bütçe kalemi" : "Bütçe kalemi girilmedi"),
+    kutuCiz("Gerçekleşen Maliyet", para(o.gerceklesen), 'Hakediş ' + paraKisa(o.hakedisNet) + " · Sipariş " + paraKisa(o.siparisToplam) + " · Masraf " + paraKisa(o.masrafToplam), "vurgulu"),
+    kutuCiz("Ödenen", para(o.odenen), "Kalan borç: " + para(o.borc)),
+    kutuCiz(butce ? "Kalan Bütçe" : "Satış Bedeli", butce ? para(o.kalanButce) : para(o.satisBedeli),
+      butce ? "Kullanım %" + Math.round(butce ? o.gerceklesen / butce * 100 : 0) : (o.satisBedeli ? "Beklenen kâr " + para(o.kar) : "Girilmedi"))));
+
+  k.appendChild(el("div", { class: "izgara i2" },
+    el("div", { class: "kart" },
+      el("div", { class: "kart-bas" }, el("h2", { text: "İmalat Grubuna Göre Maliyet" })),
+      el("div", { class: "kart-govde" }, grupMaliyetCiz(pid))),
+    el("div", { class: "kart" },
+      el("div", { class: "kart-bas" }, el("h2", { text: "İş İlerlemesi" }),
+        el("div", { class: "islemler" }, el("button", { class: "btn kucuk", type: "button", onclick: () => git("isler") }, "Tümü"))),
+      el("div", { class: "kart-govde" }, isOzetCiz(pid)))));
+
+  k.appendChild(el("div", { class: "izgara i3", style: "margin-top:14px" },
+    listeKart("Geciken İşler", kapsam("isler").filter((i) => i.durum !== "tamam" && i.durum !== "iptal" && i.bitis && i.bitis < bugun())
+      .sort((a, b) => a.bitis.localeCompare(b.bitis)).slice(0, 6)
+      .map((i) => ({ sol: i.ad, alt: cariAdi(i.cariId), sag: tarih(i.bitis), renk: "kirmizi" })), "isler"),
+    listeKart("Bekleyen Sipariş / Teslimat", kapsam("siparisler").filter((s) => ["talep", "siparis", "yolda", "kismi"].includes(s.durum))
+      .sort((a, b) => (a.teslimTarihi || "9999").localeCompare(b.teslimTarihi || "9999")).slice(0, 6)
+      .map((s) => ({ sol: s.malzeme, alt: cariAdi(s.cariId) + " · " + adet(s.miktar) + " " + (s.birim || ""), sag: tarih(s.teslimTarihi) })), "siparisler"),
+    listeKart("Ödenmemiş Hakedişler", kapsam("hakedisler").filter((h) => h.durum !== "odendi")
+      .sort((a, b) => (b.tarih || "").localeCompare(a.tarih || "")).slice(0, 6)
+      .map((h) => ({ sol: cariAdi(h.cariId), alt: "No " + (h.no || "-") + " · " + tarih(h.tarih), sag: para(hakedisNet(h)) })), "hakedisler")));
+
+  const bakiyeler = tablo("cariler").map((c) => ({ c, o: cariOzet(c.id, pid) }))
+    .filter((x) => Math.abs(x.o.bakiye) > 0.5).sort((a, b) => b.o.bakiye - a.o.bakiye).slice(0, 8);
+  k.appendChild(el("div", { class: "kart", style: "margin-top:14px" },
+    el("div", { class: "kart-bas" }, el("h2", { text: "Cari Bakiyeler (bu proje)" }),
+      el("div", { class: "islemler" }, el("button", { class: "btn kucuk", type: "button", onclick: () => git("cariler") }, "Cari Kartlar"))),
+    el("div", { class: "kart-govde", style: "padding:0" }, tabloCiz({
+      sutunlar: [
+        { baslik: "Cari", hucre: (x) => kacir(x.c.ad) },
+        { baslik: "Tür", hucre: (x) => rozet(CARI_TURU, x.c.tur) },
+        { baslik: "Hakediş + Sipariş", sinif: "sag", hucre: (x) => para(x.o.alacak) },
+        { baslik: "Ödenen", sinif: "sag", hucre: (x) => para(x.o.odenen) },
+        { baslik: "Bakiye (borcumuz)", sinif: "sag", hucre: (x) => '<b>' + para(x.o.bakiye) + "</b>" },
+        { baslik: "", sinif: "islem", hucre: (x) => islemDugmeleri(null, null, [el("button", { class: "btn kucuk", type: "button", onclick: () => cariEkstre(x.c.id) }, "Ekstre")]) },
+      ], satirlar: bakiyeler, bosMesaj: "Bu projede cari hareketi yok.",
+    }))));
+};
+
+function portfoyPaneli(k) {
+  k.appendChild(sayfaBas("Portföy Özeti", "Tüm projelerin toplu görünümü.", [
+    el("button", { class: "btn ana", type: "button", onclick: () => projeFormu() }, "+ Yeni Proje")]));
+  const satirlar = tablo("projeler").map((p) => ({ p, o: projeOzet(p.id) }));
+  const T = {
+    butce: toplam(satirlar, (x) => sayi(x.p.hedefButce) || x.o.butce),
+    gerceklesen: toplam(satirlar, (x) => x.o.gerceklesen),
+    odenen: toplam(satirlar, (x) => x.o.odenen),
+    borc: toplam(satirlar, (x) => x.o.borc),
+    satis: toplam(satirlar, (x) => x.o.satisBedeli),
+  };
+  k.appendChild(el("div", { class: "izgara i4", style: "margin-bottom:14px" },
+    kutuCiz("Proje Sayısı", String(satirlar.length), tablo("projeler").filter((p) => p.durum === "devam").length + " tanesi devam ediyor"),
+    kutuCiz("Toplam Bütçe", para(T.butce), "Gerçekleşen " + paraKisa(T.gerceklesen), "vurgulu"),
+    kutuCiz("Ödenen", para(T.odenen), "Toplam borç " + paraKisa(T.borc)),
+    kutuCiz("Beklenen Kâr", para(T.satis - T.gerceklesen), T.satis ? "Satış bedeli " + paraKisa(T.satis) : "Satış bedeli girilmedi")));
+  k.appendChild(el("div", { class: "kart" },
+    el("div", { class: "kart-bas" }, el("h2", { text: "Projeler" })),
+    el("div", { class: "kart-govde", style: "padding:0" }, tabloCiz({
+      sutunlar: [
+        { baslik: "Proje", hucre: (x) => "<b>" + kacir(x.p.ad) + "</b><br><span class='kucuk-yazi'>" + kacir(x.p.musteri || "") + "</span>" },
+        { baslik: "Durum", hucre: (x) => rozet(PROJE_DURUMU, x.p.durum) },
+        { baslik: "İlerleme", hucre: (x) => ilerlemeCubuk(x.o.fizikselIlerleme) },
+        { baslik: "Bütçe", sinif: "sag", anahtar: "butce", hucre: (x) => para(sayi(x.p.hedefButce) || x.o.butce) },
+        { baslik: "Maliyet", sinif: "sag", anahtar: "gerceklesen", hucre: (x) => para(x.o.gerceklesen) },
+        { baslik: "Ödenen", sinif: "sag", anahtar: "odenen", hucre: (x) => para(x.o.odenen) },
+        { baslik: "Borç", sinif: "sag", anahtar: "borc", hucre: (x) => para(x.o.borc) },
+        { baslik: "", sinif: "islem", anahtar: "islem", hucre: (x) => islemDugmeleri(null, null, [
+            el("button", { class: "btn kucuk", type: "button", onclick: () => { VERI.ayar.aktifProje = x.p.id; kaydet(); git("panel"); } }, "Aç")]) },
+      ],
+      satirlar,
+      altToplam: { butce: para(T.butce), gerceklesen: para(T.gerceklesen), odenen: para(T.odenen), borc: para(T.borc) },
+    }))));
+}
+
+function grupMaliyetCiz(pid) {
+  const kalemler = tablo("kalemler").filter((x) => x.projeId === pid);
+  const gercek = {};
+  tablo("hakedisler").filter((h) => h.projeId === pid).forEach((h) => {
+    const g = (bul("sozlesmeler", h.sozlesmeId) || {}).grup || "Diğer";
+    gercek[g] = (gercek[g] || 0) + hakedisHesapla(h).net;
+  });
+  tablo("siparisler").filter((s) => s.projeId === pid && s.durum !== "iptal").forEach((s) => {
+    const g = s.grup || "Diğer"; gercek[g] = (gercek[g] || 0) + siparisTutar(s);
+  });
+  tablo("masraflar").filter((m) => m.projeId === pid).forEach((m) => {
+    const g = m.grup || "Genel Giderler"; gercek[g] = (gercek[g] || 0) + sayi(m.tutar);
+  });
+  const butceG = {};
+  kalemler.forEach((x) => { const g = x.grup || "Diğer"; butceG[g] = (butceG[g] || 0) + kalemTutar(x); });
+  const gruplar = [...new Set([...Object.keys(butceG), ...Object.keys(gercek)])]
+    .map((g) => ({ g, b: butceG[g] || 0, r: gercek[g] || 0 }))
+    .sort((a, b) => (b.b + b.r) - (a.b + a.r));
+  if (!gruplar.length) return el("div", { class: "liste-bos", text: "Bütçe kalemi veya maliyet hareketi girilmedi." });
+  const enBuyuk = Math.max(...gruplar.map((x) => Math.max(x.b, x.r))) || 1;
+  return el("div", {}, ...gruplar.map((x) => el("div", { style: "margin-bottom:11px" },
+    el("div", { class: "satir-arasi", style: "justify-content:space-between;font-size:12.5px" },
+      el("span", { text: x.g }),
+      el("span", { class: "kucuk-yazi", text: paraKisa(x.r) + " / " + paraKisa(x.b) })),
+    el("div", { class: "ilerleme", style: "margin-top:4px" }, el("i", { style: "width:" + (x.b / enBuyuk * 100) + "%;background:var(--cizgi)" })),
+    el("div", { class: "ilerleme", style: "margin-top:3px" }, el("i", { style: "width:" + (x.r / enBuyuk * 100) + "%;background:" + (x.b && x.r > x.b ? "var(--kirmizi)" : "var(--vurgu)") })))));
+}
+
+function isOzetCiz(pid) {
+  const isler = tablo("isler").filter((x) => x.projeId === pid);
+  if (!isler.length) return el("div", { class: "liste-bos", text: "İş kaydı yok." });
+  const asamalar = grupla(isler, (i) => i.asama || "Genel");
+  return el("div", {}, ...Object.entries(asamalar).map(([ad, liste]) => {
+    const ort = toplam(liste, (i) => sayi(i.ilerleme)) / liste.length;
+    return el("div", { style: "margin-bottom:11px" },
+      el("div", { class: "satir-arasi", style: "justify-content:space-between;font-size:12.5px" },
+        el("span", { text: ad }), el("span", { class: "kucuk-yazi", text: liste.length + " iş" })),
+      el("div", { html: ilerlemeCubuk(ort, ort >= 100 ? "yesil" : "") }));
+  }));
+}
+
+function listeKart(baslik, ogeler, yol) {
+  return el("div", { class: "kart" },
+    el("div", { class: "kart-bas" }, el("h2", { text: baslik }),
+      el("div", { class: "islemler" }, el("button", { class: "btn kucuk", type: "button", onclick: () => git(yol) }, "Aç"))),
+    el("div", { class: "kart-govde" },
+      ogeler.length ? el("div", {}, ...ogeler.map((x) => el("div", { class: "satir-arasi", style: "justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--cizgi)" },
+        el("div", {}, el("div", { text: x.sol, style: "font-weight:600;font-size:13px" }), el("div", { class: "kucuk-yazi", text: x.alt || "" })),
+        el("span", { class: "rz " + (x.renk || ""), text: x.sag }))))
+        : el("div", { class: "liste-bos", text: "Kayıt yok." })));
+}
+
+/* =====================  CARİ KARTLAR  ===================== */
+const CARI_ALANLARI = () => ([
+  { ad: "ad", etiket: "Ünvan / Ad Soyad", gerekli: true, tam: true },
+  { ad: "tur", etiket: "Tür", tip: "secim", bos: false, varsayilan: "taseron",
+    secenekler: Object.entries(CARI_TURU).map(([d, v]) => ({ d, e: v.ad })) },
+  { ad: "uzmanlik", etiket: "Uzmanlık / İş Kolu", liste: IMALAT_GRUPLARI, yerTutucu: "Örn: Kaba Yapı - Betonarme" },
+  { ad: "yetkili", etiket: "Yetkili Kişi" },
+  { ad: "telefon", etiket: "Telefon", tip: "telefon" },
+  { ad: "eposta", etiket: "E-posta", tip: "eposta" },
+  { ad: "vergiDairesi", etiket: "Vergi Dairesi" },
+  { ad: "vergiNo", etiket: "Vergi / TC No" },
+  { ad: "iban", etiket: "IBAN", tam: true },
+  { ad: "adres", etiket: "Adres", tip: "metinKutu", tam: true },
+  { ad: "gunlukUcret", etiket: "Günlük Ücret (₺)", tip: "para", ipucu: "İşçi/usta için puantaj hesabında kullanılır." },
+  { ad: "puan", etiket: "Değerlendirme (1-5)", tip: "sayi", adim: "1" },
+  { ad: "notlar", etiket: "Notlar", tip: "metinKutu", tam: true },
+]);
+function cariFormu(kayit, sonra) {
+  formAc({
+    baslik: kayit ? "Cari Kart Düzenle" : "Yeni Cari Kart",
+    alanlar: CARI_ALANLARI(), kayit: kayit || {},
+    kaydet: (v) => {
+      if (kayit) { guncelle("cariler", kayit.id, v); bildir("Cari güncellendi.", "basari"); }
+      else { const y = ekle("cariler", v); bildir("Cari eklendi.", "basari"); sonra && sonra(y); }
+    },
+  });
+}
+
+SAYFALAR.cariler = (k) => {
+  k.appendChild(sayfaBas("Cari Kartlar", "Taşeron, malzeme tedarikçisi, işçi, nakliyeci ve diğer iş ortakları.", [
+    el("button", { class: "btn ana", type: "button", onclick: () => cariFormu() }, "+ Yeni Cari"),
+  ]));
+  const f = DURUM.filtre;
+  k.appendChild(araciCiz(f, [
+    { tip: "arama", ad: "q", yerTutucu: "Ünvan, yetkili, telefon…", degisti: ciz },
+    { tip: "secim", ad: "tur", tumu: "Tüm türler", secenekler: Object.entries(CARI_TURU).map(([d, v]) => ({ d, e: v.ad })), degisti: ciz },
+    { tip: "bilgi", metin: tablo("cariler").length + " cari kayıtlı" },
+  ]));
+  const q = (f.q || "").toLocaleLowerCase("tr");
+  const satirlar = tablo("cariler")
+    .filter((c) => (!f.tur || c.tur === f.tur))
+    .filter((c) => !q || [c.ad, c.yetkili, c.telefon, c.uzmanlik, c.eposta].some((x) => (x || "").toLocaleLowerCase("tr").includes(q)))
+    .sort((a, b) => a.ad.localeCompare(b.ad, "tr"))
+    .map((c) => ({ c, o: cariOzet(c.id, aktifProjeId() === "*" ? "" : aktifProjeId()) }));
+
+  k.appendChild(el("div", { class: "kart" }, el("div", { class: "kart-govde", style: "padding:0" }, tabloCiz({
+    sutunlar: [
+      { baslik: "Ünvan", hucre: (x) => "<b>" + kacir(x.c.ad) + "</b>" + (x.c.uzmanlik ? "<br><span class='kucuk-yazi'>" + kacir(x.c.uzmanlik) + "</span>" : "") },
+      { baslik: "Tür", hucre: (x) => rozet(CARI_TURU, x.c.tur) },
+      { baslik: "İletişim", hucre: (x) => [kacir(x.c.yetkili || ""), kacir(x.c.telefon || "")].filter(Boolean).join("<br>") || "—" },
+      { baslik: "Sözleşme", sinif: "sag", hucre: (x) => String(x.o.sozlesmeler.length) },
+      { baslik: "Alacağı", sinif: "sag", hucre: (x) => para(x.o.alacak) },
+      { baslik: "Ödenen", sinif: "sag", hucre: (x) => para(x.o.odenen) },
+      { baslik: "Bakiye", sinif: "sag", hucre: (x) => (Math.abs(x.o.bakiye) > 0.5 ? "<b>" + para(x.o.bakiye) + "</b>" : para(0)) },
+      { baslik: "", sinif: "islem", hucre: (x) => islemDugmeleri(
+          () => cariFormu(x.c),
+          () => onayAl(x.c.ad + " cari kartı silinsin mi? Hareketleri kalır ancak isimsiz görünür.", () => { sil("cariler", x.c.id); bildir("Cari silindi."); ciz(); }),
+          [el("button", { class: "btn kucuk", type: "button", onclick: () => cariEkstre(x.c.id) }, "Ekstre")]) },
+    ], satirlar, bosMesaj: "Cari kaydı bulunamadı.",
+  }))));
+};
+
+function cariEkstre(cariId) {
+  const c = bul("cariler", cariId);
+  const pid = aktifProjeId() === "*" ? "" : aktifProjeId();
+  const o = cariOzet(cariId, pid);
+  const hareketler = [
+    ...o.hakedisler.map((h) => ({ t: h.tarih, tip: "Hakediş", ac: "No " + (h.no || "-") + " · " + projeAdi(h.projeId), borc: hakedisNet(h), alacak: 0 })),
+    ...o.siparisler.map((s) => ({ t: s.siparisTarihi, tip: "Sipariş", ac: s.malzeme + " · " + projeAdi(s.projeId), borc: siparisTutar(s), alacak: 0 })),
+    ...o.odemeler.map((d) => ({ t: d.tarih, tip: "Ödeme", ac: (d.yontem || "") + " · " + projeAdi(d.projeId), borc: 0, alacak: sayi(d.tutar) })),
+  ].sort((a, b) => (a.t || "").localeCompare(b.t || ""));
+  let bakiye = 0;
+  hareketler.forEach((h) => { bakiye += h.borc - h.alacak; h.bakiye = bakiye; });
+
+  modalAc({
+    baslik: c.ad + " — Cari Ekstre" + (pid ? " (" + projeAdi(pid) + ")" : " (tüm projeler)"),
+    genis: 900,
+    govde: el("div", {},
+      el("div", { class: "izgara i3", style: "margin-bottom:12px" },
+        kutuCiz("Toplam Alacağı", para(o.alacak)),
+        kutuCiz("Ödenen", para(o.odenen)),
+        kutuCiz("Bakiye", para(o.bakiye), "", "vurgulu")),
+      el("div", { class: "kucuk-yazi", style: "margin-bottom:8px" },
+        [CARI_TURU[c.tur] && CARI_TURU[c.tur].ad, c.telefon, c.eposta, c.iban].filter(Boolean).join(" · ")),
+      tabloCiz({
+        sutunlar: [
+          { baslik: "Tarih", hucre: (h) => tarih(h.t) },
+          { baslik: "Tür", hucre: (h) => '<span class="rz">' + h.tip + "</span>" },
+          { baslik: "Açıklama", hucre: (h) => kacir(h.ac) },
+          { baslik: "Borç", sinif: "sag", hucre: (h) => (h.borc ? para(h.borc) : "") },
+          { baslik: "Ödeme", sinif: "sag", hucre: (h) => (h.alacak ? para(h.alacak) : "") },
+          { baslik: "Bakiye", sinif: "sag", hucre: (h) => para(h.bakiye) },
+        ], satirlar: hareketler, bosMesaj: "Hareket yok.",
+      })),
+    altKisim: [el("button", { class: "btn", type: "button", onclick: () => window.print() }, "Yazdır")],
+  });
+}
+
+/* =====================  BÜTÇE / MALİYET KALEMLERİ  ===================== */
+const KALEM_ALANLARI = () => ([
+  { ad: "projeId", etiket: "Proje", tip: "secim", bos: false, gerekli: true, secenekler: projeSecenek(), varsayilan: varsayilanProje() },
+  { ad: "grup", etiket: "İmalat Grubu", tip: "secim", bos: false, varsayilan: IMALAT_GRUPLARI[0], secenekler: IMALAT_GRUPLARI.map((g) => ({ d: g, e: g })) },
+  { ad: "ad", etiket: "Kalem Adı", gerekli: true, tam: true, yerTutucu: "Örn: C30 hazır beton" },
+  { ad: "birim", etiket: "Birim", tip: "secim", bos: false, varsayilan: "m³", secenekler: BIRIMLER.map((b) => ({ d: b, e: b })) },
+  { ad: "miktar", etiket: "Miktar", tip: "sayi", gerekli: true, adim: "0.001" },
+  { ad: "birimFiyat", etiket: "Birim Fiyat (₺)", tip: "para", gerekli: true },
+  { ad: "aciklama", etiket: "Açıklama", tip: "metinKutu", tam: true },
+]);
+function kalemFormu(kayit) {
+  if (!projeGerekli()) return;
+  formAc({
+    baslik: kayit ? "Bütçe Kalemi Düzenle" : "Yeni Bütçe Kalemi",
+    alanlar: KALEM_ALANLARI(), kayit: kayit || {},
+    kaydet: (v) => { kayit ? guncelle("kalemler", kayit.id, v) : ekle("kalemler", v); bildir("Kalem kaydedildi.", "basari"); },
+  });
+}
+SAYFALAR.butce = (k) => {
+  k.appendChild(sayfaBas("Maliyet / Bütçe Kalemleri", "Projenin keşif ve hedef maliyet dökümü.", [
+    el("button", { class: "btn ana", type: "button", onclick: () => kalemFormu() }, "+ Yeni Kalem"),
+  ]));
+  const f = DURUM.filtre;
+  const hepsi = kapsam("kalemler");
+  k.appendChild(araciCiz(f, [
+    { tip: "arama", ad: "q", yerTutucu: "Kalem ara…", degisti: ciz },
+    { tip: "secim", ad: "grup", tumu: "Tüm gruplar", secenekler: IMALAT_GRUPLARI.map((g) => ({ d: g, e: g })), degisti: ciz },
+    { tip: "bilgi", metin: hepsi.length + " kalem · toplam " + para(toplam(hepsi, kalemTutar)) },
+  ]));
+  const q = (f.q || "").toLocaleLowerCase("tr");
+  const satirlar = hepsi.filter((x) => (!f.grup || x.grup === f.grup))
+    .filter((x) => !q || (x.ad || "").toLocaleLowerCase("tr").includes(q))
+    .sort((a, b) => (a.grup || "").localeCompare(b.grup || "", "tr") || (a.ad || "").localeCompare(b.ad || "", "tr"));
+
+  k.appendChild(el("div", { class: "kart" }, el("div", { class: "kart-govde", style: "padding:0" }, tabloCiz({
+    sutunlar: [
+      { baslik: "Grup", hucre: (x) => '<span class="rz">' + kacir(x.grup || "—") + "</span>" },
+      { baslik: "Kalem", hucre: (x) => kacir(x.ad) + (x.aciklama ? "<br><span class='kucuk-yazi'>" + kacir(x.aciklama) + "</span>" : "") },
+      aktifProjeId() === "*" ? { baslik: "Proje", hucre: (x) => kacir(projeAdi(x.projeId)) } : null,
+      { baslik: "Miktar", sinif: "sag", hucre: (x) => adet(x.miktar) + " " + kacir(x.birim || "") },
+      { baslik: "Birim Fiyat", sinif: "sag", hucre: (x) => para(x.birimFiyat) },
+      { baslik: "Tutar", sinif: "sag", anahtar: "tutar", hucre: (x) => "<b>" + para(kalemTutar(x)) + "</b>" },
+      { baslik: "", sinif: "islem", anahtar: "islem", hucre: (x) => islemDugmeleri(
+          () => kalemFormu(x), () => onayAl("Kalem silinsin mi?", () => { sil("kalemler", x.id); ciz(); })) },
+    ].filter(Boolean), satirlar,
+    bosMesaj: "Bütçe kalemi yok.",
+    bosEk: el("button", { class: "btn ana", type: "button", onclick: () => kalemFormu() }, "+ İlk kalemi ekle"),
+    altToplam: satirlar.length ? { tutar: "<b>" + para(toplam(satirlar, kalemTutar)) + "</b>" } : null,
+  }))));
+};
+
+/* =====================  SÖZLEŞMELER  ===================== */
+const SOZLESME_ALANLARI = () => ([
+  { ad: "projeId", etiket: "Proje", tip: "secim", bos: false, gerekli: true, secenekler: projeSecenek(), varsayilan: varsayilanProje() },
+  { ad: "cariId", etiket: "Taşeron / Tedarikçi", tip: "secim", gerekli: true, secenekler: cariSecenek() },
+  { ad: "konu", etiket: "Sözleşme Konusu", gerekli: true, tam: true, yerTutucu: "Örn: Kaba yapı betonarme işleri" },
+  { ad: "grup", etiket: "İmalat Grubu", tip: "secim", bos: false, varsayilan: IMALAT_GRUPLARI[0], secenekler: IMALAT_GRUPLARI.map((g) => ({ d: g, e: g })) },
+  { ad: "tutar", etiket: "Sözleşme Bedeli (₺)", tip: "para", gerekli: true },
+  { ad: "birimFiyatli", etiket: "Birim fiyatlı iş (götürü değil)", tip: "onay" },
+  { ad: "baslangic", etiket: "İşe Başlama", tip: "tarih", varsayilan: bugun() },
+  { ad: "bitis", etiket: "İş Bitim Tarihi", tip: "tarih" },
+  { ad: "teminatOrani", etiket: "Teminat Kesintisi (%)", tip: "sayi", varsayilan: 5, adim: "0.1" },
+  { ad: "stopajOrani", etiket: "Stopaj / Tevkifat (%)", tip: "sayi", varsayilan: 0, adim: "0.1" },
+  { ad: "avans", etiket: "Verilen Avans (₺)", tip: "para" },
+  { ad: "durum", etiket: "Durum", tip: "secim", bos: false, varsayilan: "devam",
+    secenekler: Object.entries(IS_DURUMU).map(([d, v]) => ({ d, e: v.ad })) },
+  { ad: "notlar", etiket: "Şartlar / Notlar", tip: "metinKutu", tam: true },
+]);
+function sozlesmeFormu(kayit) {
+  if (!projeGerekli()) return;
+  if (!tablo("cariler").length) { bildir("Önce cari kart ekleyin.", "hata"); return git("cariler"); }
+  formAc({
+    baslik: kayit ? "Sözleşme Düzenle" : "Yeni Sözleşme",
+    alanlar: SOZLESME_ALANLARI(), kayit: kayit || {},
+    kaydet: (v) => { kayit ? guncelle("sozlesmeler", kayit.id, v) : ekle("sozlesmeler", v); bildir("Sözleşme kaydedildi.", "basari"); },
+  });
+}
+function sozlesmeIlerleme(s) {
+  const hak = tablo("hakedisler").filter((h) => h.sozlesmeId === s.id);
+  const brut = toplam(hak, (h) => hakedisHesapla(h).brut);
+  return { brut, oran: sayi(s.tutar) ? brut / sayi(s.tutar) * 100 : 0, kalan: sayi(s.tutar) - brut, adet: hak.length };
+}
+SAYFALAR.sozlesmeler = (k) => {
+  k.appendChild(sayfaBas("Sözleşmeler", "Taşeron ve tedarikçi sözleşmeleri, hakediş ilerlemesi.", [
+    el("button", { class: "btn ana", type: "button", onclick: () => sozlesmeFormu() }, "+ Yeni Sözleşme"),
+  ]));
+  const f = DURUM.filtre;
+  const hepsi = kapsam("sozlesmeler");
+  k.appendChild(araciCiz(f, [
+    { tip: "arama", ad: "q", yerTutucu: "Konu veya cari ara…", degisti: ciz },
+    { tip: "secim", ad: "durum", tumu: "Tüm durumlar", secenekler: Object.entries(IS_DURUMU).map(([d, v]) => ({ d, e: v.ad })), degisti: ciz },
+    { tip: "bilgi", metin: hepsi.length + " sözleşme · toplam " + para(toplam(hepsi, (s) => s.tutar)) },
+  ]));
+  const q = (f.q || "").toLocaleLowerCase("tr");
+  const satirlar = hepsi.filter((s) => (!f.durum || s.durum === f.durum))
+    .filter((s) => !q || (s.konu + " " + cariAdi(s.cariId)).toLocaleLowerCase("tr").includes(q));
+
+  k.appendChild(el("div", { class: "kart" }, el("div", { class: "kart-govde", style: "padding:0" }, tabloCiz({
+    sutunlar: [
+      { baslik: "Konu", hucre: (s) => "<b>" + kacir(s.konu) + "</b><br><span class='kucuk-yazi'>" + kacir(s.grup || "") + "</span>" },
+      { baslik: "Cari", hucre: (s) => kacir(cariAdi(s.cariId)) },
+      aktifProjeId() === "*" ? { baslik: "Proje", hucre: (s) => kacir(projeAdi(s.projeId)) } : null,
+      { baslik: "Bedel", sinif: "sag", anahtar: "tutar", hucre: (s) => para(s.tutar) },
+      { baslik: "Hakediş", sinif: "sag", anahtar: "hakedis", hucre: (s) => para(sozlesmeIlerleme(s).brut) },
+      { baslik: "Gerçekleşme", hucre: (s) => ilerlemeCubuk(sozlesmeIlerleme(s).oran) },
+      { baslik: "Süre", hucre: (s) => tarih(s.baslangic) + "<br><span class='kucuk-yazi'>" + tarih(s.bitis) + "</span>" },
+      { baslik: "Durum", hucre: (s) => rozet(IS_DURUMU, s.durum) },
+      { baslik: "", sinif: "islem", anahtar: "islem", hucre: (s) => islemDugmeleri(
+          () => sozlesmeFormu(s),
+          () => onayAl("Sözleşme silinsin mi? Bağlı hakedişler kalır.", () => { sil("sozlesmeler", s.id); ciz(); }),
+          [el("button", { class: "btn kucuk", type: "button", onclick: () => hakedisFormu(null, s) }, "Hakediş")]) },
+    ].filter(Boolean), satirlar,
+    bosMesaj: "Sözleşme yok.",
+    bosEk: el("button", { class: "btn ana", type: "button", onclick: () => sozlesmeFormu() }, "+ İlk sözleşmeyi ekle"),
+    altToplam: satirlar.length ? { tutar: "<b>" + para(toplam(satirlar, (s) => s.tutar)) + "</b>", hakedis: "<b>" + para(toplam(satirlar, (s) => sozlesmeIlerleme(s).brut)) + "</b>" } : null,
+  }))));
+};
+
+/* =====================  HAKEDİŞLER  ===================== */
+function hakedisFormu(kayit, sozlesme) {
+  if (!projeGerekli()) return;
+  if (!tablo("cariler").length) { bildir("Önce cari kart ekleyin.", "hata"); return git("cariler"); }
+  const k = Object.assign({
+    projeId: (sozlesme && sozlesme.projeId) || varsayilanProje(),
+    cariId: (sozlesme && sozlesme.cariId) || "",
+    sozlesmeId: (sozlesme && sozlesme.id) || "",
+    no: "", tarih: bugun(), donem: "", durum: "taslak", aciklama: "",
+    satirlar: [], brut: 0,
+    kesinti: { teminatOrani: sozlesme ? sayi(sozlesme.teminatOrani) : 5, stopajOrani: sozlesme ? sayi(sozlesme.stopajOrani) : 0, avans: 0, diger: 0 },
+  }, kayit ? JSON.parse(JSON.stringify(kayit)) : {});
+  if (!k.kesinti) k.kesinti = { teminatOrani: 0, stopajOrani: 0, avans: 0, diger: 0 };
+  if (!k.satirlar) k.satirlar = [];
+
+  if (!kayit && k.sozlesmeId) {
+    const ayni = tablo("hakedisler").filter((h) => h.sozlesmeId === k.sozlesmeId);
+    k.no = String(ayni.length + 1);
+  }
+
+  const govde = el("div", {});
+  const ustForm = el("form", { class: "form-izgara" });
+  const ozetKutu = el("div", { style: "margin-top:14px" });
+  const satirKutu = el("div", {});
+
+  function sozlesmeSec(id) {
+    k.sozlesmeId = id;
+    const s = bul("sozlesmeler", id);
+    if (s) {
+      k.cariId = s.cariId; k.projeId = s.projeId;
+      k.kesinti.teminatOrani = sayi(s.teminatOrani);
+      k.kesinti.stopajOrani = sayi(s.stopajOrani);
+      if (!kayit) k.no = String(tablo("hakedisler").filter((h) => h.sozlesmeId === id).length + 1);
+    }
+    formCiz();
+  }
+  function formCiz() {
+    ustForm.innerHTML = "";
+    const alanlar = [
+      { ad: "projeId", etiket: "Proje", tip: "secim", bos: false, gerekli: true, secenekler: projeSecenek() },
+      { ad: "sozlesmeId", etiket: "Sözleşme", tip: "secim", bosYazi: "— sözleşmesiz (doğrudan) —",
+        secenekler: tablo("sozlesmeler").filter((s) => s.projeId === k.projeId).map((s) => ({ d: s.id, e: s.konu + " · " + cariAdi(s.cariId) })) },
+      { ad: "cariId", etiket: "Hakediş Sahibi (cari)", tip: "secim", gerekli: true, secenekler: cariSecenek() },
+      { ad: "no", etiket: "Hakediş No", gerekli: true },
+      { ad: "tarih", etiket: "Düzenleme Tarihi", tip: "tarih", gerekli: true },
+      { ad: "donem", etiket: "Dönem / Açıklama", yerTutucu: "Örn: Mart 2026 - 2. hakediş" },
+      { ad: "durum", etiket: "Durum", tip: "secim", bos: false, secenekler: Object.entries(HAKEDIS_DURUMU).map(([d, v]) => ({ d, e: v.ad })) },
+    ];
+    alanlar.forEach((a) => ustForm.appendChild(alanCiz(a, k[a.ad])));
+    ustForm.querySelector("[name=projeId]").addEventListener("change", (e) => { k.projeId = e.target.value; formCiz(); });
+    ustForm.querySelector("[name=sozlesmeId]").addEventListener("change", (e) => sozlesmeSec(e.target.value));
+    ["cariId", "no", "tarih", "donem", "durum"].forEach((ad) => {
+      ustForm.querySelector("[name=" + ad + "]").addEventListener("change", (e) => { k[ad] = e.target.value; ozetCiz(); });
+    });
+    satirlarCiz(); ozetCiz();
+  }
+  function satirlarCiz() {
+    satirKutu.innerHTML = "";
+    satirKutu.appendChild(el("div", { class: "bolum-baslik", text: "Hakediş İmalat Satırları" }));
+    const t = el("table", { class: "tablo" },
+      el("thead", {}, el("tr", {},
+        el("th", {}, "İmalat / Kalem"), el("th", {}, "Birim"),
+        el("th", { class: "sag" }, "Miktar"), el("th", { class: "sag" }, "Birim Fiyat"),
+        el("th", { class: "sag" }, "Tutar"), el("th", {}, ""))),
+      el("tbody", {}, ...k.satirlar.map((s, i) => {
+        const gAd = el("input", { value: s.ad || "", placeholder: "İmalat adı" });
+        const gBirim = el("select", {}, ...BIRIMLER.map((b) => el("option", { value: b }, b)));
+        gBirim.value = s.birim || "m²";
+        const gMik = el("input", { type: "number", step: "0.001", value: s.miktar ?? "" });
+        const gBF = el("input", { type: "number", step: "0.01", value: s.birimFiyat ?? "" });
+        const tutarH = el("td", { class: "sag", text: para(sayi(s.miktar) * sayi(s.birimFiyat)) });
+        [gAd, gBirim, gMik, gBF].forEach((g) => { g.style.width = "100%"; g.style.border = "1px solid var(--cizgi)"; g.style.borderRadius = "6px"; g.style.padding = "5px 7px"; });
+        gMik.style.textAlign = gBF.style.textAlign = "right";
+        const yenile = () => {
+          s.ad = gAd.value; s.birim = gBirim.value; s.miktar = sayi(gMik.value); s.birimFiyat = sayi(gBF.value);
+          tutarH.textContent = para(s.miktar * s.birimFiyat); ozetCiz();
+        };
+        [gAd, gBirim, gMik, gBF].forEach((g) => g.addEventListener("input", yenile));
+        gBirim.addEventListener("change", yenile);
+        return el("tr", {}, el("td", {}, gAd), el("td", { style: "width:90px" }, gBirim),
+          el("td", { style: "width:110px" }, gMik), el("td", { style: "width:130px" }, gBF), tutarH,
+          el("td", { class: "islem" }, el("button", { class: "btn kucuk tehlike", type: "button", onclick: () => { k.satirlar.splice(i, 1); satirlarCiz(); ozetCiz(); } }, "×")));
+      })));
+    satirKutu.appendChild(el("div", { class: "tablo-sar" }, t));
+    satirKutu.appendChild(el("div", { class: "satir-arasi", style: "margin-top:8px" },
+      el("button", { class: "btn kucuk", type: "button", onclick: () => { k.satirlar.push({ ad: "", birim: "m²", miktar: 0, birimFiyat: 0 }); satirlarCiz(); } }, "+ Satır ekle"),
+      el("button", { class: "btn kucuk", type: "button", onclick: () => butcedenAktar() }, "Bütçe kalemlerinden aktar"),
+      el("span", { class: "kucuk-yazi", text: "Satır girilmezse aşağıdaki brüt tutar kullanılır." })));
+  }
+  function butcedenAktar() {
+    const kalemler = tablo("kalemler").filter((x) => x.projeId === k.projeId);
+    if (!kalemler.length) return bildir("Bu projede bütçe kalemi yok.", "hata");
+    const secimler = new Set();
+    const liste = el("div", {}, ...kalemler.map((x) => {
+      const c = el("input", { type: "checkbox" });
+      c.addEventListener("change", () => c.checked ? secimler.add(x.id) : secimler.delete(x.id));
+      return el("label", { class: "satir-arasi", style: "padding:6px 0;border-bottom:1px solid var(--cizgi);cursor:pointer" },
+        c, el("span", { style: "flex:1", text: x.ad + " · " + adet(x.miktar) + " " + x.birim }), el("span", { class: "kucuk-yazi", text: para(x.birimFiyat) }));
+    }));
+    const m = modalAc({
+      baslik: "Bütçe kalemlerinden aktar", genis: 620, govde: liste,
+      altKisim: [el("button", { class: "btn ana", type: "button", onclick: () => {
+        kalemler.filter((x) => secimler.has(x.id)).forEach((x) => k.satirlar.push({ ad: x.ad, birim: x.birim, miktar: 0, birimFiyat: sayi(x.birimFiyat) }));
+        m.kapat(); satirlarCiz(); ozetCiz();
+      } }, "Seçilenleri ekle")],
+    });
+  }
+  function ozetCiz() {
+    const h = hakedisHesapla(k);
+    ozetKutu.innerHTML = "";
+    const kf = el("form", { class: "form-izgara" });
+    const manuel = !k.satirlar.length;
+    const alanlar = [
+      manuel ? { ad: "brut", etiket: "Brüt Hakediş Tutarı (₺)", tip: "para", gerekli: true } : null,
+      { ad: "teminatOrani", etiket: "Teminat Kesintisi (%)", tip: "sayi", adim: "0.1" },
+      { ad: "stopajOrani", etiket: "Stopaj / Tevkifat (%)", tip: "sayi", adim: "0.1" },
+      { ad: "avans", etiket: "Avans Mahsubu (₺)", tip: "para" },
+      { ad: "diger", etiket: "Diğer Kesinti (₺)", tip: "para" },
+    ].filter(Boolean);
+    alanlar.forEach((a) => {
+      const deger = a.ad === "brut" ? k.brut : k.kesinti[a.ad];
+      const s = alanCiz(a, deger);
+      s.querySelector("input").addEventListener("input", (e) => {
+        if (a.ad === "brut") k.brut = sayi(e.target.value); else k.kesinti[a.ad] = sayi(e.target.value);
+        ozetCiz();
+      });
+      kf.appendChild(s);
+    });
+    const ac = alanCiz({ ad: "aciklama", etiket: "Açıklama", tip: "metinKutu", tam: true }, k.aciklama);
+    ac.querySelector("textarea").addEventListener("input", (e) => { k.aciklama = e.target.value; });
+    kf.appendChild(ac);
+    ozetKutu.appendChild(el("div", { class: "bolum-baslik", text: "Kesintiler" }));
+    ozetKutu.appendChild(kf);
+    ozetKutu.appendChild(el("div", { class: "kutu", style: "margin-top:12px" },
+      el("table", { class: "mini-tablo", style: "width:100%" },
+        el("tr", {}, el("td", { text: "Brüt hakediş" }), el("td", { text: para(h.brut) })),
+        el("tr", {}, el("td", { text: "Teminat kesintisi" }), el("td", { text: "- " + para(h.teminat) })),
+        el("tr", {}, el("td", { text: "Stopaj / tevkifat" }), el("td", { text: "- " + para(h.stopaj) })),
+        el("tr", {}, el("td", { text: "Avans mahsubu" }), el("td", { text: "- " + para(h.avans) })),
+        el("tr", {}, el("td", { text: "Diğer kesinti" }), el("td", { text: "- " + para(h.diger) })),
+        el("tr", {}, el("td", { html: "<b>Net ödenecek</b>" }), el("td", { html: "<b>" + para(h.net) + "</b>" })))));
+  }
+
+  govde.appendChild(ustForm); govde.appendChild(satirKutu); govde.appendChild(ozetKutu);
+  formCiz();
+  const m = modalAc({
+    baslik: kayit ? "Hakediş Düzenle" : "Yeni Hakediş", genis: 940, govde,
+    altKisim: [
+      el("button", { class: "btn", type: "button", onclick: () => m.kapat() }, "Vazgeç"),
+      el("button", { class: "btn ana", type: "button", onclick: () => {
+        ["projeId", "cariId", "no", "tarih", "donem", "durum"].forEach((ad) => { const g = ustForm.querySelector("[name=" + ad + "]"); if (g) k[ad] = g.value; });
+        if (!k.cariId) return bildir("Cari seçmelisiniz.", "hata");
+        if (!k.no) return bildir("Hakediş no giriniz.", "hata");
+        k.satirlar = k.satirlar.filter((s) => s.ad || sayi(s.miktar));
+        const h = hakedisHesapla(k);
+        k.brut = h.brut; k.net = h.net;
+        kayit ? guncelle("hakedisler", kayit.id, k) : ekle("hakedisler", k);
+        bildir("Hakediş kaydedildi.", "basari");
+        m.kapat(); ciz();
+      } }, "Kaydet"),
+    ],
+  });
+}
+
+SAYFALAR.hakedisler = (k) => {
+  k.appendChild(sayfaBas("Hakedişler", "Taşeron ve tedarikçi hakedişleri, kesintiler ve net ödeme tutarları.", [
+    el("button", { class: "btn ana", type: "button", onclick: () => hakedisFormu() }, "+ Yeni Hakediş"),
+  ]));
+  const f = DURUM.filtre;
+  const hepsi = kapsam("hakedisler").sort((a, b) => (b.tarih || "").localeCompare(a.tarih || ""));
+  k.appendChild(araciCiz(f, [
+    { tip: "arama", ad: "q", yerTutucu: "Cari, no veya dönem…", degisti: ciz },
+    { tip: "secim", ad: "durum", tumu: "Tüm durumlar", secenekler: Object.entries(HAKEDIS_DURUMU).map(([d, v]) => ({ d, e: v.ad })), degisti: ciz },
+    { tip: "secim", ad: "cariId", tumu: "Tüm cariler", secenekler: cariSecenek(), degisti: ciz },
+    { tip: "bilgi", metin: hepsi.length + " hakediş · net " + para(toplam(hepsi, hakedisNet)) },
+  ]));
+  const q = (f.q || "").toLocaleLowerCase("tr");
+  const satirlar = hepsi.filter((h) => (!f.durum || h.durum === f.durum) && (!f.cariId || h.cariId === f.cariId))
+    .filter((h) => !q || (cariAdi(h.cariId) + " " + (h.no || "") + " " + (h.donem || "")).toLocaleLowerCase("tr").includes(q));
+
+  k.appendChild(el("div", { class: "kart" }, el("div", { class: "kart-govde", style: "padding:0" }, tabloCiz({
+    sutunlar: [
+      { baslik: "No", hucre: (h) => "<b>" + kacir(h.no || "-") + "</b>" },
+      { baslik: "Tarih", hucre: (h) => tarih(h.tarih) },
+      { baslik: "Cari", hucre: (h) => kacir(cariAdi(h.cariId)) + (h.sozlesmeId ? "<br><span class='kucuk-yazi'>" + kacir((bul("sozlesmeler", h.sozlesmeId) || {}).konu || "") + "</span>" : "") },
+      aktifProjeId() === "*" ? { baslik: "Proje", hucre: (h) => kacir(projeAdi(h.projeId)) } : null,
+      { baslik: "Brüt", sinif: "sag", anahtar: "brut", hucre: (h) => para(hakedisHesapla(h).brut) },
+      { baslik: "Kesinti", sinif: "sag", anahtar: "kesinti", hucre: (h) => para(hakedisHesapla(h).kesintiToplam) },
+      { baslik: "Net", sinif: "sag", anahtar: "net", hucre: (h) => "<b>" + para(hakedisNet(h)) + "</b>" },
+      { baslik: "Durum", hucre: (h) => rozet(HAKEDIS_DURUMU, h.durum) },
+      { baslik: "", sinif: "islem", anahtar: "islem", hucre: (h) => islemDugmeleri(
+          () => hakedisFormu(h),
+          () => onayAl("Hakediş silinsin mi?", () => { sil("hakedisler", h.id); ciz(); }),
+          [h.durum !== "odendi" ? el("button", { class: "btn kucuk", type: "button", onclick: () => odemeFormu(null, h) }, "Öde") : null]) },
+    ].filter(Boolean), satirlar,
+    bosMesaj: "Hakediş yok.",
+    bosEk: el("button", { class: "btn ana", type: "button", onclick: () => hakedisFormu() }, "+ İlk hakedişi düzenle"),
+    altToplam: satirlar.length ? {
+      brut: "<b>" + para(toplam(satirlar, (h) => hakedisHesapla(h).brut)) + "</b>",
+      kesinti: "<b>" + para(toplam(satirlar, (h) => hakedisHesapla(h).kesintiToplam)) + "</b>",
+      net: "<b>" + para(toplam(satirlar, hakedisNet)) + "</b>",
+    } : null,
+  }))));
+};
+
+/* =====================  ÖDEMELER  ===================== */
+function odemeFormu(kayit, hakedis) {
+  if (!projeGerekli()) return;
+  const on = hakedis ? { projeId: hakedis.projeId, cariId: hakedis.cariId, hakedisId: hakedis.id, tutar: hakedisNet(hakedis), aciklama: "Hakediş No " + (hakedis.no || "") + " ödemesi" } : {};
+  formAc({
+    baslik: kayit ? "Ödeme Düzenle" : "Yeni Ödeme",
+    genis: 700,
+    alanlar: [
+      { ad: "projeId", etiket: "Proje", tip: "secim", bos: false, gerekli: true, secenekler: projeSecenek(), varsayilan: varsayilanProje() },
+      { ad: "cariId", etiket: "Ödenen Cari", tip: "secim", gerekli: true, secenekler: cariSecenek() },
+      { ad: "tarih", etiket: "Ödeme Tarihi", tip: "tarih", gerekli: true, varsayilan: bugun() },
+      { ad: "tutar", etiket: "Tutar (₺)", tip: "para", gerekli: true },
+      { ad: "yontem", etiket: "Ödeme Yöntemi", tip: "secim", bos: false, varsayilan: ODEME_YONTEMI[0], secenekler: ODEME_YONTEMI.map((y) => ({ d: y, e: y })) },
+      { ad: "belgeNo", etiket: "Belge / Dekont No" },
+      { ad: "aciklama", etiket: "Açıklama", tip: "metinKutu", tam: true },
+    ],
+    kayit: Object.assign({}, on, kayit || {}),
+    kaydet: (v) => {
+      if (hakedis) v.hakedisId = hakedis.id;
+      if (kayit) guncelle("odemeler", kayit.id, v);
+      else {
+        ekle("odemeler", v);
+        if (hakedis) {
+          const odenen = toplam(tablo("odemeler").filter((o) => o.hakedisId === hakedis.id), (o) => o.tutar);
+          if (odenen >= hakedisNet(hakedis) - 0.5) guncelle("hakedisler", hakedis.id, { durum: "odendi" });
+        }
+      }
+      bildir("Ödeme kaydedildi.", "basari");
+    },
+  });
+}
+SAYFALAR.odemeler = (k) => {
+  k.appendChild(sayfaBas("Ödemeler", "Cari hesaplara yapılan tüm ödemeler.", [
+    el("button", { class: "btn ana", type: "button", onclick: () => odemeFormu() }, "+ Yeni Ödeme"),
+  ]));
+  const f = DURUM.filtre;
+  const hepsi = kapsam("odemeler").sort((a, b) => (b.tarih || "").localeCompare(a.tarih || ""));
+  k.appendChild(araciCiz(f, [
+    { tip: "arama", ad: "q", yerTutucu: "Cari veya açıklama…", degisti: ciz },
+    { tip: "secim", ad: "cariId", tumu: "Tüm cariler", secenekler: cariSecenek(), degisti: ciz },
+    { tip: "bilgi", metin: hepsi.length + " ödeme · toplam " + para(toplam(hepsi, (o) => o.tutar)) },
+  ]));
+  const q = (f.q || "").toLocaleLowerCase("tr");
+  const satirlar = hepsi.filter((o) => (!f.cariId || o.cariId === f.cariId))
+    .filter((o) => !q || (cariAdi(o.cariId) + " " + (o.aciklama || "")).toLocaleLowerCase("tr").includes(q));
+  k.appendChild(el("div", { class: "kart" }, el("div", { class: "kart-govde", style: "padding:0" }, tabloCiz({
+    sutunlar: [
+      { baslik: "Tarih", hucre: (o) => tarih(o.tarih) },
+      { baslik: "Cari", hucre: (o) => kacir(cariAdi(o.cariId)) },
+      aktifProjeId() === "*" ? { baslik: "Proje", hucre: (o) => kacir(projeAdi(o.projeId)) } : null,
+      { baslik: "Yöntem", hucre: (o) => '<span class="rz">' + kacir(o.yontem || "—") + "</span>" },
+      { baslik: "Açıklama", hucre: (o) => kacir(o.aciklama || "") + (o.belgeNo ? " <span class='kucuk-yazi'>(" + kacir(o.belgeNo) + ")</span>" : "") },
+      { baslik: "Tutar", sinif: "sag", anahtar: "tutar", hucre: (o) => "<b>" + para(o.tutar) + "</b>" },
+      { baslik: "", sinif: "islem", anahtar: "islem", hucre: (o) => islemDugmeleri(
+          () => odemeFormu(o), () => onayAl("Ödeme silinsin mi?", () => { sil("odemeler", o.id); ciz(); })) },
+    ].filter(Boolean), satirlar, bosMesaj: "Ödeme kaydı yok.",
+    altToplam: satirlar.length ? { tutar: "<b>" + para(toplam(satirlar, (o) => o.tutar)) + "</b>" } : null,
+  }))));
+};
+
+/* =====================  GENEL MASRAFLAR  ===================== */
+SAYFALAR.masraflar = (k) => {
+  k.appendChild(sayfaBas("Genel Masraflar", "Cariye bağlı olmayan giderler: ruhsat, harç, yakıt, şantiye giderleri.", [
+    el("button", { class: "btn ana", type: "button", onclick: () => masrafFormu() }, "+ Yeni Masraf"),
+  ]));
+  const hepsi = kapsam("masraflar").sort((a, b) => (b.tarih || "").localeCompare(a.tarih || ""));
+  k.appendChild(araciCiz(DURUM.filtre, [{ tip: "bilgi", metin: hepsi.length + " kayıt · toplam " + para(toplam(hepsi, (m) => m.tutar)) }]));
+  k.appendChild(el("div", { class: "kart" }, el("div", { class: "kart-govde", style: "padding:0" }, tabloCiz({
+    sutunlar: [
+      { baslik: "Tarih", hucre: (m) => tarih(m.tarih) },
+      { baslik: "Açıklama", hucre: (m) => "<b>" + kacir(m.ad) + "</b>" + (m.aciklama ? "<br><span class='kucuk-yazi'>" + kacir(m.aciklama) + "</span>" : "") },
+      { baslik: "Grup", hucre: (m) => '<span class="rz">' + kacir(m.grup || "Genel Giderler") + "</span>" },
+      aktifProjeId() === "*" ? { baslik: "Proje", hucre: (m) => kacir(projeAdi(m.projeId)) } : null,
+      { baslik: "Tutar", sinif: "sag", anahtar: "tutar", hucre: (m) => "<b>" + para(m.tutar) + "</b>" },
+      { baslik: "", sinif: "islem", anahtar: "islem", hucre: (m) => islemDugmeleri(
+          () => masrafFormu(m), () => onayAl("Masraf silinsin mi?", () => { sil("masraflar", m.id); ciz(); })) },
+    ].filter(Boolean), satirlar: hepsi, bosMesaj: "Masraf kaydı yok.",
+    altToplam: hepsi.length ? { tutar: "<b>" + para(toplam(hepsi, (m) => m.tutar)) + "</b>" } : null,
+  }))));
+};
+function masrafFormu(kayit) {
+  if (!projeGerekli()) return;
+  formAc({
+    baslik: kayit ? "Masraf Düzenle" : "Yeni Masraf", genis: 660,
+    alanlar: [
+      { ad: "projeId", etiket: "Proje", tip: "secim", bos: false, gerekli: true, secenekler: projeSecenek(), varsayilan: varsayilanProje() },
+      { ad: "tarih", etiket: "Tarih", tip: "tarih", gerekli: true, varsayilan: bugun() },
+      { ad: "ad", etiket: "Masraf Adı", gerekli: true, tam: true },
+      { ad: "grup", etiket: "Grup", tip: "secim", bos: false, varsayilan: "Genel Giderler", secenekler: IMALAT_GRUPLARI.map((g) => ({ d: g, e: g })) },
+      { ad: "tutar", etiket: "Tutar (₺)", tip: "para", gerekli: true },
+      { ad: "aciklama", etiket: "Açıklama", tip: "metinKutu", tam: true },
+    ], kayit: kayit || {},
+    kaydet: (v) => { kayit ? guncelle("masraflar", kayit.id, v) : ekle("masraflar", v); bildir("Masraf kaydedildi.", "basari"); },
+  });
+}
+
+/* =====================  SİPARİŞ / TEDARİK  ===================== */
+function siparisFormu(kayit) {
+  if (!projeGerekli()) return;
+  formAc({
+    baslik: kayit ? "Sipariş Düzenle" : "Yeni Sipariş / Tedarik", genis: 820,
+    alanlar: [
+      { ad: "projeId", etiket: "Proje", tip: "secim", bos: false, gerekli: true, secenekler: projeSecenek(), varsayilan: varsayilanProje() },
+      { ad: "cariId", etiket: "Tedarikçi / Nakliyeci", tip: "secim", secenekler: cariSecenek(), bosYazi: "— cari seçilmedi —" },
+      { ad: "malzeme", etiket: "Malzeme / Hizmet", gerekli: true, tam: true, yerTutucu: "Örn: C30 hazır beton, ısı yalıtım levhası…" },
+      { ad: "grup", etiket: "İmalat Grubu", tip: "secim", bos: false, varsayilan: IMALAT_GRUPLARI[0], secenekler: IMALAT_GRUPLARI.map((g) => ({ d: g, e: g })) },
+      { ad: "birim", etiket: "Birim", tip: "secim", bos: false, varsayilan: "adet", secenekler: BIRIMLER.map((b) => ({ d: b, e: b })) },
+      { ad: "miktar", etiket: "Miktar", tip: "sayi", gerekli: true, adim: "0.001" },
+      { ad: "birimFiyat", etiket: "Birim Fiyat (₺)", tip: "para", gerekli: true },
+      { ad: "siparisTarihi", etiket: "Sipariş Tarihi", tip: "tarih", varsayilan: bugun() },
+      { ad: "teslimTarihi", etiket: "Planlanan Teslim", tip: "tarih" },
+      { ad: "teslimAlinan", etiket: "Teslim Alınan Miktar", tip: "sayi", adim: "0.001" },
+      { ad: "durum", etiket: "Durum", tip: "secim", bos: false, varsayilan: "siparis", secenekler: Object.entries(SIPARIS_DURUMU).map(([d, v]) => ({ d, e: v.ad })) },
+      { ad: "teslimYeri", etiket: "Teslim Yeri / Şantiye" },
+      { ad: "aciklama", etiket: "Açıklama / Şartname", tip: "metinKutu", tam: true },
+    ], kayit: kayit || {},
+    kaydet: (v) => { kayit ? guncelle("siparisler", kayit.id, v) : ekle("siparisler", v); bildir("Sipariş kaydedildi.", "basari"); },
+  });
+}
+SAYFALAR.siparisler = (k) => {
+  k.appendChild(sayfaBas("Sipariş / Tedarik", "Malzeme siparişleri, nakliye ve teslimat takibi.", [
+    el("button", { class: "btn ana", type: "button", onclick: () => siparisFormu() }, "+ Yeni Sipariş"),
+  ]));
+  const f = DURUM.filtre;
+  const hepsi = kapsam("siparisler").sort((a, b) => (b.siparisTarihi || "").localeCompare(a.siparisTarihi || ""));
+  const acik = hepsi.filter((s) => ["talep", "siparis", "yolda", "kismi"].includes(s.durum));
+  k.appendChild(el("div", { class: "izgara i4", style: "margin-bottom:14px" },
+    kutuCiz("Toplam Sipariş", para(toplam(hepsi.filter((s) => s.durum !== "iptal"), siparisTutar)), hepsi.length + " kayıt"),
+    kutuCiz("Bekleyen", String(acik.length), para(toplam(acik, siparisTutar)), "vurgulu"),
+    kutuCiz("Teslim Alınan", para(toplam(hepsi.filter((s) => s.durum === "teslim"), siparisTutar)), hepsi.filter((s) => s.durum === "teslim").length + " sipariş"),
+    kutuCiz("Geciken Teslimat", String(acik.filter((s) => s.teslimTarihi && s.teslimTarihi < bugun()).length), "Planlanan tarihi geçmiş")));
+  k.appendChild(araciCiz(f, [
+    { tip: "arama", ad: "q", yerTutucu: "Malzeme veya tedarikçi…", degisti: ciz },
+    { tip: "secim", ad: "durum", tumu: "Tüm durumlar", secenekler: Object.entries(SIPARIS_DURUMU).map(([d, v]) => ({ d, e: v.ad })), degisti: ciz },
+    { tip: "secim", ad: "grup", tumu: "Tüm gruplar", secenekler: IMALAT_GRUPLARI.map((g) => ({ d: g, e: g })), degisti: ciz },
+  ]));
+  const q = (f.q || "").toLocaleLowerCase("tr");
+  const satirlar = hepsi.filter((s) => (!f.durum || s.durum === f.durum) && (!f.grup || s.grup === f.grup))
+    .filter((s) => !q || (s.malzeme + " " + cariAdi(s.cariId)).toLocaleLowerCase("tr").includes(q));
+  k.appendChild(el("div", { class: "kart" }, el("div", { class: "kart-govde", style: "padding:0" }, tabloCiz({
+    sutunlar: [
+      { baslik: "Malzeme / Hizmet", hucre: (s) => "<b>" + kacir(s.malzeme) + "</b><br><span class='kucuk-yazi'>" + kacir(s.grup || "") + "</span>" },
+      { baslik: "Tedarikçi", hucre: (s) => kacir(cariAdi(s.cariId)) },
+      aktifProjeId() === "*" ? { baslik: "Proje", hucre: (s) => kacir(projeAdi(s.projeId)) } : null,
+      { baslik: "Miktar", sinif: "sag", hucre: (s) => adet(s.miktar) + " " + kacir(s.birim || "") + (sayi(s.teslimAlinan) ? "<br><span class='kucuk-yazi'>teslim: " + adet(s.teslimAlinan) + "</span>" : "") },
+      { baslik: "Tutar", sinif: "sag", anahtar: "tutar", hucre: (s) => "<b>" + para(siparisTutar(s)) + "</b>" },
+      { baslik: "Teslim", hucre: (s) => {
+          const gec = s.teslimTarihi && s.teslimTarihi < bugun() && ["talep", "siparis", "yolda", "kismi"].includes(s.durum);
+          return (gec ? '<span class="rz kirmizi">' + tarih(s.teslimTarihi) + "</span>" : tarih(s.teslimTarihi));
+        } },
+      { baslik: "Durum", hucre: (s) => rozet(SIPARIS_DURUMU, s.durum) },
+      { baslik: "", sinif: "islem", anahtar: "islem", hucre: (s) => islemDugmeleri(
+          () => siparisFormu(s),
+          () => onayAl("Sipariş silinsin mi?", () => { sil("siparisler", s.id); ciz(); }),
+          [s.durum !== "teslim" && s.durum !== "iptal" ? el("button", { class: "btn kucuk", type: "button", onclick: () => {
+            guncelle("siparisler", s.id, { durum: "teslim", teslimAlinan: sayi(s.miktar), gercekTeslim: bugun() }); bildir("Teslim alındı.", "basari"); ciz();
+          } }, "Teslim al") : null]) },
+    ].filter(Boolean), satirlar, bosMesaj: "Sipariş kaydı yok.",
+    bosEk: el("button", { class: "btn ana", type: "button", onclick: () => siparisFormu() }, "+ İlk siparişi ekle"),
+    altToplam: satirlar.length ? { tutar: "<b>" + para(toplam(satirlar, siparisTutar)) + "</b>" } : null,
+  }))));
+};
+
+/* =====================  İŞ TAKİP  ===================== */
+function isFormu(kayit) {
+  if (!projeGerekli()) return;
+  formAc({
+    baslik: kayit ? "İş Düzenle" : "Yeni İş / Görev", genis: 820,
+    alanlar: [
+      { ad: "projeId", etiket: "Proje", tip: "secim", bos: false, gerekli: true, secenekler: projeSecenek(), varsayilan: varsayilanProje() },
+      { ad: "ad", etiket: "İş Adı", gerekli: true, tam: true, yerTutucu: "Örn: Temel betonu dökümü" },
+      { ad: "asama", etiket: "Aşama / İmalat Grubu", tip: "secim", bos: false, varsayilan: IMALAT_GRUPLARI[0], secenekler: IMALAT_GRUPLARI.map((g) => ({ d: g, e: g })) },
+      { ad: "cariId", etiket: "İşi Yapan (taşeron / usta)", tip: "secim", secenekler: cariSecenek(), bosYazi: "— atanmadı —" },
+      { ad: "baslangic", etiket: "Başlangıç", tip: "tarih", varsayilan: bugun() },
+      { ad: "bitis", etiket: "Planlanan Bitiş", tip: "tarih" },
+      { ad: "ilerleme", etiket: "İlerleme (%)", tip: "sayi", adim: "1", varsayilan: 0 },
+      { ad: "durum", etiket: "Durum", tip: "secim", bos: false, varsayilan: "bekliyor", secenekler: Object.entries(IS_DURUMU).map(([d, v]) => ({ d, e: v.ad })) },
+      { ad: "oncelik", etiket: "Öncelik", tip: "secim", bos: false, varsayilan: "normal", secenekler: Object.entries(ONCELIK).map(([d, v]) => ({ d, e: v.ad })) },
+      { ad: "sorumlu", etiket: "Sorumlu (kendi ekibimiz)" },
+      { ad: "notlar", etiket: "Notlar", tip: "metinKutu", tam: true },
+    ], kayit: kayit || {},
+    kaydet: (v) => {
+      if (v.ilerleme >= 100) v.durum = "tamam";
+      kayit ? guncelle("isler", kayit.id, v) : ekle("isler", v);
+      bildir("İş kaydedildi.", "basari");
+    },
+  });
+}
+SAYFALAR.isler = (k) => {
+  k.appendChild(sayfaBas("İş Takip", "Şantiye iş programı, ilerleme ve gecikme takibi.", [
+    el("button", { class: "btn ana", type: "button", onclick: () => isFormu() }, "+ Yeni İş"),
+  ]));
+  const f = DURUM.filtre;
+  const hepsi = kapsam("isler");
+  const acik = hepsi.filter((i) => i.durum !== "tamam" && i.durum !== "iptal");
+  const geciken = acik.filter((i) => i.bitis && i.bitis < bugun());
+  k.appendChild(el("div", { class: "izgara i4", style: "margin-bottom:14px" },
+    kutuCiz("Toplam İş", String(hepsi.length), hepsi.filter((i) => i.durum === "tamam").length + " tamamlandı"),
+    kutuCiz("Devam Eden", String(hepsi.filter((i) => i.durum === "devam").length), "Açık iş: " + acik.length, "vurgulu"),
+    kutuCiz("Geciken", String(geciken.length), geciken.length ? "En eski: " + tarih(geciken.sort((a, b) => a.bitis.localeCompare(b.bitis))[0].bitis) : "Gecikme yok"),
+    kutuCiz("Ortalama İlerleme", hepsi.length ? Math.round(toplam(hepsi, (i) => sayi(i.ilerleme)) / hepsi.length) + "%" : "—", "Tüm işlerin ortalaması")));
+  k.appendChild(araciCiz(f, [
+    { tip: "arama", ad: "q", yerTutucu: "İş adı veya taşeron…", degisti: ciz },
+    { tip: "secim", ad: "durum", tumu: "Tüm durumlar", secenekler: Object.entries(IS_DURUMU).map(([d, v]) => ({ d, e: v.ad })), degisti: ciz },
+    { tip: "secim", ad: "asama", tumu: "Tüm aşamalar", secenekler: IMALAT_GRUPLARI.map((g) => ({ d: g, e: g })), degisti: ciz },
+    { tip: "secim", ad: "gorunum", tumu: "Liste görünümü", secenekler: [{ d: "zaman", e: "Zaman çizelgesi" }], degisti: ciz },
+  ]));
+  const q = (f.q || "").toLocaleLowerCase("tr");
+  const satirlar = hepsi.filter((i) => (!f.durum || i.durum === f.durum) && (!f.asama || i.asama === f.asama))
+    .filter((i) => !q || (i.ad + " " + cariAdi(i.cariId)).toLocaleLowerCase("tr").includes(q))
+    .sort((a, b) => (a.baslangic || "").localeCompare(b.baslangic || ""));
+
+  if (f.gorunum === "zaman") return k.appendChild(zamanCizelgesi(satirlar));
+
+  k.appendChild(el("div", { class: "kart" }, el("div", { class: "kart-govde", style: "padding:0" }, tabloCiz({
+    sutunlar: [
+      { baslik: "İş", hucre: (i) => "<b>" + kacir(i.ad) + "</b><br><span class='kucuk-yazi'>" + kacir(i.asama || "") + "</span>" },
+      { baslik: "Yapan", hucre: (i) => kacir(cariAdi(i.cariId)) + (i.sorumlu ? "<br><span class='kucuk-yazi'>" + kacir(i.sorumlu) + "</span>" : "") },
+      aktifProjeId() === "*" ? { baslik: "Proje", hucre: (i) => kacir(projeAdi(i.projeId)) } : null,
+      { baslik: "Tarih", hucre: (i) => {
+          const gec = i.bitis && i.bitis < bugun() && i.durum !== "tamam" && i.durum !== "iptal";
+          return tarih(i.baslangic) + " → " + (gec ? '<span class="rz kirmizi">' + tarih(i.bitis) + "</span>" : tarih(i.bitis));
+        } },
+      { baslik: "İlerleme", hucre: (i) => ilerlemeCubuk(i.ilerleme, sayi(i.ilerleme) >= 100 ? "yesil" : (i.bitis && i.bitis < bugun() && i.durum !== "tamam" ? "kirmizi" : "")) },
+      { baslik: "Öncelik", hucre: (i) => rozet(ONCELIK, i.oncelik) },
+      { baslik: "Durum", hucre: (i) => rozet(IS_DURUMU, i.durum) },
+      { baslik: "", sinif: "islem", hucre: (i) => islemDugmeleri(
+          () => isFormu(i),
+          () => onayAl("İş silinsin mi?", () => { sil("isler", i.id); ciz(); }),
+          [i.durum !== "tamam" ? el("button", { class: "btn kucuk", type: "button", onclick: () => { guncelle("isler", i.id, { durum: "tamam", ilerleme: 100, gercekBitis: bugun() }); bildir("İş tamamlandı.", "basari"); ciz(); } }, "Bitir") : null]) },
+    ].filter(Boolean), satirlar, bosMesaj: "İş kaydı yok.",
+    bosEk: el("button", { class: "btn ana", type: "button", onclick: () => isFormu() }, "+ İlk işi ekle"),
+  }))));
+};
+function zamanCizelgesi(isler) {
+  const kart = el("div", { class: "kart" }, el("div", { class: "kart-bas" }, el("h2", { text: "Zaman Çizelgesi" })));
+  const govde = el("div", { class: "kart-govde", style: "padding:0" });
+  kart.appendChild(govde);
+  const tarihli = isler.filter((i) => i.baslangic);
+  if (!tarihli.length) { govde.appendChild(el("div", { class: "bos" }, el("b", { text: "Tarihli iş yok." }))); return kart; }
+  const bas = tarihli.reduce((m, i) => (i.baslangic < m ? i.baslangic : m), tarihli[0].baslangic);
+  const son = tarihli.reduce((m, i) => ((i.bitis || i.baslangic) > m ? (i.bitis || i.baslangic) : m), tarihli[0].bitis || tarihli[0].baslangic);
+  const toplamGun = Math.max(1, gunFarki(bas, son));
+  govde.appendChild(tabloCiz({
+    sutunlar: [
+      { baslik: "İş", hucre: (i) => kacir(i.ad) },
+      { baslik: "Taşeron", hucre: (i) => kacir(cariAdi(i.cariId)) },
+      { baslik: tarih(bas) + " → " + tarih(son), hucre: (i) => {
+          const b = Math.max(0, gunFarki(bas, i.baslangic));
+          const u = Math.max(1, gunFarki(i.baslangic, i.bitis || i.baslangic));
+          const gec = i.bitis && i.bitis < bugun() && i.durum !== "tamam" && i.durum !== "iptal";
+          const sinif = i.durum === "tamam" ? "bitti" : gec ? "gecikmis" : "";
+          return '<div class="zaman-cubuk ' + sinif + '"><i style="left:' + (b / toplamGun * 100) + "%;width:" + Math.max(2, u / toplamGun * 100) + '%"></i></div>';
+        } },
+      { baslik: "%", sinif: "sag", hucre: (i) => Math.round(sayi(i.ilerleme)) + "%" },
+    ], satirlar: tarihli,
+  }));
+  return kart;
+}
+
+/* =====================  RAPORLAR  ===================== */
+SAYFALAR.raporlar = (k) => {
+  const pid = aktifProjeId();
+  k.appendChild(sayfaBas("Raporlar", pid === "*" ? "Tüm projeler" : projeAdi(pid), [
+    el("button", { class: "btn", type: "button", onclick: () => window.print() }, "Yazdır / PDF"),
+  ]));
+  const sekme = DURUM.filtre.rapor || "maliyet";
+  const sekmeler = [
+    { d: "maliyet", e: "Maliyet Analizi" },
+    { d: "cari", e: "Cari Bakiye Listesi" },
+    { d: "nakit", e: "Aylık Nakit Akışı" },
+    { d: "hakedis", e: "Hakediş Özeti" },
+  ];
+  k.appendChild(el("div", { class: "sekmeler" }, ...sekmeler.map((s) =>
+    el("button", { type: "button", class: sekme === s.d ? "aktif" : "", onclick: () => { DURUM.filtre.rapor = s.d; ciz(); } }, s.e))));
+
+  if (sekme === "maliyet") {
+    if (pid === "*") { k.appendChild(el("div", { class: "kart" }, el("div", { class: "bos" }, el("b", { text: "Maliyet analizi için tek bir proje seçin." })))); return; }
+    const o = projeOzet(pid);
+    const butceG = {}, gercekG = {};
+    tablo("kalemler").filter((x) => x.projeId === pid).forEach((x) => { const g = x.grup || "Diğer"; butceG[g] = (butceG[g] || 0) + kalemTutar(x); });
+    tablo("hakedisler").filter((h) => h.projeId === pid).forEach((h) => { const g = (bul("sozlesmeler", h.sozlesmeId) || {}).grup || "Diğer"; gercekG[g] = (gercekG[g] || 0) + hakedisHesapla(h).net; });
+    tablo("siparisler").filter((s) => s.projeId === pid && s.durum !== "iptal").forEach((s) => { const g = s.grup || "Diğer"; gercekG[g] = (gercekG[g] || 0) + siparisTutar(s); });
+    tablo("masraflar").filter((m) => m.projeId === pid).forEach((m) => { const g = m.grup || "Genel Giderler"; gercekG[g] = (gercekG[g] || 0) + sayi(m.tutar); });
+    const satirlar = [...new Set([...Object.keys(butceG), ...Object.keys(gercekG)])].map((g) => ({
+      g, b: butceG[g] || 0, r: gercekG[g] || 0, fark: (butceG[g] || 0) - (gercekG[g] || 0),
+    })).sort((a, b) => b.r - a.r);
+    k.appendChild(el("div", { class: "izgara i4", style: "margin-bottom:14px" },
+      kutuCiz("Bütçe", para(o.butce)), kutuCiz("Gerçekleşen", para(o.gerceklesen), "", "vurgulu"),
+      kutuCiz("Fark", para(o.butce - o.gerceklesen), o.butce ? "%" + Math.round((o.butce - o.gerceklesen) / o.butce * 100) + " kalan" : ""),
+      kutuCiz("Ödenen / Borç", para(o.odenen), "Borç " + para(o.borc))));
+    k.appendChild(el("div", { class: "kart" }, el("div", { class: "kart-govde", style: "padding:0" }, tabloCiz({
+      sutunlar: [
+        { baslik: "İmalat Grubu", hucre: (x) => kacir(x.g) },
+        { baslik: "Bütçe", sinif: "sag", anahtar: "b", hucre: (x) => para(x.b) },
+        { baslik: "Gerçekleşen", sinif: "sag", anahtar: "r", hucre: (x) => para(x.r) },
+        { baslik: "Fark", sinif: "sag", anahtar: "fark", hucre: (x) => (x.fark < 0 ? '<span class="rz kirmizi">' + para(x.fark) + "</span>" : para(x.fark)) },
+        { baslik: "Kullanım", hucre: (x) => ilerlemeCubuk(x.b ? x.r / x.b * 100 : 0, x.b && x.r > x.b ? "kirmizi" : "") },
+      ], satirlar, bosMesaj: "Veri yok.",
+      altToplam: satirlar.length ? { b: "<b>" + para(toplam(satirlar, (x) => x.b)) + "</b>", r: "<b>" + para(toplam(satirlar, (x) => x.r)) + "</b>", fark: "<b>" + para(toplam(satirlar, (x) => x.fark)) + "</b>" } : null,
+    }))));
+  }
+
+  if (sekme === "cari") {
+    const p = pid === "*" ? "" : pid;
+    const satirlar = tablo("cariler").map((c) => ({ c, o: cariOzet(c.id, p) })).filter((x) => x.o.alacak || x.o.odenen)
+      .sort((a, b) => b.o.bakiye - a.o.bakiye);
+    k.appendChild(el("div", { class: "kart" }, el("div", { class: "kart-govde", style: "padding:0" }, tabloCiz({
+      sutunlar: [
+        { baslik: "Cari", hucre: (x) => "<b>" + kacir(x.c.ad) + "</b>" },
+        { baslik: "Tür", hucre: (x) => rozet(CARI_TURU, x.c.tur) },
+        { baslik: "Hakediş", sinif: "sag", anahtar: "h", hucre: (x) => para(toplam(x.o.hakedisler, hakedisNet)) },
+        { baslik: "Sipariş", sinif: "sag", anahtar: "s", hucre: (x) => para(toplam(x.o.siparisler, siparisTutar)) },
+        { baslik: "Toplam Alacağı", sinif: "sag", anahtar: "a", hucre: (x) => para(x.o.alacak) },
+        { baslik: "Ödenen", sinif: "sag", anahtar: "o", hucre: (x) => para(x.o.odenen) },
+        { baslik: "Bakiye", sinif: "sag", anahtar: "b", hucre: (x) => "<b>" + para(x.o.bakiye) + "</b>" },
+      ], satirlar, bosMesaj: "Cari hareketi yok.",
+      altToplam: satirlar.length ? {
+        h: para(toplam(satirlar, (x) => toplam(x.o.hakedisler, hakedisNet))),
+        s: para(toplam(satirlar, (x) => toplam(x.o.siparisler, siparisTutar))),
+        a: para(toplam(satirlar, (x) => x.o.alacak)), o: para(toplam(satirlar, (x) => x.o.odenen)),
+        b: "<b>" + para(toplam(satirlar, (x) => x.o.bakiye)) + "</b>",
+      } : null,
+    }))));
+  }
+
+  if (sekme === "nakit") {
+    const ay = {};
+    const koy = (t, alan, v) => { if (!t) return; const a = t.slice(0, 7); (ay[a] = ay[a] || { hakedis: 0, siparis: 0, masraf: 0, odeme: 0 })[alan] += sayi(v); };
+    kapsam("hakedisler").forEach((h) => koy(h.tarih, "hakedis", hakedisNet(h)));
+    kapsam("siparisler").filter((s) => s.durum !== "iptal").forEach((s) => koy(s.siparisTarihi, "siparis", siparisTutar(s)));
+    kapsam("masraflar").forEach((m) => koy(m.tarih, "masraf", m.tutar));
+    kapsam("odemeler").forEach((o) => koy(o.tarih, "odeme", o.tutar));
+    const satirlar = Object.entries(ay).sort((a, b) => a[0].localeCompare(b[0])).map(([a, v]) => Object.assign({ ay: a }, v, { maliyet: v.hakedis + v.siparis + v.masraf }));
+    let kum = 0; satirlar.forEach((s) => { kum += s.odeme; s.kumulatif = kum; });
+    k.appendChild(el("div", { class: "kart" }, el("div", { class: "kart-govde", style: "padding:0" }, tabloCiz({
+      sutunlar: [
+        { baslik: "Ay", hucre: (s) => s.ay.split("-").reverse().join(".") },
+        { baslik: "Hakediş", sinif: "sag", anahtar: "h", hucre: (s) => para(s.hakedis) },
+        { baslik: "Sipariş", sinif: "sag", anahtar: "s", hucre: (s) => para(s.siparis) },
+        { baslik: "Masraf", sinif: "sag", anahtar: "m", hucre: (s) => para(s.masraf) },
+        { baslik: "Toplam Maliyet", sinif: "sag", anahtar: "t", hucre: (s) => "<b>" + para(s.maliyet) + "</b>" },
+        { baslik: "Ödeme (nakit çıkış)", sinif: "sag", anahtar: "o", hucre: (s) => para(s.odeme) },
+        { baslik: "Kümülatif Ödeme", sinif: "sag", hucre: (s) => para(s.kumulatif) },
+      ], satirlar, bosMesaj: "Hareket yok.",
+      altToplam: satirlar.length ? {
+        h: para(toplam(satirlar, (s) => s.hakedis)), s: para(toplam(satirlar, (s) => s.siparis)),
+        m: para(toplam(satirlar, (s) => s.masraf)), t: "<b>" + para(toplam(satirlar, (s) => s.maliyet)) + "</b>",
+        o: "<b>" + para(toplam(satirlar, (s) => s.odeme)) + "</b>",
+      } : null,
+    }))));
+  }
+
+  if (sekme === "hakedis") {
+    const satirlar = kapsam("hakedisler").sort((a, b) => (a.tarih || "").localeCompare(b.tarih || ""));
+    k.appendChild(el("div", { class: "kart" }, el("div", { class: "kart-govde", style: "padding:0" }, tabloCiz({
+      sutunlar: [
+        { baslik: "Tarih", hucre: (h) => tarih(h.tarih) },
+        { baslik: "No", hucre: (h) => kacir(h.no || "-") },
+        { baslik: "Cari", hucre: (h) => kacir(cariAdi(h.cariId)) },
+        { baslik: "Sözleşme", hucre: (h) => kacir((bul("sozlesmeler", h.sozlesmeId) || {}).konu || "—") },
+        { baslik: "Brüt", sinif: "sag", anahtar: "b", hucre: (h) => para(hakedisHesapla(h).brut) },
+        { baslik: "Teminat", sinif: "sag", anahtar: "t", hucre: (h) => para(hakedisHesapla(h).teminat) },
+        { baslik: "Stopaj", sinif: "sag", anahtar: "s", hucre: (h) => para(hakedisHesapla(h).stopaj) },
+        { baslik: "Net", sinif: "sag", anahtar: "n", hucre: (h) => "<b>" + para(hakedisNet(h)) + "</b>" },
+        { baslik: "Durum", hucre: (h) => rozet(HAKEDIS_DURUMU, h.durum) },
+      ], satirlar, bosMesaj: "Hakediş yok.",
+      altToplam: satirlar.length ? {
+        b: para(toplam(satirlar, (h) => hakedisHesapla(h).brut)), t: para(toplam(satirlar, (h) => hakedisHesapla(h).teminat)),
+        s: para(toplam(satirlar, (h) => hakedisHesapla(h).stopaj)), n: "<b>" + para(toplam(satirlar, hakedisNet)) + "</b>",
+      } : null,
+    }))));
+  }
+};
+
+/* =====================  AYARLAR / YEDEK  ===================== */
+SAYFALAR.ayarlar = (k) => {
+  k.appendChild(sayfaBas("Ayarlar / Yedek", "Veriler bu tarayıcıda saklanır. Düzenli olarak yedek alın."));
+  const say = ["projeler", "cariler", "kalemler", "sozlesmeler", "hakedisler", "odemeler", "siparisler", "isler", "masraflar"];
+  k.appendChild(el("div", { class: "izgara i2" },
+    el("div", { class: "kart" },
+      el("div", { class: "kart-bas" }, el("h2", { text: "Firma Bilgisi" })),
+      el("div", { class: "kart-govde" }, (() => {
+        const g = el("input", { value: VERI.ayar.firmaAdi || "", placeholder: "Firma adınız" });
+        g.style.cssText = "border:1px solid var(--cizgi);border-radius:7px;padding:8px 10px;width:100%";
+        g.addEventListener("change", () => { VERI.ayar.firmaAdi = g.value.trim(); kaydet(); ciz(); bildir("Kaydedildi.", "basari"); });
+        return el("div", { class: "alan" }, el("label", { text: "Firma / Ünvan" }), g,
+          el("div", { class: "ipucu", text: "Üst bantta ve raporlarda görünür." }));
+      })())),
+    el("div", { class: "kart" },
+      el("div", { class: "kart-bas" }, el("h2", { text: "Kayıt Sayıları" })),
+      el("div", { class: "kart-govde" }, el("table", { class: "mini-tablo", style: "width:100%" },
+        ...say.map((t) => el("tr", {}, el("td", { text: t.charAt(0).toLocaleUpperCase("tr") + t.slice(1) }), el("td", { text: String(tablo(t).length) })))))),
+    el("div", { class: "kart" },
+      el("div", { class: "kart-bas" }, el("h2", { text: "Yedekleme" })),
+      el("div", { class: "kart-govde" },
+        el("p", { class: "kucuk-yazi", text: "Tüm verinizi JSON dosyası olarak indirin; başka bilgisayarda aynı dosyayı yükleyerek devam edin." }),
+        el("div", { class: "satir-arasi", style: "margin-top:10px" },
+          el("button", { class: "btn ana", type: "button", onclick: yedekIndir }, "Yedek indir (JSON)"),
+          el("button", { class: "btn", type: "button", onclick: yedekYukle }, "Yedekten yükle"),
+          el("button", { class: "btn", type: "button", onclick: csvDisaAktar }, "CSV dışa aktar")))),
+    el("div", { class: "kart" },
+      el("div", { class: "kart-bas" }, el("h2", { text: "Veri" })),
+      el("div", { class: "kart-govde" },
+        el("p", { class: "kucuk-yazi", text: "Örnek veri programı denemek içindir; mevcut verinin üzerine eklenir." }),
+        el("div", { class: "satir-arasi", style: "margin-top:10px" },
+          el("button", { class: "btn", type: "button", onclick: ornekVeriYukle }, "Örnek veri yükle"),
+          el("button", { class: "btn tehlike", type: "button", onclick: () => onayAl("TÜM veriler silinecek. Bu işlem geri alınamaz. Devam edilsin mi?", () => { VERI = BOS_VERI(); localStorage.removeItem(ANAHTAR); kaydet(); bildir("Tüm veriler silindi."); git("panel"); }) }, "Tüm veriyi sil"))))));
+};
+function yedekIndir() {
+  const b = new Blob([JSON.stringify(VERI, null, 2)], { type: "application/json" });
+  const a = el("a", { href: URL.createObjectURL(b), download: "villa-yonetim-yedek-" + bugun() + ".json" });
+  document.body.appendChild(a); a.click(); a.remove();
+  bildir("Yedek indirildi.", "basari");
+}
+function yedekYukle() {
+  const g = el("input", { type: "file", accept: ".json,application/json" });
+  g.addEventListener("change", () => {
+    const d = g.files[0]; if (!d) return;
+    const o = new FileReader();
+    o.onload = () => {
+      try {
+        const veri = JSON.parse(o.result);
+        if (!veri || typeof veri !== "object" || !("projeler" in veri)) throw new Error("Geçersiz yedek dosyası.");
+        onayAl("Mevcut veriler yedekteki verilerle değiştirilecek. Devam edilsin mi?", () => {
+          VERI = Object.assign(BOS_VERI(), veri);
+          VERI.ayar = Object.assign(BOS_VERI().ayar, veri.ayar || {});
+          kaydet(); bildir("Yedek yüklendi.", "basari"); git("panel");
+        });
+      } catch (e) { bildir("Yedek okunamadı: " + e.message, "hata"); }
+    };
+    o.readAsText(d);
+  });
+  g.click();
+}
+function csvDisaAktar() {
+  const pid = aktifProjeId();
+  const satirlar = [["Tür", "Tarih", "Proje", "Cari", "Açıklama", "Tutar"]];
+  kapsam("hakedisler").forEach((h) => satirlar.push(["Hakediş", h.tarih || "", projeAdi(h.projeId), cariAdi(h.cariId), "No " + (h.no || ""), hakedisNet(h).toFixed(2)]));
+  kapsam("siparisler").filter((s) => s.durum !== "iptal").forEach((s) => satirlar.push(["Sipariş", s.siparisTarihi || "", projeAdi(s.projeId), cariAdi(s.cariId), s.malzeme || "", siparisTutar(s).toFixed(2)]));
+  kapsam("masraflar").forEach((m) => satirlar.push(["Masraf", m.tarih || "", projeAdi(m.projeId), "", m.ad || "", sayi(m.tutar).toFixed(2)]));
+  kapsam("odemeler").forEach((o) => satirlar.push(["Ödeme", o.tarih || "", projeAdi(o.projeId), cariAdi(o.cariId), o.aciklama || "", sayi(o.tutar).toFixed(2)]));
+  const csv = "﻿" + satirlar.map((r) => r.map((h) => '"' + String(h).replace(/"/g, '""') + '"').join(";")).join("\n");
+  const b = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const a = el("a", { href: URL.createObjectURL(b), download: "maliyet-hareketleri-" + bugun() + ".csv" });
+  document.body.appendChild(a); a.click(); a.remove();
+  bildir("CSV indirildi.", "basari");
+}
+
+/* =====================  ÖRNEK VERİ  ===================== */
+function ornekVeriYukle() {
+  const g = (gun) => { const d = new Date(); d.setDate(d.getDate() + gun); return d.toISOString().slice(0, 10); };
+  const proje = ekle("projeler", {
+    ad: "Çeşme Deniz Villası", musteri: "Yıldırım Ailesi", tip: "villa",
+    adres: "Çeşme / İzmir", arsaAlani: 850, insaatAlani: 320,
+    baslangic: g(-120), bitis: g(180), hedefButce: 14500000, satisBedeli: 22000000,
+    durum: "devam", sorumlu: "Ali Gökten", notlar: "Anahtar teslim, havuzlu müstakil villa.",
+  });
+  const c = {};
+  [["Demir Yapı İnşaat Ltd.", "taseron", "Kaba Yapı - Betonarme", "Mehmet Demir", "0532 111 22 33"],
+   ["Ege Hazır Beton A.Ş.", "tedarikci", "Kaba Yapı - Betonarme", "Satış Departmanı", "0232 444 55 66"],
+   ["Usta Sıva & Alçı", "taseron", "Duvar ve Sıva", "Hasan Usta", "0541 222 33 44"],
+   ["Akın Elektrik", "taseron", "Elektrik Tesisatı", "Serkan Akın", "0533 777 88 99"],
+   ["Deniz Mekanik Tesisat", "taseron", "Mekanik Tesisat", "Kemal Deniz", "0535 333 44 55"],
+   ["Ahmet Yılmaz (Kalıpçı)", "isci", "Kaba Yapı - Betonarme", "", "0544 123 45 67"],
+   ["Batı Nakliyat", "nakliye", "Hafriyat ve Zemin", "Osman Bey", "0538 909 10 11"],
+   ["Marmara Doğrama", "tedarikci", "Kapı ve Pencere (Doğrama)", "Fatih Kara", "0212 555 66 77"],
+  ].forEach(([ad, tur, uzmanlik, yetkili, telefon]) => { c[ad] = ekle("cariler", { ad, tur, uzmanlik, yetkili, telefon, gunlukUcret: tur === "isci" ? 2200 : 0 }).id; });
+
+  [["Hafriyat ve Zemin", "Kazı ve hafriyat nakli", "m³", 850, 420],
+   ["Kaba Yapı - Betonarme", "C30 hazır beton", "m³", 340, 3200],
+   ["Kaba Yapı - Betonarme", "Nervürlü inşaat demiri", "ton", 38, 24500],
+   ["Kaba Yapı - Betonarme", "Kalıp ve demir işçiliği", "m²", 1450, 950],
+   ["Duvar ve Sıva", "Tuğla duvar örümü", "m²", 620, 480],
+   ["Duvar ve Sıva", "İç sıva + alçı", "m²", 1850, 320],
+   ["Yalıtım", "Mantolama (dış cephe)", "m²", 480, 850],
+   ["Mekanik Tesisat", "Sıhhi tesisat + yerden ısıtma", "götürü", 1, 1250000],
+   ["Elektrik Tesisatı", "Elektrik tesisatı komple", "götürü", 1, 780000],
+   ["Kapı ve Pencere (Doğrama)", "PVC/alüminyum doğrama", "m²", 92, 9500],
+   ["Zemin Kaplama", "Seramik + parke", "m²", 310, 1450],
+   ["Havuz ve Peyzaj", "Havuz ve peyzaj işleri", "götürü", 1, 1450000],
+  ].forEach(([grup, ad, birim, miktar, birimFiyat]) => ekle("kalemler", { projeId: proje.id, grup, ad, birim, miktar, birimFiyat }));
+
+  const s1 = ekle("sozlesmeler", { projeId: proje.id, cariId: c["Demir Yapı İnşaat Ltd."], konu: "Kaba yapı betonarme işleri", grup: "Kaba Yapı - Betonarme", tutar: 4200000, baslangic: g(-110), bitis: g(-10), teminatOrani: 5, stopajOrani: 3, durum: "tamam" });
+  const s2 = ekle("sozlesmeler", { projeId: proje.id, cariId: c["Usta Sıva & Alçı"], konu: "Duvar örümü, iç sıva ve alçı işleri", grup: "Duvar ve Sıva", tutar: 890000, baslangic: g(-30), bitis: g(60), teminatOrani: 5, stopajOrani: 3, durum: "devam" });
+  const s3 = ekle("sozlesmeler", { projeId: proje.id, cariId: c["Akın Elektrik"], konu: "Elektrik tesisatı komple", grup: "Elektrik Tesisatı", tutar: 780000, baslangic: g(-20), bitis: g(90), teminatOrani: 5, stopajOrani: 0, durum: "devam" });
+  ekle("sozlesmeler", { projeId: proje.id, cariId: c["Deniz Mekanik Tesisat"], konu: "Mekanik tesisat ve yerden ısıtma", grup: "Mekanik Tesisat", tutar: 1250000, baslangic: g(-15), bitis: g(120), teminatOrani: 5, stopajOrani: 0, durum: "devam" });
+
+  const h1 = ekle("hakedisler", { projeId: proje.id, cariId: c["Demir Yapı İnşaat Ltd."], sozlesmeId: s1.id, no: "1", tarih: g(-80), donem: "1. Hakediş - temel ve bodrum", durum: "odendi",
+    satirlar: [{ ad: "Kalıp işçiliği", birim: "m²", miktar: 620, birimFiyat: 950 }, { ad: "Demir işçiliği", birim: "ton", miktar: 16, birimFiyat: 18000 }],
+    kesinti: { teminatOrani: 5, stopajOrani: 3, avans: 0, diger: 0 } });
+  const h2 = ekle("hakedisler", { projeId: proje.id, cariId: c["Demir Yapı İnşaat Ltd."], sozlesmeId: s1.id, no: "2", tarih: g(-35), donem: "2. Hakediş - kat betonları", durum: "onayli",
+    satirlar: [{ ad: "Kalıp işçiliği", birim: "m²", miktar: 830, birimFiyat: 950 }, { ad: "Demir işçiliği", birim: "ton", miktar: 22, birimFiyat: 18000 }],
+    kesinti: { teminatOrani: 5, stopajOrani: 3, avans: 100000, diger: 0 } });
+  ekle("hakedisler", { projeId: proje.id, cariId: c["Usta Sıva & Alçı"], sozlesmeId: s2.id, no: "1", tarih: g(-8), donem: "Duvar örümü 1. etap", durum: "onayda",
+    satirlar: [{ ad: "Tuğla duvar", birim: "m²", miktar: 380, birimFiyat: 480 }],
+    kesinti: { teminatOrani: 5, stopajOrani: 3, avans: 0, diger: 0 } });
+
+  ekle("odemeler", { projeId: proje.id, cariId: c["Demir Yapı İnşaat Ltd."], hakedisId: h1.id, tarih: g(-75), tutar: hakedisNet(h1), yontem: "Havale/EFT", aciklama: "1 No.lu hakediş ödemesi" });
+  ekle("odemeler", { projeId: proje.id, cariId: c["Demir Yapı İnşaat Ltd."], tarih: g(-60), tutar: 100000, yontem: "Havale/EFT", aciklama: "Avans" });
+  ekle("odemeler", { projeId: proje.id, cariId: c["Ege Hazır Beton A.Ş."], tarih: g(-50), tutar: 500000, yontem: "Çek", aciklama: "Beton ara ödemesi" });
+
+  [["C30 hazır beton", "Kaba Yapı - Betonarme", "Ege Hazır Beton A.Ş.", "m³", 180, 3200, g(-90), g(-88), "teslim"],
+   ["Nervürlü inşaat demiri", "Kaba Yapı - Betonarme", "Ege Hazır Beton A.Ş.", "ton", 22, 24500, g(-85), g(-80), "teslim"],
+   ["Hafriyat nakli", "Hafriyat ve Zemin", "Batı Nakliyat", "m³", 850, 420, g(-118), g(-110), "teslim"],
+   ["PVC doğrama imalatı", "Kapı ve Pencere (Doğrama)", "Marmara Doğrama", "m²", 92, 9500, g(-10), g(25), "siparis"],
+   ["Mantolama malzemesi (EPS)", "Yalıtım", "Ege Hazır Beton A.Ş.", "m²", 480, 260, g(-5), g(-1), "yolda"],
+  ].forEach(([malzeme, grup, cari, birim, miktar, birimFiyat, siparisTarihi, teslimTarihi, durum]) =>
+    ekle("siparisler", { projeId: proje.id, cariId: c[cari], malzeme, grup, birim, miktar, birimFiyat, siparisTarihi, teslimTarihi, durum, teslimAlinan: durum === "teslim" ? miktar : 0 }));
+
+  [["Hafriyat ve zemin iyileştirme", "Hafriyat ve Zemin", "Batı Nakliyat", g(-118), g(-105), 100, "tamam"],
+   ["Temel betonarme", "Kaba Yapı - Betonarme", "Demir Yapı İnşaat Ltd.", g(-104), g(-80), 100, "tamam"],
+   ["Kat betonarme imalatları", "Kaba Yapı - Betonarme", "Demir Yapı İnşaat Ltd.", g(-79), g(-20), 100, "tamam"],
+   ["Duvar örümü", "Duvar ve Sıva", "Usta Sıva & Alçı", g(-30), g(-3), 75, "devam"],
+   ["Elektrik tesisat kaba işleri", "Elektrik Tesisatı", "Akın Elektrik", g(-20), g(15), 45, "devam"],
+   ["Mekanik tesisat kaba işleri", "Mekanik Tesisat", "Deniz Mekanik Tesisat", g(-15), g(30), 30, "devam"],
+   ["Dış cephe mantolama", "Yalıtım", "", g(20), g(70), 0, "bekliyor"],
+   ["Doğrama montajı", "Kapı ve Pencere (Doğrama)", "Marmara Doğrama", g(30), g(55), 0, "bekliyor"],
+   ["Havuz imalatı", "Havuz ve Peyzaj", "", g(60), g(140), 0, "bekliyor"],
+  ].forEach(([ad, asama, cari, baslangic, bitis, ilerleme, durum]) =>
+    ekle("isler", { projeId: proje.id, ad, asama, cariId: c[cari] || "", baslangic, bitis, ilerleme, durum, oncelik: "normal" }));
+
+  ekle("masraflar", { projeId: proje.id, tarih: g(-130), ad: "Ruhsat ve harçlar", grup: "Arsa ve Ruhsat", tutar: 185000 });
+  ekle("masraflar", { projeId: proje.id, tarih: g(-100), ad: "Şantiye kurulumu ve elektrik aboneliği", grup: "Genel Giderler", tutar: 96000 });
+  ekle("masraflar", { projeId: proje.id, tarih: g(-20), ad: "Şantiye yakıt ve genel giderler", grup: "Genel Giderler", tutar: 42000 });
+
+  VERI.ayar.aktifProje = proje.id;
+  kaydet();
+  bildir("Örnek veri yüklendi.", "basari");
+  git("panel");
+}
+
+/* =====================  BAŞLAT  ===================== */
+yukle();
+if (!location.hash) location.hash = "#panel";
+ciz();
+</script>
+</body>
+</html>
